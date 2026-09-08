@@ -14,6 +14,7 @@ const MAX_JSON_BYTES = 32_768;
 const MAX_WEBHOOK_BYTES = 1_048_576;
 const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
 const PAYMENT_GRACE_DAYS = 7;
+const APP_ACCOUNT_ID_TOKEN = "__BOTD_ACCOUNT_ID__";
 
 class AppError extends Error {
   constructor(status, code, message, expose = true) {
@@ -176,7 +177,7 @@ function handleHealth(env) {
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
     service: "botd-app-staging",
-    version: "6.8-entitlement-rc1",
+    version: "6.8-entitlement-rc2",
     mode: "staging-test-only",
     checks,
     now: new Date().toISOString(),
@@ -653,19 +654,58 @@ async function serveProtectedApplication(request, env) {
     return redirectResponse(`${getAppUrl(env)}/?next=app`, clearSessionCookies());
   }
 
+  const requestedAccountId = new URL(request.url).searchParams.get("account");
+  if (
+    requestedAccountId &&
+    requestedAccountId.toLowerCase() !== String(session.user.id).toLowerCase()
+  ) {
+    throw new AppError(
+      409,
+      "account_context_mismatch",
+      "Reload the application to use the current signed-in account.",
+    );
+  }
+
   const allowed = await userHasCoachProAccess(session.user.id, env, session.accessToken);
   if (!allowed) {
     return redirectResponse(`${getAppUrl(env)}/?access=required`, session.cookieHeaders);
   }
 
-  const body = request.method === "HEAD" ? null : APP_HTML;
+  const body = request.method === "HEAD"
+    ? null
+    : renderAccountScopedApplication(APP_HTML, session.user.id);
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "private, no-store, max-age=0",
     Pragma: "no-cache",
+    "X-BOTD-Storage-Isolation": "account-scoped-v1",
   });
   appendCookies(headers, session.cookieHeaders);
   return new Response(body, { status: 200, headers });
+}
+
+function renderAccountScopedApplication(template, userId) {
+  if (!isUuid(userId)) {
+    throw new AppError(
+      500,
+      "invalid_account_context",
+      "The application could not establish an account storage context.",
+      false,
+    );
+  }
+
+  const first = template.indexOf(APP_ACCOUNT_ID_TOKEN);
+  const last = template.lastIndexOf(APP_ACCOUNT_ID_TOKEN);
+  if (first < 0 || first !== last) {
+    throw new AppError(
+      500,
+      "invalid_application_template",
+      "The protected application template is not configured for account storage isolation.",
+      false,
+    );
+  }
+
+  return template.replace(APP_ACCOUNT_ID_TOKEN, userId.toLowerCase());
 }
 
 async function servePublicAsset(request, env, path) {

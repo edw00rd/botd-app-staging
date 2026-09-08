@@ -1,33 +1,58 @@
-# Release candidate 1: staging accounts and billing entitlement
+# Release candidate 2: account-scoped browser storage
 
-This package is the first staging-only integration of B.O.T.D. Hockey Playbook
-Studio v6.8 with Supabase authentication and Stripe subscriptions.
+RC2 fixes the multi-account browser-storage defect found during staging
+acceptance testing while retaining the RC1 authentication, billing, webhook,
+and entitlement architecture.
 
-## Added
+## Fixed
 
-- account creation, email confirmation, sign-in, sign-out, and password reset
-- secure HTTP-only Supabase session cookies
-- separate monthly and annual Stripe test Checkout Sessions
-- verified Stripe webhook processing with event idempotency
-- one `coach_pro` entitlement shared by both billing intervals
-- Stripe Customer Portal entry point
-- server-side entitlement enforcement before v6.8 is delivered
-- seven-day failed-payment grace period
-- staging-only Stripe and database safety locks
-- canonical redirect to `https://staging.botdhockey.com`
+- Local working-session data is now scoped to the authenticated Supabase user.
+- Local playbook data is now scoped to the authenticated Supabase user.
+- The Worker injects the server-verified account ID into the protected v6.8
+  template only after validating the session and `coach_pro` entitlement.
+- A protected-app request whose account query does not match the authenticated
+  session is rejected.
+- The account shell unloads the protected iframe on sign-out, account change,
+  password-recovery mode, or loss of entitlement.
 
-## Preserved
+## Storage format
 
-The v6.8 application payload is byte-for-byte unchanged from the supplied
-release candidate. Existing staging browser storage remains on the same custom
-domain and therefore remains available to the protected application.
+RC2 uses:
 
-## Not included yet
+```text
+botdHockeyCoachingAid.user.<supabase-user-id>.session.v6_8
+botdHockeyCoachingAid.user.<supabase-user-id>.playbook.v6_8
+```
+
+It no longer reads the unscoped RC1 keys during normal application startup.
+This prevents account B from automatically loading account A's local playbook
+when both accounts use the same browser profile.
+
+## Migration behavior
+
+RC1 shared data is not automatically assigned to an account because ownership
+is ambiguous after more than one account has used the browser. Export wanted
+staging data before deployment and import it into the intended account after
+RC2 is live.
+
+A user-confirmed legacy-data claim flow remains required before production
+cutover.
+
+## Unchanged
+
+- v6.8 product features and file format
+- Supabase schema and RLS policies
+- monthly and annual Stripe test prices
+- webhook endpoint and signing secret
+- Stripe Customer Portal configuration
+- Cloudflare Access rules and DNS
+- seven-day failed-payment grace logic
+
+## Still not included
 
 - production/live Stripe configuration
-- migration of live purchasers into customer accounts
+- migration of existing live purchasers into customer accounts
 - cloud-synchronized playbooks or share links
-- self-service switching between monthly and annual billing
+- production legacy-playbook claim flow
+- self-service monthly/annual plan switching
 - company-controlled production SMTP
-
-Those items follow only after this release passes staging acceptance tests.

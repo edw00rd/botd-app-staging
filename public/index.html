@@ -190,13 +190,20 @@ Proprietary software. No source-code license is granted.
 
     let account = null;
     let pendingEmail = sessionStorage.getItem("botd.pendingEmail") || "";
-    let appLoaded = false;
+    let loadedAppAccountId = null;
 
     function showOnly(view) {
       for (const id of ["loadingView","authView","plansView","recoveryView","appView"]) {
         elements[id].classList.toggle("hidden", id !== view);
       }
       document.getElementById("mainContent").classList.toggle("hidden", view === "appView");
+    }
+
+    function unloadProtectedApp() {
+      if (loadedAppAccountId !== null || elements.appFrame.hasAttribute("src")) {
+        elements.appFrame.removeAttribute("src");
+      }
+      loadedAppAccountId = null;
     }
 
     function message(text, type = "info") {
@@ -305,6 +312,7 @@ Proprietary software. No source-code license is granted.
       elements.headerMeta.textContent = authenticated ? data.user.email : "";
 
       if (!authenticated) {
+        unloadProtectedApp();
         showOnly("authView");
         elements.billingButton.classList.add("hidden");
         return;
@@ -312,6 +320,7 @@ Proprietary software. No source-code license is granted.
 
       const query = new URLSearchParams(location.search);
       if (query.get("mode") === "recovery") {
+        unloadProtectedApp();
         showOnly("recoveryView");
         elements.billingButton.classList.add("hidden");
         return;
@@ -330,13 +339,14 @@ Proprietary software. No source-code license is granted.
             ? `· Access through ${date}`
             : `· Renews ${date}`
           : "";
-        if (!appLoaded) {
-          elements.appFrame.src = "/protected/app.html";
-          appLoaded = true;
+        if (loadedAppAccountId !== data.user.id) {
+          elements.appFrame.src = `/protected/app.html?account=${encodeURIComponent(data.user.id)}`;
+          loadedAppAccountId = data.user.id;
         }
         return;
       }
 
+      unloadProtectedApp();
       showOnly("plansView");
       elements.plansIdentity.textContent = `Signed in as ${data.user.email}`;
       const problem = data.subscriptions?.find(item => ["past_due","unpaid","incomplete"].includes(item.status));
@@ -515,6 +525,7 @@ Proprietary software. No source-code license is granted.
 
     elements.signoutButton.addEventListener("click", async () => {
       setBusy(elements.signoutButton, true);
+      unloadProtectedApp();
       try { await api("/api/auth/signout", { method:"POST", body:{} }); } catch {}
       sessionStorage.removeItem("botd.pendingEmail");
       location.assign("/");

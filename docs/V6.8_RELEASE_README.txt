@@ -5,6 +5,13 @@ Application: https://app.botdhockey.com/
 Terms: https://botdhockey.com/terms/
 Support: support@botdhockey.com
 
+Staging RC2 integration note
+----------------------------
+This document originated with the standalone v6.8 application release. In the
+staging RC2 package, the feature set remains v6.8 but the Worker injects the
+authenticated Supabase user ID and scopes browser storage to that account. The
+RC2 storage and deployment notes below supersede the standalone instructions.
+
 Ownership and licensing
 -----------------------
 Copyright © 2026 FENRIR LLC. All rights reserved.
@@ -74,17 +81,28 @@ Core systems retained
 
 Storage and compatibility
 -------------------------
-Version 6.8 uses these browser-storage keys:
+The authenticated staging RC2 build uses account-scoped browser-storage keys:
 
-  botdHockeyCoachingAid.session.v6_8
-  botdHockeyCoachingAid.playbook.v6_8
+  botdHockeyCoachingAid.user.<supabase-user-id>.session.v6_8
+  botdHockeyCoachingAid.user.<supabase-user-id>.playbook.v6_8
 
-Version 6.7 session and playbook keys are the first migration fallback. The earlier fallback chain remains available.
+Account-scoped Version 6.7 keys are the first future migration fallback. The
+earlier account-scoped fallback chain remains available.
 
-The migration updates the standard playbook name from "BOTD Playbook v6.7" to "BOTD Playbook v6.8" while preserving teams, rosters, play geometry, movement clips, puck routes, events, drawings, Glow/Blink actions, timed Telestration, custom artwork, display preferences, Play Options, and timeline data.
+The unscoped standalone keys used by RC1 are intentionally not loaded in RC2.
+After more than one account has used a browser, the ownership of shared RC1
+data is ambiguous. Export wanted data before deployment and import it into the
+intended account afterward. A separate user-confirmed legacy claim flow is
+required before production cutover.
 
-GitHub Pages installation
--------------------------
+The migration updates the standard playbook name from "BOTD Playbook v6.7" to
+"BOTD Playbook v6.8" while preserving teams, rosters, play geometry, movement
+clips, puck routes, events, drawings, Glow/Blink actions, timed Telestration,
+custom artwork, display preferences, Play Options, and timeline data within the
+same account namespace.
+
+Original standalone GitHub Pages installation (not staging RC2)
+---------------------------------------------------------------
 This domain-ready proprietary release ZIP contains exactly six root files:
 
   index.html
@@ -94,13 +112,11 @@ This domain-ready proprietary release ZIP contains exactly six root files:
   .nojekyll
   CNAME
 
-To publish:
-1. Extract the ZIP.
-2. Place all six files directly in the hockey-coaching-aid repository root or selected GitHub Pages publishing folder.
-3. Commit and push the files.
-4. Configure GitHub Pages for app.botdhockey.com, then open https://app.botdhockey.com/ after deployment and certificate provisioning finish.
-
-The application is self-contained in index.html. It does not require a build step, package manager, external JavaScript library, or application server.
+Those six-file instructions apply only to the archived standalone release. Do
+not use them to deploy this staging RC2 package. RC2 must be deployed through
+the botd-app-staging Cloudflare Worker repository because account context,
+authentication, entitlement enforcement, and template injection are provided by
+src/worker.js.
 
 Validation performed
 --------------------
