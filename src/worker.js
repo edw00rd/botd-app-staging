@@ -8,12 +8,14 @@ import APP_HTML from "../private/app-v6.8.html.txt";
 
 const ACCESS_COOKIE = "__Host-botd_access";
 const REFRESH_COOKIE = "__Host-botd_refresh";
+const RECOVERY_COOKIE = "__Host-botd_recovery";
 const COACH_PRO = "coach_pro";
 const JSON_TYPE = "application/json; charset=utf-8";
 const MAX_JSON_BYTES = 32_768;
 const MAX_WEBHOOK_BYTES = 1_048_576;
 const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
 const PAYMENT_GRACE_DAYS = 7;
+const RECOVERY_COOKIE_MAX_AGE_SECONDS = 30 * 60;
 const APP_ACCOUNT_ID_TOKEN = "__BOTD_ACCOUNT_ID__";
 
 class AppError extends Error {
@@ -177,7 +179,7 @@ function handleHealth(env) {
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
     service: "botd-app-staging",
-    version: "6.8-entitlement-rc2",
+    version: "6.8-entitlement-rc3",
     mode: "staging-test-only",
     checks,
     now: new Date().toISOString(),
@@ -217,8 +219,8 @@ async function handleSignup(request, env) {
   );
 
   const cookies = result.data?.access_token
-    ? sessionCookies(result.data)
-    : [];
+    ? [...sessionCookies(result.data), clearRecoveryCookie()]
+    : [clearRecoveryCookie()];
 
   return jsonResponseWithCookies(
     {
@@ -265,7 +267,7 @@ async function handleSignin(request, env) {
       user: publicUser(result.data.user),
     },
     200,
-    sessionCookies(result.data),
+    [...sessionCookies(result.data), clearRecoveryCookie()],
   );
 }
 
@@ -321,7 +323,10 @@ async function handlePasswordRecovery(request, env) {
   assertSupabaseAuthConfig(env);
   const body = await readJson(request);
   const email = normalizeEmail(body.email);
-  const redirect = `${getAppUrl(env)}/?mode=recovery`;
+  // Supabase's default recovery email redirects with a session in the URL
+  // fragment. Do not pre-mark the page as recovery mode: the shell enters
+  // recovery mode only after that session has been validated and adopted.
+  const redirect = `${getAppUrl(env)}/`;
 
   await supabaseAuthRequest(
     env,
@@ -343,8 +348,12 @@ async function handlePasswordRecovery(request, env) {
 async function handleAdoptSession(request, env) {
   assertSupabaseAuthConfig(env);
   const body = await readJson(request);
-  const accessToken = requireToken(body.accessToken, "access token");
-  const refreshToken = requireToken(body.refreshToken, "refresh token");
+  const accessToken = requireToken(body.accessToken, "access token", 20);
+  // Supabase refresh tokens are opaque and may be shorter than JWT access
+  // tokens. RC2 incorrectly required at least 20 characters and rejected a
+  // valid recovery session before it could be stored.
+  const refreshToken = requireToken(body.refreshToken, "refresh token", 8);
+  const flowType = String(body.flowType || "").toLowerCase();
   const user = await getSupabaseUser(env, accessToken);
 
   if (!user) {
@@ -356,20 +365,39 @@ async function handleAdoptSession(request, env) {
   }
 
   const expiresIn = clampInteger(body.expiresIn, 60, 86_400, 3_600);
+  const cookies = sessionCookies({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+  });
+  cookies.push(
+    flowType === "recovery"
+      ? recoveryCookie(user.id)
+      : clearRecoveryCookie(),
+  );
+
   return jsonResponseWithCookies(
-    { ok: true, user: publicUser(user) },
+    {
+      ok: true,
+      user: publicUser(user),
+      recovery: flowType === "recovery",
+    },
     200,
-    sessionCookies({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: expiresIn,
-    }),
+    cookies,
   );
 }
 
 async function handlePasswordChange(request, env) {
   assertSupabaseAuthConfig(env);
   const session = await requireSession(request, env);
+  if (!session.recovery) {
+    throw new AppError(
+      403,
+      "recovery_session_required",
+      "Open a fresh password-reset link before setting a new password.",
+    );
+  }
+
   const body = await readJson(request);
   const password = validatePassword(body.password);
 
@@ -380,10 +408,28 @@ async function handlePasswordChange(request, env) {
     friendlyAuthErrors: true,
   });
 
+  // Revoke refresh sessions where supported, then require a clean sign-in
+  // with the new password. Local account-scoped playbook data is untouched.
+  try {
+    await supabaseAuthRequest(env, "/auth/v1/logout?scope=global", {
+      method: "POST",
+      accessToken: session.accessToken,
+      body: {},
+      allowAuthFailure: true,
+    });
+  } catch (error) {
+    console.warn("Supabase global signout after password reset failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+  }
+
   return jsonResponseWithCookies(
-    { ok: true, message: "Password updated." },
+    {
+      ok: true,
+      message: "Password updated. Sign in with your new password.",
+    },
     200,
-    session.cookieHeaders,
+    clearSessionCookies(),
   );
 }
 
@@ -404,6 +450,7 @@ async function handleSession(request, env) {
       ok: true,
       authenticated: true,
       user: publicUser(session.user),
+      recovery: session.recovery === true,
     },
     200,
     session.cookieHeaders,
@@ -634,10 +681,22 @@ async function handleAuthConfirmation(request, env) {
       throw new AppError(401, "invalid_confirmation", "The email link is invalid or expired.");
     }
 
+    const user = result.data.user
+      || await getSupabaseUser(env, result.data.access_token);
+    if (!user) {
+      throw new AppError(401, "invalid_confirmation", "The email link is invalid or expired.");
+    }
+
+    const cookies = sessionCookies(result.data);
+    cookies.push(
+      type === "recovery"
+        ? recoveryCookie(user.id)
+        : clearRecoveryCookie(),
+    );
     const destination = type === "recovery"
       ? `${getAppUrl(env)}/?mode=recovery`
       : `${getAppUrl(env)}/?auth=confirmed`;
-    return redirectResponse(destination, sessionCookies(result.data));
+    return redirectResponse(destination, cookies);
   } catch (error) {
     console.warn("Email confirmation failed", {
       message: error instanceof Error ? error.message : "unknown",
@@ -759,6 +818,7 @@ async function resolveSession(request, env) {
   const cookies = parseCookies(request.headers.get("Cookie") || "");
   const accessToken = cookies[ACCESS_COOKIE];
   const refreshToken = cookies[REFRESH_COOKIE];
+  const recoveryUserId = cookies[RECOVERY_COOKIE] || "";
 
   if (accessToken) {
     const user = await getSupabaseUser(env, accessToken);
@@ -767,6 +827,7 @@ async function resolveSession(request, env) {
         user,
         accessToken,
         refreshToken: refreshToken || null,
+        recovery: sameUserId(recoveryUserId, user.id),
         cookieHeaders: [],
       };
     }
@@ -792,6 +853,7 @@ async function resolveSession(request, env) {
       user: data.user,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
+      recovery: sameUserId(recoveryUserId, data.user.id),
       cookieHeaders: sessionCookies(data),
     };
   } catch {
@@ -934,6 +996,7 @@ async function buildAccountPayload(session, env) {
     ok: true,
     authenticated: true,
     user: publicUser(session.user),
+    recovery: session.recovery === true,
     entitlement: entitlement
       ? { ...entitlement, active: effectiveActive }
       : {
@@ -1699,12 +1762,29 @@ function validatePassword(value, options = {}) {
   return password;
 }
 
-function requireToken(value, label) {
+function requireToken(value, label, minimumLength = 8) {
   const token = String(value || "");
-  if (token.length < 20 || token.length > 8_192) {
+  if (token.length < minimumLength || token.length > 8_192 || /\s/.test(token)) {
     throw new AppError(400, "invalid_session", `The ${label} is invalid.`);
   }
   return token;
+}
+
+function sameUserId(left, right) {
+  return isUuid(left)
+    && isUuid(right)
+    && String(left).toLowerCase() === String(right).toLowerCase();
+}
+
+function recoveryCookie(userId) {
+  if (!isUuid(userId)) {
+    throw new AppError(500, "invalid_recovery_context", "Recovery context could not be established.", false);
+  }
+  return serializeCookie(RECOVERY_COOKIE, String(userId).toLowerCase(), RECOVERY_COOKIE_MAX_AGE_SECONDS);
+}
+
+function clearRecoveryCookie() {
+  return serializeCookie(RECOVERY_COOKIE, "", 0);
 }
 
 function sessionCookies(session) {
@@ -1723,6 +1803,7 @@ function clearSessionCookies() {
   return [
     serializeCookie(ACCESS_COOKIE, "", 0),
     serializeCookie(REFRESH_COOKIE, "", 0),
+    clearRecoveryCookie(),
   ];
 }
 

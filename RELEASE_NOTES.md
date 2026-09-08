@@ -1,46 +1,47 @@
-# Release candidate 2: account-scoped browser storage
+# Release candidate 3: password-recovery hardening
 
-RC2 fixes the multi-account browser-storage defect found during staging
-acceptance testing while retaining the RC1 authentication, billing, webhook,
-and entitlement architecture.
+RC3 fixes the Supabase password-recovery defects found during staging
+acceptance testing while retaining RC2 account-scoped browser storage and the
+existing authentication, billing, webhook, and entitlement architecture.
 
 ## Fixed
 
-- Local working-session data is now scoped to the authenticated Supabase user.
-- Local playbook data is now scoped to the authenticated Supabase user.
-- The Worker injects the server-verified account ID into the protected v6.8
-  template only after validating the session and `coach_pro` entitlement.
-- A protected-app request whose account query does not match the authenticated
-  session is rejected.
-- The account shell unloads the protected iframe on sign-out, account change,
-  password-recovery mode, or loss of entitlement.
+- Valid Supabase recovery links no longer fail with `The refresh token is
+  invalid.` Supabase refresh tokens are opaque and can legitimately be shorter
+  than the 20-character minimum incorrectly imposed by RC2.
+- The recovery flow now enters password-change mode only after the Worker has
+  validated and adopted a Supabase recovery session.
+- A stale `?mode=recovery` query can no longer make an ordinary email/password
+  login display the Set a new password screen.
+- Recovery credentials are removed from the browser address bar before the
+  client sends them to the Worker.
+- The password-change API now requires a short-lived, HTTP-only recovery
+  context tied to the authenticated Supabase user.
+- Successful password reset clears the local auth cookies and requires a clean
+  sign-in with the new password. Account-scoped local playbooks and settings
+  are not deleted.
+- Expired or reused recovery links are cleaned from browser state and produce
+  a controlled error instead of a retry loop.
 
-## Storage format
-
-RC2 uses:
+## Recovery flow
 
 ```text
-botdHockeyCoachingAid.user.<supabase-user-id>.session.v6_8
-botdHockeyCoachingAid.user.<supabase-user-id>.playbook.v6_8
+Request reset email
+  -> open Supabase recovery link
+  -> Worker validates recovery access token
+  -> Worker stores auth and recovery context in HTTP-only cookies
+  -> Set a new password
+  -> all local auth cookies are cleared
+  -> sign in with the new password
 ```
 
-It no longer reads the unscoped RC1 keys during normal application startup.
-This prevents account B from automatically loading account A's local playbook
-when both accounts use the same browser profile.
-
-## Migration behavior
-
-RC1 shared data is not automatically assigned to an account because ownership
-is ambiguous after more than one account has used the browser. Export wanted
-staging data before deployment and import it into the intended account after
-RC2 is live.
-
-A user-confirmed legacy-data claim flow remains required before production
-cutover.
+The recovery-context cookie expires after 30 minutes and is bound to the
+server-validated Supabase user ID.
 
 ## Unchanged
 
-- v6.8 product features and file format
+- B.O.T.D. Hockey Playbook Studio v6.8 feature set and file format
+- account-scoped local session, settings, and playbook storage
 - Supabase schema and RLS policies
 - monthly and annual Stripe test prices
 - webhook endpoint and signing secret
@@ -48,11 +49,7 @@ cutover.
 - Cloudflare Access rules and DNS
 - seven-day failed-payment grace logic
 
-## Still not included
+## No infrastructure changes required
 
-- production/live Stripe configuration
-- migration of existing live purchasers into customer accounts
-- cloud-synchronized playbooks or share links
-- production legacy-playbook claim flow
-- self-service monthly/annual plan switching
-- company-controlled production SMTP
+Upgrading from RC2 requires no DNS, Cloudflare Access, Stripe, webhook,
+Supabase SQL, or environment-variable changes.

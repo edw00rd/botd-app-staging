@@ -26,7 +26,11 @@ const userB = {
   email_confirmed_at: "2026-09-08T00:00:00.000Z",
   created_at: "2026-09-08T00:00:00.000Z",
 };
+const recoveryAccessToken = "recovery-access-token-for-account-a-1234567890";
+// Supabase refresh tokens are opaque and can be shorter than 20 characters.
+const shortRecoveryRefreshToken = "short-token-1";
 const originalFetch = globalThis.fetch;
+let capturedRecoveryRedirect = null;
 
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === "string" ? input : input.url);
@@ -35,12 +39,31 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/auth/v1/user") {
     const authorization = headers.get("Authorization");
     const user = authorization === "Bearer access-a"
+      || authorization === `Bearer ${recoveryAccessToken}`
       ? userA
       : authorization === "Bearer access-b"
         ? userB
         : null;
+    if ((init.method || "GET").toUpperCase() === "PUT") {
+      return new Response(JSON.stringify(user || { message: "invalid token" }), {
+        status: user ? 200 : 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify(user || { message: "invalid token" }), {
       status: user ? 200 : 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (url.pathname === "/auth/v1/logout") {
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.pathname === "/auth/v1/recover") {
+    capturedRecoveryRedirect = url.searchParams.get("redirect_to");
+    return new Response(JSON.stringify({}), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -93,7 +116,7 @@ try {
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8-entitlement-rc2");
+  assert.equal(healthPayload.version, "6.8-entitlement-rc3");
 
   const rootResponse = await worker.fetch(
     new Request("https://staging.botdhockey.com/"),
@@ -110,6 +133,98 @@ try {
   );
   assert.equal(protectedResponse.status, 303);
   assert.equal(protectedResponse.headers.get("location"), "https://staging.botdhockey.com/?next=app");
+
+  const recoveryRequestResponse = await worker.fetch(
+    new Request("https://staging.botdhockey.com/api/auth/recover", {
+      method: "POST",
+      headers: {
+        Origin: "https://staging.botdhockey.com",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: "account-a@example.invalid" }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(recoveryRequestResponse.status, 200);
+  assert.equal(capturedRecoveryRedirect, "https://staging.botdhockey.com/");
+  assert.ok(!capturedRecoveryRedirect.includes("mode=recovery"));
+
+  const adoptRecoveryResponse = await worker.fetch(
+    new Request("https://staging.botdhockey.com/api/auth/adopt", {
+      method: "POST",
+      headers: {
+        Origin: "https://staging.botdhockey.com",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: recoveryAccessToken,
+        refreshToken: shortRecoveryRefreshToken,
+        flowType: "recovery",
+        expiresIn: 3600,
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(adoptRecoveryResponse.status, 200);
+  const adoptRecoveryPayload = await adoptRecoveryResponse.json();
+  assert.equal(adoptRecoveryPayload.recovery, true);
+  const adoptedCookies = adoptRecoveryResponse.headers.get("set-cookie") || "";
+  assert.match(adoptedCookies, /__Host-botd_refresh=short-token-1/);
+  assert.match(adoptedCookies, /__Host-botd_recovery=11111111-1111-4111-8111-111111111111/);
+
+  const recoverySessionCookie = [
+    `__Host-botd_access=${recoveryAccessToken}`,
+    `__Host-botd_refresh=${shortRecoveryRefreshToken}`,
+    `__Host-botd_recovery=${userA.id}`,
+  ].join("; ");
+  const recoverySessionResponse = await worker.fetch(
+    new Request("https://staging.botdhockey.com/api/auth/session", {
+      headers: { Cookie: recoverySessionCookie },
+    }),
+    env,
+    {},
+  );
+  assert.equal(recoverySessionResponse.status, 200);
+  const recoverySessionPayload = await recoverySessionResponse.json();
+  assert.equal(recoverySessionPayload.authenticated, true);
+  assert.equal(recoverySessionPayload.recovery, true);
+
+  const ordinaryPasswordChange = await worker.fetch(
+    new Request("https://staging.botdhockey.com/api/auth/password", {
+      method: "POST",
+      headers: {
+        Origin: "https://staging.botdhockey.com",
+        Cookie: "__Host-botd_access=access-a",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: "new-password-123" }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(ordinaryPasswordChange.status, 403);
+  assert.equal((await ordinaryPasswordChange.json()).error, "recovery_session_required");
+
+  const recoveryPasswordChange = await worker.fetch(
+    new Request("https://staging.botdhockey.com/api/auth/password", {
+      method: "POST",
+      headers: {
+        Origin: "https://staging.botdhockey.com",
+        Cookie: recoverySessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: "new-password-123" }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(recoveryPasswordChange.status, 200);
+  const recoveryPasswordPayload = await recoveryPasswordChange.json();
+  assert.match(recoveryPasswordPayload.message, /Sign in with your new password/);
+  const clearedCookies = recoveryPasswordChange.headers.get("set-cookie") || "";
+  assert.match(clearedCookies, /__Host-botd_recovery=.*Max-Age=0/);
 
   const accountAResponse = await worker.fetch(
     new Request(`https://staging.botdhockey.com/protected/app.html?account=${userA.id}`, {
@@ -198,6 +313,7 @@ try {
 
   console.log("Worker smoke tests passed.");
   console.log("Account-scoped protected application responses passed for two distinct users.");
+  console.log("Short opaque refresh-token adoption and recovery-session controls passed.");
 } finally {
   globalThis.fetch = originalFetch;
   fs.rmSync(temporaryPath, { force: true });

@@ -78,6 +78,9 @@ for (const marker of [
   "/api/billing/portal",
   "/protected/app.html?account=",
   "unloadProtectedApp",
+  "RECOVERY_ACCOUNT_KEY",
+  "flowType: type",
+  "data.recovery === true",
   "4242 4242 4242 4242",
 ]) {
   if (!shell.includes(marker)) throw new Error(`Staging shell marker missing: ${marker}`);
@@ -93,7 +96,10 @@ for (const marker of [
   "userHasCoachProAccess",
   "renderAccountScopedApplication",
   "X-BOTD-Storage-Isolation",
-  "6.8-entitlement-rc2",
+  "RECOVERY_COOKIE",
+  "recovery_session_required",
+  "requireToken(body.refreshToken, \"refresh token\", 8)",
+  "6.8-entitlement-rc3",
 ]) {
   if (!worker.includes(marker)) throw new Error(`Worker safety marker missing: ${marker}`);
 }

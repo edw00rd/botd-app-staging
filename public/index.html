@@ -188,6 +188,7 @@ Proprietary software. No source-code license is granted.
       ].map(id => [id, document.getElementById(id)])
     );
 
+    const RECOVERY_ACCOUNT_KEY = "botd.recoveryAccount";
     let account = null;
     let pendingEmail = sessionStorage.getItem("botd.pendingEmail") || "";
     let loadedAppAccountId = null;
@@ -261,27 +262,44 @@ Proprietary software. No source-code license is granted.
     }
 
     async function adoptHashSession() {
-      if (!location.hash.includes("access_token=")) return null;
+      if (!location.hash) return null;
       const params = new URLSearchParams(location.hash.slice(1));
+      const authError = params.get("error_description") || params.get("error");
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const type = params.get("type") || "";
+
+      // Remove one-time credentials from the address bar before making any
+      // network request. A recovery link is single-use even when adoption
+      // fails, so keeping the fragment would only create a stale retry loop.
+      cleanQuery("mode", "auth_error");
+
+      if (authError) {
+        sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        throw new Error("That email link is invalid or expired. Request a new password-reset message.");
+      }
       if (!accessToken || !refreshToken) return null;
 
-      await api("/api/auth/adopt", {
-        method: "POST",
-        body: {
-          accessToken,
-          refreshToken,
-          expiresIn: Number(params.get("expires_in") || 3600),
-        },
-      });
-      const url = new URL(location.href);
-      url.hash = "";
-      if (type === "recovery") url.searchParams.set("mode", "recovery");
-      else url.searchParams.set("auth", "confirmed");
-      history.replaceState({}, "", `${url.pathname}${url.search}`);
-      return type;
+      try {
+        const result = await api("/api/auth/adopt", {
+          method: "POST",
+          body: {
+            accessToken,
+            refreshToken,
+            flowType: type,
+            expiresIn: Number(params.get("expires_in") || 3600),
+          },
+        });
+        if (type === "recovery") {
+          sessionStorage.setItem(RECOVERY_ACCOUNT_KEY, result.user.id);
+        } else {
+          sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        }
+        return type;
+      } catch (error) {
+        sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        throw error;
+      }
     }
 
     function activeSubscription(data) {
@@ -319,11 +337,20 @@ Proprietary software. No source-code license is granted.
       }
 
       const query = new URLSearchParams(location.search);
-      if (query.get("mode") === "recovery") {
+      if (data.recovery === true) {
+        // The HTTP-only recovery cookie is set only after the Worker validates
+        // a Supabase recovery session. It is the authoritative recovery flag.
+        sessionStorage.setItem(RECOVERY_ACCOUNT_KEY, data.user.id);
         unloadProtectedApp();
         showOnly("recoveryView");
         elements.billingButton.classList.add("hidden");
         return;
+      }
+      sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+      if (query.get("mode") === "recovery") {
+        // A stale recovery query must never turn an ordinary password login
+        // into a password-change session.
+        cleanQuery("mode");
       }
 
       const subscription = activeSubscription(data);
@@ -404,6 +431,8 @@ Proprietary software. No source-code license is granted.
           method: "POST",
           body: { email: elements.signinEmail.value, password: elements.signinPassword.value },
         });
+        sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        cleanQuery("mode", "auth_error");
         elements.signinPassword.value = "";
         await refreshAccount();
       } catch (error) {
@@ -485,12 +514,16 @@ Proprietary software. No source-code license is granted.
       }
       setBusy(elements.recoveryForm, true);
       try {
+        const recoveryEmail = account?.user?.email || "";
         const result = await api("/api/auth/password", { method:"POST", body:{ password:elements.newPassword.value } });
-        cleanQuery("mode");
-        message(result.message, "success");
+        sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        cleanQuery("mode", "auth", "auth_error");
         elements.newPassword.value = "";
         elements.newPasswordConfirm.value = "";
+        if (recoveryEmail) elements.signinEmail.value = recoveryEmail;
         await refreshAccount();
+        switchAuth("signin");
+        message(result.message, "success");
       } catch (error) {
         message(error.message, "error");
       } finally {
@@ -528,14 +561,19 @@ Proprietary software. No source-code license is granted.
       unloadProtectedApp();
       try { await api("/api/auth/signout", { method:"POST", body:{} }); } catch {}
       sessionStorage.removeItem("botd.pendingEmail");
+      sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
       location.assign("/");
     });
 
     (async function boot() {
       try {
-        await adoptHashSession();
+        const adoptedType = await adoptHashSession();
         const params = new URLSearchParams(location.search);
-        if (params.get("auth") === "confirmed") message("Email confirmed. Your B.O.T.D. account is ready.", "success");
+        if (adoptedType === "recovery") {
+          message("Password-reset link accepted. Set a new password below.", "success");
+        } else if (adoptedType || params.get("auth") === "confirmed") {
+          message("Email confirmed. Your B.O.T.D. account is ready.", "success");
+        }
         if (params.get("auth_error")) message("That email link is invalid or expired. Request a new message and try again.", "error");
         if (params.get("checkout") === "cancelled") {
           message("Stripe test checkout was canceled. No charge was created.", "warn");
@@ -544,6 +582,8 @@ Proprietary software. No source-code license is granted.
         await refreshAccount();
         await processCheckoutReturn();
       } catch (error) {
+        sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
+        cleanQuery("mode", "auth_error");
         showOnly("authView");
         message(error.message || "The staging account service could not be loaded.", "error");
       }
