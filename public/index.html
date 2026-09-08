@@ -1,0 +1,542 @@
+<!doctype html>
+<!--
+B.O.T.D. Hockey Playbook Studio - authenticated staging shell
+Copyright © 2026 FENRIR LLC. All rights reserved.
+Proprietary software. No source-code license is granted.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="author" content="FENRIR LLC">
+  <meta name="theme-color" content="#071625">
+  <title>B.O.T.D. App Staging</title>
+  <link rel="icon" href="/botd-logo.webp">
+  <style>
+    :root{
+      color-scheme:dark;
+      --ink:#f4f8fb;--muted:#a6bac9;--navy:#071625;--navy2:#0b2033;
+      --panel:#102b42;--panel2:#153750;--line:#31546d;--ice:#dff7ff;
+      --cyan:#4bd7ff;--gold:#f8d34d;--green:#44d48a;--red:#ff7181;
+      --shadow:0 24px 70px rgba(0,0,0,.42);--radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% -20%,#1d5275 0,#0b2337 31%,#06121f 74%);color:var(--ink)}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:wait;opacity:.62}
+    a{color:#8ee8ff}
+    .hidden{display:none!important}
+    .page{min-height:100%;display:flex;flex-direction:column}
+    .masthead{height:68px;display:flex;align-items:center;gap:12px;padding:8px clamp(14px,3vw,34px);border-bottom:1px solid rgba(112,171,207,.25);background:rgba(4,15,25,.88);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20}
+    .mark{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.5))}
+    .brand{min-width:0;line-height:1.08}.brand strong{display:block;letter-spacing:.055em;font-size:15px}.brand span{color:var(--muted);font-size:11px}
+    .stage-badge{margin-left:auto;border:1px solid #b89327;background:#3f320d;color:#ffe895;border-radius:999px;padding:7px 10px;font-weight:900;font-size:10px;letter-spacing:.09em;white-space:nowrap}
+    .header-actions{display:flex;align-items:center;gap:8px;margin-left:4px}.header-meta{font-size:11px;color:var(--muted);text-align:right;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .btn{min-height:42px;border:1px solid #3c6681;border-radius:11px;padding:9px 14px;color:#fff;background:#173b55;font-weight:800;box-shadow:0 3px 0 rgba(0,0,0,.18);transition:transform .15s ease,background .15s ease}
+    .btn:hover{background:#205170}.btn:active{transform:translateY(1px)}.btn.primary{background:#16739f;border-color:#50c6ef}.btn.primary:hover{background:#1a82b3}.btn.good{background:#176742;border-color:#45d38a}.btn.ghost{background:transparent}.btn.small{min-height:35px;padding:7px 10px;font-size:12px}
+    .content{flex:1;display:grid;place-items:center;padding:clamp(20px,5vw,66px) 16px}
+    .panel{width:min(980px,100%);background:linear-gradient(180deg,rgba(17,45,68,.97),rgba(7,26,41,.97));border:1px solid rgba(94,151,186,.42);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .panel-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(330px,.95fr)}
+    .pitch{padding:clamp(24px,5vw,56px);background:radial-gradient(circle at 25% 20%,rgba(75,215,255,.17),transparent 42%),linear-gradient(145deg,#123a58,#0b2134)}
+    .pitch .eyebrow{color:var(--gold);font-weight:950;letter-spacing:.12em;font-size:11px}.pitch h1{font-size:clamp(34px,5vw,62px);line-height:.98;margin:14px 0 18px;letter-spacing:-.045em}.pitch p{font-size:16px;line-height:1.65;color:#c7d9e4;max-width:590px}.pitch ul{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:11px}.pitch li{display:flex;gap:10px;color:#d9e8f0;font-size:14px}.pitch li:before{content:"✓";display:grid;place-items:center;flex:0 0 23px;height:23px;border-radius:50%;background:#155d43;color:#78f1b2;font-weight:1000}
+    .auth-side{padding:clamp(24px,4vw,42px)}
+    .auth-side h2,.plans h2,.recovery h2{margin:0 0 7px;font-size:26px}.subcopy{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.55}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;background:#071b2b;border:1px solid #2c5068;border-radius:11px;padding:4px;margin-bottom:20px}.tab{border:0;border-radius:8px;background:transparent;color:#a8bfce;padding:9px;font-weight:900}.tab.active{background:#24516e;color:#fff}
+    form{display:grid;gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:850;color:#d8e6ee}.field input{width:100%;border:1px solid #3a6079;border-radius:10px;background:#061827;color:#fff;padding:12px 13px;outline:none}.field input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(75,215,255,.15)}
+    .terms{display:grid;grid-template-columns:18px 1fr;gap:9px;align-items:start;font-size:11px;line-height:1.45;color:var(--muted)}.terms input{width:17px;height:17px;margin:1px 0 0}.form-row{display:flex;justify-content:space-between;align-items:center;gap:10px}.link-button{border:0;padding:0;background:transparent;color:#8ee8ff;text-decoration:underline;font-size:12px}
+    .notice{width:min(980px,100%);margin:0 auto 16px;border:1px solid #3b647e;border-radius:12px;padding:11px 14px;background:#0d2b42;color:#d9ebf4;font-size:13px;line-height:1.45}.notice.success{border-color:#2f8b61;background:#0d3b2a}.notice.error{border-color:#a64d59;background:#491d27;color:#ffe1e5}.notice.warn{border-color:#a57e27;background:#3b2e0d;color:#ffebad}
+    .pending{margin-top:16px;padding:13px;border:1px solid #385e76;border-radius:11px;background:#0a2133;font-size:12px;color:var(--muted)}
+    .plans{width:min(1030px,100%)}.plans-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px}.identity{color:var(--muted);font-size:12px}.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.price-card{position:relative;border:1px solid #355d77;border-radius:17px;background:linear-gradient(180deg,#12324b,#0b2336);padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.25)}.price-card.featured{border-color:#e2bd3d;box-shadow:0 0 0 2px rgba(248,211,77,.11),0 18px 46px rgba(0,0,0,.32)}.ribbon{position:absolute;right:16px;top:16px;border-radius:999px;padding:5px 8px;background:#4c3b09;color:#ffe78a;font-size:9px;font-weight:1000;letter-spacing:.08em}.price-card h3{margin:0 0 8px;font-size:20px}.price{font-size:43px;font-weight:1000;letter-spacing:-.04em}.price small{font-size:13px;color:var(--muted);letter-spacing:0}.price-card p{color:#bcd0dc;font-size:13px;line-height:1.55}.feature-list{display:grid;gap:8px;margin:17px 0 22px;font-size:12px;color:#dceaf2}.feature-list span:before{content:"•";color:var(--cyan);margin-right:8px}.savings{color:#ffe48a!important;font-weight:850}.test-card{margin-top:18px;border:1px dashed #7d6a2e;border-radius:12px;background:#241f0f;padding:12px;color:#ecdca3;font-size:11px;line-height:1.55}.test-card code{color:#fff2bd;font-weight:900}
+    .app-view{position:fixed;inset:68px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-status{height:34px;display:flex;align-items:center;gap:9px;padding:5px 14px;background:#0d2b40;border-bottom:1px solid #31536a;color:#bdd1dc;font-size:11px}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
+    .loading{display:grid;place-items:center;gap:13px;color:#c2d4df}.spinner{width:42px;height:42px;border:4px solid #274e67;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
+    .footer{padding:15px;text-align:center;color:#7f9bac;font-size:10px}.footer a{color:#9bcde1}
+    @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.header-meta{display:none}.masthead{height:64px;padding:7px 10px}.mark{width:44px;height:44px}.brand strong{font-size:12px}.stage-badge{font-size:8px;padding:6px 8px}.header-actions .btn{padding:7px 8px;min-height:36px;font-size:11px}.app-view{inset:64px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <img class="mark" src="/botd-logo.webp" alt="B.O.T.D. logo">
+      <div class="brand"><strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong><span>Coach Pro · Version 6.8</span></div>
+      <span class="stage-badge">STAGING · TEST MODE</span>
+      <div id="headerActions" class="header-actions hidden">
+        <span id="headerMeta" class="header-meta"></span>
+        <button id="billingButton" class="btn small ghost hidden" type="button">Manage billing</button>
+        <button id="signoutButton" class="btn small" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main id="mainContent" class="content">
+      <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+
+      <section id="loadingView" class="loading" aria-label="Loading account">
+        <div class="spinner" aria-hidden="true"></div>
+        <strong>Checking your B.O.T.D. account…</strong>
+      </section>
+
+      <section id="authView" class="panel hidden">
+        <div class="panel-grid">
+          <div class="pitch">
+            <div class="eyebrow">PRIVATE STAGING RELEASE</div>
+            <h1>Build the playbook. Bring it to life.</h1>
+            <p>Create animated plays and drills, tune every route and puck action, then keep and share a complete coaching playbook.</p>
+            <ul>
+              <li>Animate skating, passes, shots, timing, and telestration.</li>
+              <li>Save reusable plays and drills in the v6.8 playbook.</li>
+              <li>Monthly and annual plans unlock the same Coach Pro tools.</li>
+            </ul>
+          </div>
+          <div class="auth-side">
+            <h2>B.O.T.D. account</h2>
+            <p class="subcopy">Sign in or create the customer account that will be linked to Stripe.</p>
+            <div class="tabs" role="tablist">
+              <button id="signinTab" class="tab active" type="button" role="tab">Sign in</button>
+              <button id="signupTab" class="tab" type="button" role="tab">Create account</button>
+            </div>
+
+            <form id="signinForm" autocomplete="on">
+              <div class="field"><label for="signinEmail">Email address</label><input id="signinEmail" name="email" type="email" autocomplete="email" required></div>
+              <div class="field"><label for="signinPassword">Password</label><input id="signinPassword" name="password" type="password" autocomplete="current-password" required></div>
+              <div class="form-row"><button class="btn primary" type="submit">Sign in</button><button id="forgotButton" class="link-button" type="button">Forgot password?</button></div>
+            </form>
+
+            <form id="signupForm" class="hidden" autocomplete="on">
+              <div class="field"><label for="signupEmail">Email address</label><input id="signupEmail" name="email" type="email" autocomplete="email" required></div>
+              <div class="field"><label for="signupPassword">Password</label><input id="signupPassword" name="password" type="password" autocomplete="new-password" minlength="10" required></div>
+              <div class="field"><label for="signupPasswordConfirm">Confirm password</label><input id="signupPasswordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required></div>
+              <label class="terms"><input id="acceptTerms" type="checkbox" required><span>I agree to the <a href="https://botdhockey.com/terms/" target="_blank" rel="noopener noreferrer">Terms of Service</a> and acknowledge the <a href="https://botdhockey.com/privacy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label>
+              <button class="btn primary" type="submit">Create account</button>
+            </form>
+
+            <div id="pendingConfirmation" class="pending hidden">A confirmation email has been sent. Keep this staging tab open, then use the link in that email. <button id="resendButton" class="link-button" type="button">Resend confirmation</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="plansView" class="plans hidden">
+        <div class="plans-head">
+          <div><h2>Choose Coach Pro billing</h2><p class="subcopy">Both options unlock the complete v6.8 Playbook Studio. Only the billing interval changes.</p></div>
+          <div id="plansIdentity" class="identity"></div>
+        </div>
+        <div id="billingWarning" class="notice warn hidden"></div>
+        <div class="pricing">
+          <article class="price-card featured">
+            <span class="ribbon">BEST VALUE</span>
+            <h3>Coach Pro Annual</h3>
+            <div class="price">$79 <small>/ year</small></div>
+            <p class="savings">Save $40.88 compared with twelve monthly payments.</p>
+            <div class="feature-list"><span>Complete animated play and drill editor</span><span>Local playbook save, import, and export</span><span>All Coach Pro features</span></div>
+            <button class="btn good checkout-button" type="button" data-plan="annual">Continue with annual</button>
+          </article>
+          <article class="price-card">
+            <h3>Coach Pro Monthly</h3>
+            <div class="price">$9.99 <small>/ month</small></div>
+            <p>Flexible month-to-month access with the same complete feature set.</p>
+            <div class="feature-list"><span>Complete animated play and drill editor</span><span>Local playbook save, import, and export</span><span>All Coach Pro features</span></div>
+            <button class="btn primary checkout-button" type="button" data-plan="monthly">Continue with monthly</button>
+          </article>
+        </div>
+        <div class="test-card"><strong>Stripe test mode:</strong> use card <code>4242 4242 4242 4242</code>, any future expiration date, any CVC, and any postal code. No real charge is created.</div>
+      </section>
+
+      <section id="recoveryView" class="panel recovery hidden" style="max-width:560px;padding:30px">
+        <h2>Set a new password</h2>
+        <p class="subcopy">Use at least 10 characters. This updates the password for your B.O.T.D. staging account.</p>
+        <form id="recoveryForm">
+          <div class="field"><label for="newPassword">New password</label><input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></div>
+          <div class="field"><label for="newPasswordConfirm">Confirm new password</label><input id="newPasswordConfirm" type="password" autocomplete="new-password" minlength="10" required></div>
+          <button class="btn primary" type="submit">Update password</button>
+        </form>
+      </section>
+    </main>
+
+    <section id="appView" class="app-view hidden" aria-label="B.O.T.D. Hockey Playbook Studio">
+      <div class="app-status"><span class="status-dot"></span><strong id="appPlanLabel">Coach Pro active</strong><span id="appRenewalLabel"></span></div>
+      <iframe id="appFrame" class="app-frame" title="B.O.T.D. Hockey Playbook Studio v6.8" referrerpolicy="same-origin"></iframe>
+    </section>
+
+    <footer class="footer">© 2026 FENRIR LLC. All rights reserved. · <a href="https://botdhockey.com/terms/">Terms</a> · <a href="https://botdhockey.com/privacy/">Privacy</a></footer>
+  </div>
+
+  <dialog id="forgotDialog">
+    <form id="forgotForm" method="dialog">
+      <div class="dialog-body">
+        <h2>Reset password</h2>
+        <p class="subcopy">Enter your account email. Supabase will send a secure reset link.</p>
+        <div class="field"><label for="forgotEmail">Email address</label><input id="forgotEmail" type="email" autocomplete="email" required></div>
+      </div>
+      <div class="dialog-actions"><button id="forgotCancel" class="btn ghost" type="button">Cancel</button><button class="btn primary" type="submit">Send reset link</button></div>
+    </form>
+  </dialog>
+
+  <script>
+    "use strict";
+
+    const elements = Object.fromEntries(
+      [
+        "notice","loadingView","authView","plansView","recoveryView","appView",
+        "signinTab","signupTab","signinForm","signupForm","signinEmail","signinPassword",
+        "signupEmail","signupPassword","signupPasswordConfirm","acceptTerms",
+        "pendingConfirmation","resendButton","forgotButton","forgotDialog","forgotForm",
+        "forgotEmail","forgotCancel","recoveryForm","newPassword","newPasswordConfirm",
+        "headerActions","headerMeta","billingButton","signoutButton","plansIdentity",
+        "billingWarning","appFrame","appPlanLabel","appRenewalLabel"
+      ].map(id => [id, document.getElementById(id)])
+    );
+
+    let account = null;
+    let pendingEmail = sessionStorage.getItem("botd.pendingEmail") || "";
+    let appLoaded = false;
+
+    function showOnly(view) {
+      for (const id of ["loadingView","authView","plansView","recoveryView","appView"]) {
+        elements[id].classList.toggle("hidden", id !== view);
+      }
+      document.getElementById("mainContent").classList.toggle("hidden", view === "appView");
+    }
+
+    function message(text, type = "info") {
+      if (!text) {
+        elements.notice.className = "notice hidden";
+        elements.notice.textContent = "";
+        return;
+      }
+      elements.notice.className = `notice ${type === "info" ? "" : type}`.trim();
+      elements.notice.textContent = text;
+    }
+
+    async function api(path, options = {}) {
+      const init = {
+        method: options.method || "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      };
+      if (options.body !== undefined) {
+        init.headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(options.body);
+      }
+      const response = await fetch(path, init);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) {
+        const error = new Error(data.message || "The request could not be completed.");
+        error.code = data.error || "request_failed";
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    function setBusy(formOrButton, busy) {
+      const controls = formOrButton.matches?.("button")
+        ? [formOrButton]
+        : [...formOrButton.querySelectorAll("button,input")];
+      for (const control of controls) control.disabled = busy;
+    }
+
+    function switchAuth(mode) {
+      const signup = mode === "signup";
+      elements.signinTab.classList.toggle("active", !signup);
+      elements.signupTab.classList.toggle("active", signup);
+      elements.signinForm.classList.toggle("hidden", signup);
+      elements.signupForm.classList.toggle("hidden", !signup);
+      message("");
+    }
+
+    function cleanQuery(...names) {
+      const url = new URL(location.href);
+      for (const name of names) url.searchParams.delete(name);
+      url.hash = "";
+      history.replaceState({}, "", `${url.pathname}${url.search}`);
+    }
+
+    async function adoptHashSession() {
+      if (!location.hash.includes("access_token=")) return null;
+      const params = new URLSearchParams(location.hash.slice(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type") || "";
+      if (!accessToken || !refreshToken) return null;
+
+      await api("/api/auth/adopt", {
+        method: "POST",
+        body: {
+          accessToken,
+          refreshToken,
+          expiresIn: Number(params.get("expires_in") || 3600),
+        },
+      });
+      const url = new URL(location.href);
+      url.hash = "";
+      if (type === "recovery") url.searchParams.set("mode", "recovery");
+      else url.searchParams.set("auth", "confirmed");
+      history.replaceState({}, "", `${url.pathname}${url.search}`);
+      return type;
+    }
+
+    function activeSubscription(data) {
+      if (!data?.subscriptions?.length) return null;
+      const source = data.entitlement?.source_subscription_id;
+      return data.subscriptions.find(item => item.stripe_subscription_id === source)
+        || data.subscriptions.find(item => ["active","trialing","past_due"].includes(item.status))
+        || data.subscriptions[0];
+    }
+
+    function planName(plan) {
+      if (plan === "annual") return "Coach Pro Annual";
+      if (plan === "monthly") return "Coach Pro Monthly";
+      return "Coach Pro";
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return "";
+      return new Intl.DateTimeFormat(undefined, { year:"numeric", month:"short", day:"numeric" }).format(date);
+    }
+
+    function renderAccount(data) {
+      account = data;
+      const authenticated = Boolean(data?.authenticated);
+      elements.headerActions.classList.toggle("hidden", !authenticated);
+      elements.headerMeta.textContent = authenticated ? data.user.email : "";
+
+      if (!authenticated) {
+        showOnly("authView");
+        elements.billingButton.classList.add("hidden");
+        return;
+      }
+
+      const query = new URLSearchParams(location.search);
+      if (query.get("mode") === "recovery") {
+        showOnly("recoveryView");
+        elements.billingButton.classList.add("hidden");
+        return;
+      }
+
+      const subscription = activeSubscription(data);
+      const hasBilling = Boolean(data.hasBillingCustomer);
+      elements.billingButton.classList.toggle("hidden", !hasBilling);
+
+      if (data.entitlement?.active) {
+        showOnly("appView");
+        elements.appPlanLabel.textContent = `${planName(subscription?.plan)} active`;
+        const date = formatDate(subscription?.current_period_end || data.entitlement.expires_at);
+        elements.appRenewalLabel.textContent = date
+          ? subscription?.cancel_at_period_end
+            ? `· Access through ${date}`
+            : `· Renews ${date}`
+          : "";
+        if (!appLoaded) {
+          elements.appFrame.src = "/protected/app.html";
+          appLoaded = true;
+        }
+        return;
+      }
+
+      showOnly("plansView");
+      elements.plansIdentity.textContent = `Signed in as ${data.user.email}`;
+      const problem = data.subscriptions?.find(item => ["past_due","unpaid","incomplete"].includes(item.status));
+      if (problem) {
+        elements.billingWarning.classList.remove("hidden");
+        elements.billingWarning.textContent = problem.status === "past_due"
+          ? "Stripe could not renew this test subscription. Use Manage billing to update the test payment method."
+          : `Subscription status: ${problem.status}. Use Manage billing or choose a plan after the test subscription is resolved.`;
+      } else {
+        elements.billingWarning.classList.add("hidden");
+      }
+    }
+
+    async function refreshAccount() {
+      const data = await api("/api/account");
+      renderAccount(data);
+      return data;
+    }
+
+    async function processCheckoutReturn() {
+      const params = new URLSearchParams(location.search);
+      if (params.get("checkout") !== "success") return false;
+      const sessionId = params.get("session_id");
+      if (!sessionId) return false;
+
+      message("Stripe test payment returned successfully. Confirming Coach Pro access…", "success");
+      try {
+        const data = await api(`/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`);
+        renderAccount(data);
+        if (!data.entitlement?.active) {
+          for (let attempt = 0; attempt < 7; attempt += 1) {
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            const refreshed = await refreshAccount();
+            if (refreshed.entitlement?.active) break;
+          }
+        }
+        message("Stripe test subscription confirmed. Coach Pro is active.", "success");
+      } catch (error) {
+        message(error.message, "error");
+      } finally {
+        cleanQuery("checkout", "session_id");
+      }
+      return true;
+    }
+
+    elements.signinTab.addEventListener("click", () => switchAuth("signin"));
+    elements.signupTab.addEventListener("click", () => switchAuth("signup"));
+
+    elements.signinForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      setBusy(elements.signinForm, true);
+      message("");
+      try {
+        await api("/api/auth/signin", {
+          method: "POST",
+          body: { email: elements.signinEmail.value, password: elements.signinPassword.value },
+        });
+        elements.signinPassword.value = "";
+        await refreshAccount();
+      } catch (error) {
+        message(error.message, "error");
+      } finally {
+        setBusy(elements.signinForm, false);
+      }
+    });
+
+    elements.signupForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (elements.signupPassword.value !== elements.signupPasswordConfirm.value) {
+        message("The password confirmation does not match.", "error");
+        return;
+      }
+      setBusy(elements.signupForm, true);
+      message("");
+      try {
+        const result = await api("/api/auth/signup", {
+          method: "POST",
+          body: {
+            email: elements.signupEmail.value,
+            password: elements.signupPassword.value,
+            acceptTerms: elements.acceptTerms.checked,
+          },
+        });
+        pendingEmail = elements.signupEmail.value.trim();
+        sessionStorage.setItem("botd.pendingEmail", pendingEmail);
+        elements.pendingConfirmation.classList.remove("hidden");
+        message(result.message, "success");
+        if (result.signedIn) await refreshAccount();
+      } catch (error) {
+        message(error.message, error.code === "signup_pending" ? "success" : "error");
+      } finally {
+        setBusy(elements.signupForm, false);
+      }
+    });
+
+    elements.resendButton.addEventListener("click", async () => {
+      if (!pendingEmail) {
+        message("Enter the account email again, then create the account or use password reset.", "warn");
+        return;
+      }
+      setBusy(elements.resendButton, true);
+      try {
+        const result = await api("/api/auth/resend", { method:"POST", body:{ email:pendingEmail } });
+        message(result.message, "success");
+      } catch (error) {
+        message(error.message, "error");
+      } finally {
+        setBusy(elements.resendButton, false);
+      }
+    });
+
+    elements.forgotButton.addEventListener("click", () => {
+      elements.forgotEmail.value = elements.signinEmail.value;
+      elements.forgotDialog.showModal();
+    });
+    elements.forgotCancel.addEventListener("click", () => elements.forgotDialog.close());
+    elements.forgotForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      setBusy(elements.forgotForm, true);
+      try {
+        const result = await api("/api/auth/recover", { method:"POST", body:{ email:elements.forgotEmail.value } });
+        elements.forgotDialog.close();
+        message(result.message, "success");
+      } catch (error) {
+        message(error.message, "error");
+      } finally {
+        setBusy(elements.forgotForm, false);
+      }
+    });
+
+    elements.recoveryForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (elements.newPassword.value !== elements.newPasswordConfirm.value) {
+        message("The password confirmation does not match.", "error");
+        return;
+      }
+      setBusy(elements.recoveryForm, true);
+      try {
+        const result = await api("/api/auth/password", { method:"POST", body:{ password:elements.newPassword.value } });
+        cleanQuery("mode");
+        message(result.message, "success");
+        elements.newPassword.value = "";
+        elements.newPasswordConfirm.value = "";
+        await refreshAccount();
+      } catch (error) {
+        message(error.message, "error");
+      } finally {
+        setBusy(elements.recoveryForm, false);
+      }
+    });
+
+    document.querySelectorAll(".checkout-button").forEach(button => {
+      button.addEventListener("click", async () => {
+        setBusy(button, true);
+        message("Creating a Stripe test checkout…");
+        try {
+          const result = await api("/api/checkout", { method:"POST", body:{ plan:button.dataset.plan } });
+          location.assign(result.url);
+        } catch (error) {
+          message(error.message, "error");
+          setBusy(button, false);
+        }
+      });
+    });
+
+    elements.billingButton.addEventListener("click", async () => {
+      setBusy(elements.billingButton, true);
+      try {
+        const result = await api("/api/billing/portal", { method:"POST", body:{} });
+        location.assign(result.url);
+      } catch (error) {
+        message(error.message, "error");
+        setBusy(elements.billingButton, false);
+      }
+    });
+
+    elements.signoutButton.addEventListener("click", async () => {
+      setBusy(elements.signoutButton, true);
+      try { await api("/api/auth/signout", { method:"POST", body:{} }); } catch {}
+      sessionStorage.removeItem("botd.pendingEmail");
+      location.assign("/");
+    });
+
+    (async function boot() {
+      try {
+        await adoptHashSession();
+        const params = new URLSearchParams(location.search);
+        if (params.get("auth") === "confirmed") message("Email confirmed. Your B.O.T.D. account is ready.", "success");
+        if (params.get("auth_error")) message("That email link is invalid or expired. Request a new message and try again.", "error");
+        if (params.get("checkout") === "cancelled") {
+          message("Stripe test checkout was canceled. No charge was created.", "warn");
+          cleanQuery("checkout");
+        }
+        await refreshAccount();
+        await processCheckoutReturn();
+      } catch (error) {
+        showOnly("authView");
+        message(error.message || "The staging account service could not be loaded.", "error");
+      }
+    })();
+  </script>
+</body>
+</html>

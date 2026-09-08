@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "botd-app-staging",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-12-01",
+  "keep_vars": true,
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.html.txt"],
+      "fallthrough": true
+    }
+  ]
+}

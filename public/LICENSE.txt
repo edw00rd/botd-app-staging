@@ -1,0 +1,51 @@
+FENRIR LLC PROPRIETARY SOFTWARE LICENSE
+B.O.T.D. Hockey Playbook Studio v6.8
+Effective date: September 7, 2026
+
+Copyright © 2026 FENRIR LLC. All rights reserved.
+
+1. OWNERSHIP
+
+B.O.T.D. Hockey Playbook Studio, including its source code, object code, user interface, visual design, artwork, documentation, and all related materials (collectively, the "Software"), is proprietary to FENRIR LLC and is protected by copyright, trademark, trade secret, and other applicable laws. FENRIR LLC retains all right, title, and interest in and to the Software.
+
+2. LIMITED END-USER AUTHORIZATION
+
+A person or entity authorized by FENRIR LLC under an applicable subscription, written agreement, or the B.O.T.D. Terms of Service may access and use the hosted Software only for that authorized user's internal hockey coaching and playbook activities, subject to the applicable terms. This authorization is limited, non-exclusive, non-transferable, non-sublicensable, and revocable.
+
+3. NO SOURCE-CODE OR OPEN-SOURCE LICENSE
+
+Making the Software viewable in a web browser, hosting it from a public URL, or placing files in a source-code repository does not place the Software in the public domain and does not grant any source-code, open-source, redistribution, modification, or commercial-use license. Except for temporary technical copies automatically made by a browser solely to access an authorized hosted service, no copying right is granted.
+
+4. RESTRICTIONS
+
+Except to the limited extent that applicable law expressly prohibits a restriction, no person or entity may, without FENRIR LLC's prior written permission:
+
+- copy, reproduce, modify, adapt, translate, or create derivative works from the Software;
+- distribute, publish, transmit, upload, mirror, publicly display, or publicly perform the Software or its source code;
+- sell, resell, rent, lease, license, sublicense, assign, or otherwise transfer the Software or access to it;
+- host the Software for another person, operate it as a service bureau, or use it to provide a competing product or service;
+- reverse engineer, decompile, disassemble, decode, or otherwise attempt to derive non-public source code, methods, or trade secrets;
+- bypass, disable, defeat, or interfere with authentication, subscription, access-control, metering, or security mechanisms; or
+- remove, obscure, or alter any copyright, trademark, ownership, attribution, or license notice.
+
+5. RESERVATION OF RIGHTS
+
+No right or license is granted by implication, estoppel, exhaustion, or otherwise. All rights not expressly granted are reserved by FENRIR LLC. B.O.T.D., B.O.T.D. Hockey Playbook Studio, FENRIR, associated logos, and related branding are marks of FENRIR LLC; no trademark license is granted.
+
+6. TERMINATION
+
+Any authorization to use the Software ends automatically when the applicable subscription or agreement ends, or when its terms are breached, subject to any paid-through access or other rights expressly stated in the controlling terms. Upon termination, the user must stop all unauthorized use and delete any unauthorized copies in the user's possession or control.
+
+7. WARRANTY AND LIABILITY
+
+The warranties, disclaimers, limitations of liability, refund provisions, and other commercial terms applicable to authorized use are set out in the controlling subscription agreement or B.O.T.D. Terms of Service. To the maximum extent permitted by law, no additional warranty is created by this file.
+
+8. CONTROLLING TERMS
+
+This file supplements the B.O.T.D. Terms of Service available at https://botdhockey.com/terms/. If an authorized user has a separate written agreement signed by FENRIR LLC, that agreement controls to the extent of a direct conflict. Nothing in this file limits rights that cannot lawfully be waived or restricted.
+
+9. CONTACT
+
+FENRIR LLC
+https://botdhockey.com/
+support@botdhockey.com
