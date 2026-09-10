@@ -50,7 +50,7 @@ Proprietary software. No source-code license is granted.
     .notice{width:min(980px,100%);margin:0 auto 16px;border:1px solid #3b647e;border-radius:12px;padding:11px 14px;background:#0d2b42;color:#d9ebf4;font-size:13px;line-height:1.45}.notice.success{border-color:#2f8b61;background:#0d3b2a}.notice.error{border-color:#a64d59;background:#491d27;color:#ffe1e5}.notice.warn{border-color:#a57e27;background:#3b2e0d;color:#ffebad}
     .pending{margin-top:16px;padding:13px;border:1px solid #385e76;border-radius:11px;background:#0a2133;font-size:12px;color:var(--muted)}
     .plans{width:min(1030px,100%)}.plans-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px}.identity{color:var(--muted);font-size:12px}.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.price-card{position:relative;border:1px solid #355d77;border-radius:17px;background:linear-gradient(180deg,#12324b,#0b2336);padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.25)}.price-card.featured{border-color:#e2bd3d;box-shadow:0 0 0 2px rgba(248,211,77,.11),0 18px 46px rgba(0,0,0,.32)}.ribbon{position:absolute;right:16px;top:16px;border-radius:999px;padding:5px 8px;background:#4c3b09;color:#ffe78a;font-size:9px;font-weight:1000;letter-spacing:.08em}.price-card h3{margin:0 0 8px;font-size:20px}.price{font-size:43px;font-weight:1000;letter-spacing:-.04em}.price small{font-size:13px;color:var(--muted);letter-spacing:0}.price-card p{color:#bcd0dc;font-size:13px;line-height:1.55}.feature-list{display:grid;gap:8px;margin:17px 0 22px;font-size:12px;color:#dceaf2}.feature-list span:before{content:"•";color:var(--cyan);margin-right:8px}.savings{color:#ffe48a!important;font-weight:850}.test-card{margin-top:18px;border:1px dashed #7d6a2e;border-radius:12px;background:#241f0f;padding:12px;color:#ecdca3;font-size:11px;line-height:1.55}.test-card code{color:#fff2bd;font-weight:900}
-    .app-view{position:fixed;inset:68px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-status{height:34px;display:flex;align-items:center;gap:9px;padding:5px 14px;background:#0d2b40;border-bottom:1px solid #31536a;color:#bdd1dc;font-size:11px}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
+    .app-view{position:fixed;inset:68px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-status{height:34px;display:flex;align-items:center;gap:9px;padding:5px 14px;background:#0d2b40;border-bottom:1px solid #31536a;color:#bdd1dc;font-size:11px}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}.app-grace-warning{padding:9px 14px;border-bottom:1px solid #a57e27;background:#3b2e0d;color:#ffebad;font-size:12px;line-height:1.4}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
     .loading{display:grid;place-items:center;gap:13px;color:#c2d4df}.spinner{width:42px;height:42px;border:4px solid #274e67;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
     .footer{padding:15px;text-align:center;color:#7f9bac;font-size:10px}.footer a{color:#9bcde1}
@@ -156,6 +156,7 @@ Proprietary software. No source-code license is granted.
 
     <section id="appView" class="app-view hidden" aria-label="B.O.T.D. Hockey Playbook Studio">
       <div class="app-status"><span class="status-dot"></span><strong id="appPlanLabel">Coach Pro active</strong><span id="appRenewalLabel"></span></div>
+      <div id="appGraceWarning" class="app-grace-warning hidden" role="alert"></div>
       <iframe id="appFrame" class="app-frame" title="B.O.T.D. Hockey Playbook Studio v6.8" referrerpolicy="same-origin"></iframe>
     </section>
 
@@ -184,7 +185,7 @@ Proprietary software. No source-code license is granted.
         "pendingConfirmation","resendButton","forgotButton","forgotDialog","forgotForm",
         "forgotEmail","forgotCancel","recoveryForm","newPassword","newPasswordConfirm",
         "headerActions","headerMeta","billingButton","signoutButton","plansIdentity",
-        "billingWarning","appFrame","appPlanLabel","appRenewalLabel"
+        "billingWarning","appGraceWarning","appFrame","appPlanLabel","appRenewalLabel"
       ].map(id => [id, document.getElementById(id)])
     );
 
@@ -323,8 +324,14 @@ Proprietary software. No source-code license is granted.
       return new Intl.DateTimeFormat(undefined, { year:"numeric", month:"short", day:"numeric" }).format(date);
     }
 
+    function setAppGraceWarning(text = "") {
+      elements.appGraceWarning.textContent = text;
+      elements.appGraceWarning.classList.toggle("hidden", !text);
+    }
+
     function renderAccount(data) {
       account = data;
+      setAppGraceWarning();
       const authenticated = Boolean(data?.authenticated);
       elements.headerActions.classList.toggle("hidden", !authenticated);
       elements.headerMeta.textContent = authenticated ? data.user.email : "";
@@ -359,13 +366,28 @@ Proprietary software. No source-code license is granted.
 
       if (data.entitlement?.active) {
         showOnly("appView");
-        elements.appPlanLabel.textContent = `${planName(subscription?.plan)} active`;
-        const date = formatDate(subscription?.current_period_end || data.entitlement.expires_at);
-        elements.appRenewalLabel.textContent = date
-          ? subscription?.cancel_at_period_end
-            ? `· Access through ${date}`
-            : `· Renews ${date}`
-          : "";
+        const graceDate = formatDate(subscription?.grace_period_end);
+        const inPaymentGrace = Boolean(
+          graceDate && ["active", "trialing", "past_due"].includes(subscription?.status),
+        );
+
+        if (inPaymentGrace) {
+          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} · Payment grace`;
+          elements.appRenewalLabel.textContent = `· Access through ${graceDate}`;
+          setAppGraceWarning(
+            `Payment failed. Coach Pro access continues through ${graceDate}. ` +
+            "Use Manage billing to update the payment method and avoid interruption.",
+          );
+        } else {
+          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} active`;
+          const date = formatDate(subscription?.current_period_end || data.entitlement.expires_at);
+          elements.appRenewalLabel.textContent = date
+            ? subscription?.cancel_at_period_end
+              ? `· Access through ${date}`
+              : `· Renews ${date}`
+            : "";
+        }
+
         if (loadedAppAccountId !== data.user.id) {
           elements.appFrame.src = `/protected/app.html?account=${encodeURIComponent(data.user.id)}`;
           loadedAppAccountId = data.user.id;

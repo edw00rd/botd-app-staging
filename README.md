@@ -1,31 +1,32 @@
-# B.O.T.D. Hockey Playbook Studio v6.8 — staging RC3
+# B.O.T.D. Hockey Playbook Studio v6.8 — staging RC4
 
 Copyright © 2026 FENRIR LLC. All rights reserved. This repository is
 proprietary software and is governed by `LICENSE.txt`.
 
 ## Purpose
 
-RC3 retains the working staging subscription system and account isolation from
-RC2 and fixes the password-recovery defects identified during acceptance
-testing.
+RC4 retains the working account, checkout, entitlement, account-isolation, and
+password-recovery behavior from RC3 and fixes the failed-payment race exposed
+by a real Stripe Sandbox Test Clock renewal.
 
-RC2 rejected valid Supabase recovery refresh tokens when they were shorter
-than 20 characters. The failed adoption left `?mode=recovery` in the URL, so a
-subsequent ordinary password login could incorrectly display the password-set
-screen. RC3 corrects both behaviors and requires a Worker-validated recovery
-context before a password can be changed.
+Stripe delivered `invoice.payment_failed` with HTTP 200, but a concurrent
+`customer.subscription.updated` handler could overwrite the grace deadline
+with `NULL`. RC4 applies the full subscription snapshot and latest-invoice
+payment state atomically under a PostgreSQL row lock, with monotonic ordering
+for stale and out-of-order deliveries.
 
 ## Included
 
 - Supabase email/password accounts with confirmation and password recovery
 - secure HTTP-only application session cookies
-- short-lived, account-bound password-recovery context
+- account-bound password-recovery context
 - Stripe test-mode monthly and annual Checkout Sessions
-- verified Stripe webhooks and idempotent event processing
+- verified Stripe webhooks and processed-event tracking
 - one `coach_pro` entitlement for both billing intervals
 - Stripe Customer Portal access
 - server-side entitlement enforcement before v6.8 is delivered
-- seven-day failed-payment grace-period logic
+- ordered seven-day failed-payment grace-period handling
+- visible payment-failure grace warning and access-through date
 - account-scoped local session, settings, and playbook storage
 - protected-iframe unloading on sign-out and entitlement loss
 - staging-only Stripe and database safety locks
@@ -33,61 +34,90 @@ context before a password can be changed.
 Cloudflare Access remains the outer private-staging gate. B.O.T.D. account
 login is the customer-facing gate being tested inside it.
 
-## Account-scoped browser storage
+## Billing-state ordering
 
-Each authenticated account uses:
+RC4 records two independent orderings on each subscription:
 
 ```text
-botdHockeyCoachingAid.user.<supabase-user-id>.session.v6_8
-botdHockeyCoachingAid.user.<supabase-user-id>.playbook.v6_8
+Current Stripe snapshot:
+  last_stripe_observed_at
+  last_stripe_event_id
+  last_stripe_event_created
+
+Latest invoice state:
+  last_invoice_id
+  last_invoice_created
+  last_invoice_state
+  last_invoice_event_id
+  last_invoice_event_created
 ```
 
-The playbook is still local to one browser profile. JSON export/import remains
-the backup and transfer method until cloud playbooks are implemented.
+The database function:
 
-## Password-recovery behavior
+```text
+public.apply_stripe_subscription_state(...)
+```
 
-The default Supabase staging email template is supported. No custom SMTP or
-email-template edit is required for this RC.
+locks one subscription row and applies both layers atomically. For the same
+invoice, state progression is ordered as:
 
-A valid recovery link now:
+```text
+failed -> terminal -> paid
+```
 
-1. returns to `https://staging.botdhockey.com/` with a one-time Supabase session
-   in the URL fragment;
-2. has its credentials removed from the address bar immediately;
-3. is validated and adopted by the Worker;
-4. creates a 30-minute HTTP-only recovery context tied to the user;
-5. displays the Set a new password form;
-6. clears all local auth cookies after the password is updated; and
-7. requires the user to sign in with the new password.
-
-The reset does not delete account-scoped browser playbooks or settings.
+A duplicate failure cannot extend the original grace deadline. A paid recovery
+cannot be undone by a late failure delivery. A newer renewal invoice can start
+a new grace period.
 
 ## Repository structure
 
 ```text
-public/index.html                 account, pricing, recovery, and app shell
-public/botd-logo.webp             B.O.T.D. product mark
-private/app-v6.8.html.txt         account-scoped protected v6.8 template
-src/worker.js                     auth, checkout, webhook, portal, entitlement
-supabase/01_schema.sql            idempotent schema and RLS policies
-supabase/02_staging_safety.sql    staging-only live-data constraints
-supabase/03_verify.sql            read-only RLS/constraint verification
-supabase/EMAIL_TEMPLATES.md       staging and future SMTP guidance
-scripts/validate-release.mjs      static validation and secret scan
-scripts/smoke-worker.mjs          Worker, isolation, and recovery tests
-wrangler.jsonc                    Worker and static-assets configuration
+public/index.html                         account, billing warning, and app shell
+public/botd-logo.webp                     B.O.T.D. product mark
+private/app-v6.8.html.txt                 account-scoped protected v6.8 template
+src/worker.js                             auth, checkout, webhook, portal, entitlement
+supabase/01_schema.sql                    complete fresh-install schema and RLS
+supabase/02_staging_safety.sql            staging-only live-data constraints
+supabase/03_verify.sql                    read-only schema/RLS verification
+supabase/04_subscription_state_ordering.sql RC3-to-RC4 migration
+supabase/EMAIL_TEMPLATES.md               staging and future SMTP guidance
+scripts/validate-release.mjs              static validation and secret scan
+scripts/smoke-worker.mjs                  auth, isolation, and recovery tests
+scripts/smoke-billing-state.mjs           concurrent billing-state tests
+wrangler.jsonc                            Worker and static-assets configuration
 ```
 
 There is intentionally no `CNAME` file. Cloudflare controls the staging custom
 domain in its dashboard.
 
-## Upgrade from RC2
+## Upgrade from RC3
 
-No Supabase schema, Stripe, webhook, Cloudflare Access, DNS, or runtime-variable
-change is required.
+### 1. Run the database migration first
 
-Upload `BOTD_v6.8_STAGING_AUTH_STRIPE_RC3_PASSWORD_RECOVERY.zip` to the root of
+In the `botd-staging` Supabase SQL Editor, run the complete contents of:
+
+```text
+supabase/04_subscription_state_ordering.sql
+```
+
+A successful result is:
+
+```text
+Success. No rows returned
+```
+
+Then run `supabase/03_verify.sql`. The final results must show eight RC4
+ordering columns and:
+
+```text
+function_name: apply_stripe_subscription_state
+service_role_can_execute: true
+authenticated_can_execute: false
+```
+
+### 2. Deploy the package
+
+Upload `BOTD_v6.8_STAGING_AUTH_STRIPE_RC4_BILLING_RACE_FIX.zip` to the root of
 the `botd-app-staging` Codespace and run:
 
 ```bash
@@ -97,15 +127,14 @@ pwd
 git remote -v
 git status -sb
 
-backup="backup-before-recovery-fix-$(date -u +%Y%m%d-%H%M%S)"
+backup="backup-before-billing-race-fix-$(date -u +%Y%m%d-%H%M%S)"
 git branch "$backup"
 git push origin "$backup"
 
-unzip -o BOTD_v6.8_STAGING_AUTH_STRIPE_RC3_PASSWORD_RECOVERY.zip
-rm BOTD_v6.8_STAGING_AUTH_STRIPE_RC3_PASSWORD_RECOVERY.zip
+unzip -o BOTD_v6.8_STAGING_AUTH_STRIPE_RC4_BILLING_RACE_FIX.zip
+rm BOTD_v6.8_STAGING_AUTH_STRIPE_RC4_BILLING_RACE_FIX.zip
 
 npm run check
-git status --short
 ```
 
 Validation must end with:
@@ -115,25 +144,28 @@ Release validation passed.
 Worker smoke tests passed.
 Account-scoped protected application responses passed for two distinct users.
 Short opaque refresh-token adoption and recovery-session controls passed.
+Billing-state ordering smoke tests passed.
+Concurrent subscription/payment-failure events preserve one grace deadline.
+Payment recovery wins over late failed-event delivery for the same invoice.
 ```
 
 Commit and push:
 
 ```bash
 git add -A
-git commit -m "Fix password recovery session handling"
+git commit -m "Fix failed-payment webhook ordering"
 git push --progress origin main
 ```
 
-`keep_vars: true` in `wrangler.jsonc` preserves dashboard-managed runtime
-variables and encrypted secrets.
+`keep_vars: true` preserves the dashboard-managed variables and encrypted
+secrets.
 
-## Health check
+### 3. Verify RC4 health
 
 After Cloudflare deploys, open:
 
 ```text
-https://staging.botdhockey.com/api/health?release=rc3
+https://staging.botdhockey.com/api/health?release=rc4
 ```
 
 Expected identity:
@@ -142,37 +174,46 @@ Expected identity:
 {
   "ok": true,
   "service": "botd-app-staging",
-  "version": "6.8-entitlement-rc3",
+  "version": "6.8-entitlement-rc4",
   "mode": "staging-test-only"
 }
 ```
 
-All readiness checks must remain `true`.
+The checks must include:
 
-## Password-recovery acceptance test
+```json
+"paymentStateSchema": true
+```
 
-Supabase's built-in mailer is limited. Wait for its email quota to be available,
-then make one controlled request.
+## Reprocess the existing Test Clock failure
 
-1. Sign out of the B.O.T.D. account.
-2. Select **Forgot password?** and request one email.
-3. Open the newest reset message once.
-4. Confirm staging displays **Set a new password** without an invalid-refresh
-   error.
-5. Enter a new password of at least 10 characters.
-6. Confirm the shell returns to sign-in and says to use the new password.
-7. Confirm the old password is rejected.
-8. Confirm the new password signs in and preserves entitlement, local playbook,
-   team settings, display settings, and center-ice selection.
-9. Reopen the same email link and confirm it is rejected as expired/used.
-10. Manually visit `/?mode=recovery`, then sign in normally and confirm the
-    normal account/app view appears rather than the password-set form.
+The failed-renewal event already accepted by RC3 is stored as processed. In
+Supabase staging only, delete that one event marker:
+
+```sql
+delete from public.processed_webhook_events
+where stripe_event_id = 'evt_1UDusBGWXHTAR9EQ690RmGVY'
+returning stripe_event_id, event_type, processed_at;
+```
+
+Then open that event in Stripe Sandbox and select **Resend**. The delivery must
+return HTTP 200. RC4 should produce:
+
+```text
+status: past_due
+grace_period_end: approximately seven real days from resend
+entitlement: coach_pro
+active: true
+expires_at: same as grace_period_end
+```
+
+Do not run the Test Clock `recover` command until this state is confirmed.
 
 ## Security notes
 
 - Never commit `sk_test_`, `sk_live_`, `whsec_`, `sb_secret_`, refresh tokens,
   access tokens, or database passwords.
-- This staging Worker rejects live Stripe keys, live webhook events, and any
+- The staging Worker rejects live Stripe keys, live webhook events, and any
   `APP_URL` other than `https://staging.botdhockey.com`.
 - The webhook Access bypass must remain limited to
   `/api/stripe/webhook` exactly.

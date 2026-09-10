@@ -16,6 +16,7 @@ const required = [
   "supabase/01_schema.sql",
   "supabase/02_staging_safety.sql",
   "supabase/03_verify.sql",
+  "supabase/04_subscription_state_ordering.sql",
 ];
 
 for (const relative of required) {
@@ -82,6 +83,8 @@ for (const marker of [
   "flowType: type",
   "data.recovery === true",
   "4242 4242 4242 4242",
+  "appGraceWarning",
+  "Payment grace",
 ]) {
   if (!shell.includes(marker)) throw new Error(`Staging shell marker missing: ${marker}`);
 }
@@ -99,7 +102,10 @@ for (const marker of [
   "RECOVERY_COOKIE",
   "recovery_session_required",
   "requireToken(body.refreshToken, \"refresh token\", 8)",
-  "6.8-entitlement-rc3",
+  "apply_stripe_subscription_state",
+  "classifyInvoicePaymentState",
+  "paymentStateSchema",
+  "6.8-entitlement-rc4",
 ]) {
   if (!worker.includes(marker)) throw new Error(`Worker safety marker missing: ${marker}`);
 }

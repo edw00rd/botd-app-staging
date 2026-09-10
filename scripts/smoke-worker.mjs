@@ -68,6 +68,13 @@ globalThis.fetch = async (input, init = {}) => {
     });
   }
 
+  if (url.pathname === "/rest/v1/subscriptions" && url.searchParams.has("select")) {
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   if (url.pathname === "/rest/v1/entitlements") {
     return new Response(JSON.stringify([{ active: true, expires_at: null }]), {
       status: 200,
@@ -116,7 +123,7 @@ try {
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8-entitlement-rc3");
+  assert.equal(healthPayload.version, "6.8-entitlement-rc4");
 
   const rootResponse = await worker.fetch(
     new Request("https://staging.botdhockey.com/"),

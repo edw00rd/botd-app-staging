@@ -153,7 +153,7 @@ async function routeApiRequest(request, env, ctx, path) {
   }
 }
 
-function handleHealth(env) {
+async function handleHealth(env) {
   const checks = {
     environment: env.ENVIRONMENT === "staging",
     appUrl: isValidStagingAppUrl(env.APP_URL),
@@ -174,12 +174,13 @@ function handleHealth(env) {
     stripeWebhookSecret:
       typeof env.STRIPE_WEBHOOK_SECRET === "string" &&
       env.STRIPE_WEBHOOK_SECRET.startsWith("whsec_"),
+    paymentStateSchema: await checkPaymentStateSchema(env),
   };
 
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
     service: "botd-app-staging",
-    version: "6.8-entitlement-rc3",
+    version: "6.8-entitlement-rc4",
     mode: "staging-test-only",
     checks,
     now: new Date().toISOString(),
@@ -595,7 +596,11 @@ async function handleCheckoutStatus(request, env) {
     const subscription = typeof checkout.subscription === "string"
       ? await retrieveStripeSubscription(checkout.subscription, env)
       : checkout.subscription;
-    await syncStripeSubscription(subscription, env, session.user.id, "auto");
+    await syncStripeSubscription(subscription, env, session.user.id, {
+      id: checkout.id,
+      created: checkout.created || Math.floor(Date.now() / 1000),
+      type: "checkout.session.completed",
+    });
   }
 
   const account = await buildAccountPayload(session, env);
@@ -1162,6 +1167,72 @@ async function dbWrite(env, table, rows, options = {}) {
   return data;
 }
 
+async function dbRpc(env, functionName, argumentsObject = {}) {
+  assertSupabaseDataConfig(env, false);
+  const key = env.SUPABASE_SECRET_KEY;
+  const headers = new Headers({
+    apikey: key,
+    "Content-Type": JSON_TYPE,
+    Accept: JSON_TYPE,
+    "Content-Profile": "public",
+    "Accept-Profile": "public",
+    Prefer: "return=representation",
+  });
+  if (key.startsWith("eyJ")) headers.set("Authorization", `Bearer ${key}`);
+
+  const response = await fetch(
+    `${normalizeSupabaseUrl(env.SUPABASE_URL)}/rest/v1/rpc/${encodeURIComponent(functionName)}`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(argumentsObject),
+    },
+  );
+  const data = await readResponseData(response);
+  if (!response.ok) {
+    console.error("Supabase RPC failed", {
+      functionName,
+      status: response.status,
+      data,
+    });
+    throw new AppError(
+      502,
+      "database_write_failed",
+      "Account data could not be updated.",
+      false,
+    );
+  }
+  return data;
+}
+
+async function checkPaymentStateSchema(env) {
+  if (
+    !normalizeSupabaseUrl(env.SUPABASE_URL) ||
+    !isBackendSupabaseKey(env.SUPABASE_SECRET_KEY)
+  ) {
+    return false;
+  }
+
+  const key = env.SUPABASE_SECRET_KEY;
+  const headers = new Headers({
+    apikey: key,
+    Accept: JSON_TYPE,
+    "Accept-Profile": "public",
+  });
+  if (key.startsWith("eyJ")) headers.set("Authorization", `Bearer ${key}`);
+
+  try {
+    const response = await fetch(
+      `${normalizeSupabaseUrl(env.SUPABASE_URL)}/rest/v1/subscriptions` +
+        `?select=last_invoice_id,last_invoice_state,last_invoice_created,last_stripe_observed_at&limit=0`,
+      { method: "GET", headers },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function stripeRequest(env, path, options = {}) {
   assertStripeTestConfig(env);
   const headers = new Headers({
@@ -1217,7 +1288,8 @@ async function retrieveStripeSubscription(subscriptionId, env) {
   }
   return stripeRequest(
     env,
-    `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand%5B%5D=items.data.price`,
+    `/v1/subscriptions/${encodeURIComponent(subscriptionId)}` +
+      `?expand%5B0%5D=items.data.price&expand%5B1%5D=latest_invoice`,
     { method: "GET" },
   );
 }
@@ -1300,31 +1372,24 @@ async function processStripeEvent(event, env) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {
       if (!object.subscription) return;
-      const subscription = typeof object.subscription === "string"
-        ? await retrieveStripeSubscription(object.subscription, env)
-        : object.subscription;
+      const subscriptionId = typeof object.subscription === "string"
+        ? object.subscription
+        : object.subscription.id;
       const userId = object.client_reference_id || object.metadata?.supabase_user_id;
-      await syncStripeSubscription(subscription, env, userId, "auto");
+      await syncStripeSubscription({ id: subscriptionId }, env, userId, event);
       return;
     }
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      await syncStripeSubscription(object, env, null, "auto");
+      await syncStripeSubscription(object, env, null, event);
       return;
     }
-    case "invoice.paid": {
-      const subscriptionId = stripeSubscriptionIdFromInvoice(object);
-      if (!subscriptionId) return;
-      const subscription = await retrieveStripeSubscription(subscriptionId, env);
-      await syncStripeSubscription(subscription, env, null, "clear");
-      return;
-    }
+    case "invoice.paid":
     case "invoice.payment_failed": {
       const subscriptionId = stripeSubscriptionIdFromInvoice(object);
       if (!subscriptionId) return;
-      const subscription = await retrieveStripeSubscription(subscriptionId, env);
-      await syncStripeSubscription(subscription, env, null, "set");
+      await syncStripeSubscription({ id: subscriptionId }, env, null, event);
       return;
     }
     default:
@@ -1336,12 +1401,23 @@ async function syncStripeSubscription(
   subscriptionInput,
   env,
   explicitUserId = null,
-  graceAction = "auto",
+  eventContext = null,
 ) {
-  let subscription = subscriptionInput;
-  if (!subscription?.id || !subscription?.items?.data?.length) {
-    subscription = await retrieveStripeSubscription(subscription?.id, env);
+  const subscriptionId = subscriptionInput?.id;
+  if (!subscriptionId) {
+    throw new AppError(
+      400,
+      "missing_subscription",
+      "Stripe event did not include a subscription identifier.",
+      false,
+    );
   }
+
+  // Capture when this exact Stripe snapshot was observed. The database uses
+  // this timestamp under a row lock so a slower, older webhook handler cannot
+  // overwrite a newer subscription snapshot that already reached Supabase.
+  const subscription = await retrieveStripeSubscription(subscriptionId, env);
+  const observedAt = new Date().toISOString();
 
   if (subscription.livemode === true) {
     throw new AppError(
@@ -1385,44 +1461,60 @@ async function syncStripeSubscription(
     throw new AppError(400, "missing_price", "Stripe subscription has no price.", false);
   }
 
-  const existingRows = await dbSelect(env, "subscriptions", {
-    select: "grace_period_end",
-    stripe_subscription_id: `eq.${subscription.id}`,
-    limit: "1",
-  });
-  const existingGrace = existingRows[0]?.grace_period_end || null;
-  let gracePeriodEnd = existingGrace;
-
-  if (graceAction === "set") {
-    gracePeriodEnd = new Date(
-      Date.now() + PAYMENT_GRACE_DAYS * 24 * 60 * 60 * 1000,
-    ).toISOString();
-  } else if (
-    graceAction === "clear" ||
-    ["active", "trialing"].includes(subscription.status)
-  ) {
-    gracePeriodEnd = null;
-  }
-
   const periodEnd = extractSubscriptionPeriodEnd(subscription);
-  const row = {
-    stripe_subscription_id: subscription.id,
-    user_id: userId,
-    stripe_customer_id: customerId,
-    stripe_price_id: priceId,
-    billing_interval: ["month", "year"].includes(interval) ? interval : null,
-    status: String(subscription.status || "unknown"),
-    current_period_end: periodEnd ? unixToIso(periodEnd) : null,
-    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
-    grace_period_end: gracePeriodEnd,
-    livemode: Boolean(subscription.livemode),
-  };
+  const invoice = subscription.latest_invoice;
+  const invoiceState =
+    invoice && typeof invoice === "object" && invoice.id
+      ? classifyInvoicePaymentState(invoice)
+      : null;
+  const invoiceCreated = Number(invoice?.created);
+  const eventCreated = Number(eventContext?.created || Math.floor(Date.now() / 1000));
+  const eventId = String(
+    eventContext?.id || `current-state-${subscription.id}-${crypto.randomUUID()}`,
+  );
+  const graceDeadline = invoiceState === "failed"
+    ? new Date(Date.now() + PAYMENT_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    : null;
 
-  await dbWrite(env, "subscriptions", [row], {
-    onConflict: "stripe_subscription_id",
-    prefer: "resolution=merge-duplicates,return=minimal",
+  // Subscription snapshot and invoice-payment state are applied atomically in
+  // PostgreSQL. Generic subscription events can no longer null a grace period
+  // set by invoice.payment_failed, and paid recovery wins over a late failed
+  // delivery for the same invoice.
+  await dbRpc(env, "apply_stripe_subscription_state", {
+    p_subscription_id: subscription.id,
+    p_user_id: userId,
+    p_customer_id: customerId,
+    p_price_id: priceId,
+    p_billing_interval: ["month", "year"].includes(interval) ? interval : null,
+    p_status: String(subscription.status || "unknown"),
+    p_current_period_end: periodEnd ? unixToIso(periodEnd) : null,
+    p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    p_livemode: Boolean(subscription.livemode),
+    p_observed_at: observedAt,
+    p_event_id: eventId,
+    p_event_created: Number.isFinite(eventCreated) && eventCreated > 0
+      ? Math.trunc(eventCreated)
+      : Math.floor(Date.now() / 1000),
+    p_invoice_id: invoiceState ? invoice.id : null,
+    p_invoice_created:
+      invoiceState && Number.isFinite(invoiceCreated) && invoiceCreated > 0
+        ? Math.trunc(invoiceCreated)
+        : null,
+    p_invoice_state: invoiceState,
+    p_grace_deadline: graceDeadline,
   });
+
   await recomputeCoachProEntitlement(userId, env);
+}
+
+function classifyInvoicePaymentState(invoice) {
+  const status = String(invoice?.status || "").toLowerCase();
+  if (invoice?.paid === true || status === "paid") return "paid";
+  if (["void", "uncollectible"].includes(status)) return "terminal";
+
+  const attempted = invoice?.attempted === true || Number(invoice?.attempt_count || 0) > 0;
+  if (status === "open" && invoice?.paid !== true && attempted) return "failed";
+  return null;
 }
 
 async function recomputeCoachProEntitlement(userId, env) {
@@ -1468,15 +1560,23 @@ async function recomputeCoachProEntitlement(userId, env) {
 
 function subscriptionAccessUntil(subscription) {
   const status = String(subscription.status || "");
-  if (["active", "trialing"].includes(status)) {
-    if (!subscription.current_period_end) return null;
-    const date = new Date(subscription.current_period_end);
+
+  // A recorded failed-payment grace deadline is authoritative even when
+  // Stripe temporarily leaves the subscription status as active. Never grant
+  // the full paid period while an unresolved failed invoice is in grace.
+  if (
+    ["active", "trialing", "past_due"].includes(status) &&
+    subscription.grace_period_end
+  ) {
+    const date = new Date(subscription.grace_period_end);
     return Number.isFinite(date.getTime()) && date.getTime() > Date.now()
       ? date
       : false;
   }
-  if (status === "past_due" && subscription.grace_period_end) {
-    const date = new Date(subscription.grace_period_end);
+
+  if (["active", "trialing"].includes(status)) {
+    if (!subscription.current_period_end) return null;
+    const date = new Date(subscription.current_period_end);
     return Number.isFinite(date.getTime()) && date.getTime() > Date.now()
       ? date
       : false;

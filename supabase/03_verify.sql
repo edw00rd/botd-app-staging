@@ -30,3 +30,38 @@ select
 from pg_constraint
 where conname in ('subscriptions_staging_only', 'webhook_events_staging_only')
 order by conname;
+
+select
+  c.column_name,
+  c.data_type
+from information_schema.columns as c
+where c.table_schema = 'public'
+  and c.table_name = 'subscriptions'
+  and c.column_name in (
+    'last_stripe_observed_at',
+    'last_stripe_event_id',
+    'last_stripe_event_created',
+    'last_invoice_id',
+    'last_invoice_created',
+    'last_invoice_state',
+    'last_invoice_event_id',
+    'last_invoice_event_created'
+  )
+order by c.column_name;
+
+select
+  p.proname as function_name,
+  has_function_privilege(
+    'service_role',
+    'public.apply_stripe_subscription_state(text,uuid,text,text,text,text,timestamptz,boolean,boolean,timestamptz,text,bigint,text,bigint,text,timestamptz)',
+    'EXECUTE'
+  ) as service_role_can_execute,
+  has_function_privilege(
+    'authenticated',
+    'public.apply_stripe_subscription_state(text,uuid,text,text,text,text,timestamptz,boolean,boolean,timestamptz,text,bigint,text,bigint,text,timestamptz)',
+    'EXECUTE'
+  ) as authenticated_can_execute
+from pg_proc as p
+join pg_namespace as n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'apply_stripe_subscription_state';
