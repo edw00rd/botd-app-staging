@@ -11,14 +11,14 @@ source = source.replace(
   /^import APP_HTML from .*?;\s*/,
   'const APP_HTML = "<!doctype html>";\n',
 );
-source += "\nexport { processStripeEvent, subscriptionAccessUntil, classifyInvoicePaymentState };\n";
+source += "\nexport { processStripeEvent, subscriptionAccessUntil, classifyInvoicePaymentState, invoicePaymentStateFromEvent };\n";
 fs.writeFileSync(temporaryPath, source);
 
 const userId = "33333333-3333-4333-8333-333333333333";
-const subscriptionId = "sub_rc4billingstate0001";
-const customerId = "cus_rc4billingstate0001";
-const priceId = "price_rc4monthly000000000001";
-const invoiceId = "in_rc4renewal00000000001";
+const subscriptionId = "sub_rc5billingstate0001";
+const customerId = "cus_rc5billingstate0001";
+const priceId = "price_rc5monthly000000000001";
+const invoiceId = "in_rc5renewal00000000001";
 const periodEnd = Math.floor(Date.now() / 1000) + 31 * 24 * 60 * 60;
 
 let stripeSubscription = {
@@ -40,15 +40,21 @@ let stripeSubscription = {
       },
     ],
   },
-  latest_invoice: {
-    id: invoiceId,
-    object: "invoice",
-    created: 2_000_000_000,
-    status: "open",
-    paid: false,
-    attempted: true,
-    attempt_count: 1,
-  },
+  // Deliberately leave latest_invoice unexpanded. The real Stripe Sandbox
+  // response that exposed RC4 behaved this way even though expansion was
+  // requested. Invoice webhook payloads must therefore carry payment state.
+  latest_invoice: invoiceId,
+};
+
+const failedInvoicePayload = {
+  id: invoiceId,
+  object: "invoice",
+  created: 2_000_000_000,
+  status: "open",
+  paid: false,
+  attempted: true,
+  attempt_count: 1,
+  subscription: subscriptionId,
 };
 
 const db = {
@@ -300,9 +306,12 @@ try {
     processStripeEvent,
     subscriptionAccessUntil,
     classifyInvoicePaymentState,
+    invoicePaymentStateFromEvent,
   } = module;
 
-  assert.equal(classifyInvoicePaymentState(stripeSubscription.latest_invoice), "failed");
+  assert.equal(classifyInvoicePaymentState(failedInvoicePayload), "failed");
+  assert.equal(invoicePaymentStateFromEvent("invoice.payment_failed"), "failed");
+  assert.equal(invoicePaymentStateFromEvent("invoice.paid"), "paid");
   assert.equal(
     subscriptionAccessUntil({
       status: "active",
@@ -323,7 +332,7 @@ try {
     "evt_invoice_failed",
     "invoice.payment_failed",
     2_000_000_006,
-    { id: invoiceId, subscription: subscriptionId },
+    clone(failedInvoicePayload),
   );
 
   await Promise.all([
@@ -363,13 +372,14 @@ try {
   stripeSubscription = {
     ...stripeSubscription,
     status: "active",
-    latest_invoice: {
-      ...stripeSubscription.latest_invoice,
-      status: "paid",
-      paid: true,
-      attempted: true,
-      attempt_count: 2,
-    },
+    latest_invoice: invoiceId,
+  };
+  const paidInvoicePayload = {
+    ...failedInvoicePayload,
+    status: "paid",
+    paid: true,
+    attempted: true,
+    attempt_count: 2,
   };
 
   await Promise.all([
@@ -378,7 +388,7 @@ try {
         "evt_late_failed_delivery",
         "invoice.payment_failed",
         2_000_000_011,
-        { id: invoiceId, subscription: subscriptionId },
+        clone(failedInvoicePayload),
       ),
       env,
     ),
@@ -387,7 +397,7 @@ try {
         "evt_invoice_paid_recovery",
         "invoice.paid",
         2_000_000_012,
-        { id: invoiceId, subscription: subscriptionId },
+        clone(paidInvoicePayload),
       ),
       env,
     ),
@@ -435,6 +445,7 @@ try {
   assert.equal(recoveredRow.grace_period_end, null);
 
   console.log("Billing-state ordering smoke tests passed.");
+  console.log("Signed invoice webhook payloads work when latest_invoice is unexpanded.");
   console.log("Concurrent subscription/payment-failure events preserve one grace deadline.");
   console.log("Payment recovery wins over late failed-event delivery for the same invoice.");
 } finally {

@@ -1,9 +1,9 @@
 {
   "name": "botd-app-staging",
-  "version": "6.8.0-rc.4",
+  "version": "6.8.0-rc.5",
   "private": true,
   "type": "module",
-  "description": "B.O.T.D. Hockey Playbook Studio v6.8 staging authentication, Stripe entitlement, and account-scoped storage, password recovery, and ordered failed-payment grace release",
+  "description": "B.O.T.D. Hockey Playbook Studio v6.8 staging authentication, Stripe entitlement, and account-scoped storage, password recovery, and ordered failed-payment grace and signed invoice-event release",
   "license": "UNLICENSED",
   "scripts": {
     "check": "node --check src/worker.js && node scripts/validate-release.mjs && node scripts/smoke-worker.mjs && node scripts/smoke-billing-state.mjs",

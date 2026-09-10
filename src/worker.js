@@ -180,7 +180,7 @@ async function handleHealth(env) {
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
     service: "botd-app-staging",
-    version: "6.8-entitlement-rc4",
+    version: "6.8-entitlement-rc5",
     mode: "staging-test-only",
     checks,
     now: new Date().toISOString(),
@@ -1389,7 +1389,17 @@ async function processStripeEvent(event, env) {
     case "invoice.payment_failed": {
       const subscriptionId = stripeSubscriptionIdFromInvoice(object);
       if (!subscriptionId) return;
-      await syncStripeSubscription({ id: subscriptionId }, env, null, event);
+      // The invoice event itself is authoritative for payment outcome. Some
+      // Stripe API responses leave subscription.latest_invoice unexpanded even
+      // when expansion was requested, so pass the signed event invoice through
+      // instead of depending only on a second subscription read.
+      await syncStripeSubscription(
+        { id: subscriptionId },
+        env,
+        null,
+        event,
+        object,
+      );
       return;
     }
     default:
@@ -1402,6 +1412,7 @@ async function syncStripeSubscription(
   env,
   explicitUserId = null,
   eventContext = null,
+  invoiceEventObject = null,
 ) {
   const subscriptionId = subscriptionInput?.id;
   if (!subscriptionId) {
@@ -1462,12 +1473,23 @@ async function syncStripeSubscription(
   }
 
   const periodEnd = extractSubscriptionPeriodEnd(subscription);
-  const invoice = subscription.latest_invoice;
-  const invoiceState =
-    invoice && typeof invoice === "object" && invoice.id
-      ? classifyInvoicePaymentState(invoice)
+  const retrievedInvoice =
+    subscription.latest_invoice &&
+    typeof subscription.latest_invoice === "object" &&
+    subscription.latest_invoice.id
+      ? subscription.latest_invoice
       : null;
-  const invoiceCreated = Number(invoice?.created);
+  const signedInvoice =
+    invoiceEventObject &&
+    typeof invoiceEventObject === "object" &&
+    invoiceEventObject.id
+      ? invoiceEventObject
+      : null;
+  const invoice = signedInvoice || retrievedInvoice;
+  const eventInvoiceState = invoicePaymentStateFromEvent(eventContext?.type);
+  const invoiceState = eventInvoiceState || classifyInvoicePaymentState(invoice);
+  const invoiceId = invoiceState ? String(invoice?.id || "") : "";
+  const invoiceCreated = Number(invoice?.created || eventContext?.created);
   const eventCreated = Number(eventContext?.created || Math.floor(Date.now() / 1000));
   const eventId = String(
     eventContext?.id || `current-state-${subscription.id}-${crypto.randomUUID()}`,
@@ -1495,7 +1517,7 @@ async function syncStripeSubscription(
     p_event_created: Number.isFinite(eventCreated) && eventCreated > 0
       ? Math.trunc(eventCreated)
       : Math.floor(Date.now() / 1000),
-    p_invoice_id: invoiceState ? invoice.id : null,
+    p_invoice_id: invoiceState && invoiceId ? invoiceId : null,
     p_invoice_created:
       invoiceState && Number.isFinite(invoiceCreated) && invoiceCreated > 0
         ? Math.trunc(invoiceCreated)
@@ -1505,6 +1527,12 @@ async function syncStripeSubscription(
   });
 
   await recomputeCoachProEntitlement(userId, env);
+}
+
+function invoicePaymentStateFromEvent(eventType) {
+  if (eventType === "invoice.payment_failed") return "failed";
+  if (eventType === "invoice.paid") return "paid";
+  return null;
 }
 
 function classifyInvoicePaymentState(invoice) {

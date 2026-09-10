@@ -104,8 +104,10 @@ for (const marker of [
   "requireToken(body.refreshToken, \"refresh token\", 8)",
   "apply_stripe_subscription_state",
   "classifyInvoicePaymentState",
+  "invoicePaymentStateFromEvent",
+  "invoiceEventObject",
   "paymentStateSchema",
-  "6.8-entitlement-rc4",
+  "6.8-entitlement-rc5",
 ]) {
   if (!worker.includes(marker)) throw new Error(`Worker safety marker missing: ${marker}`);
 }

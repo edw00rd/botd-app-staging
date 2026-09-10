@@ -5,12 +5,12 @@ Application: https://app.botdhockey.com/
 Terms: https://botdhockey.com/terms/
 Support: support@botdhockey.com
 
-Staging RC3 integration note
+Staging RC5 integration note
 ----------------------------
 This document originated with the standalone v6.8 application release. In the
-staging RC3 package, the feature set remains v6.8 but the Worker injects the
+staging RC5 package, the feature set remains v6.8 but the Worker injects the
 authenticated Supabase user ID and scopes browser storage to that account. The
-RC3 storage and deployment notes below supersede the standalone instructions.
+RC5 storage and deployment notes below supersede the standalone instructions.
 
 Ownership and licensing
 -----------------------
@@ -113,7 +113,7 @@ This domain-ready proprietary release ZIP contains exactly six root files:
   CNAME
 
 Those six-file instructions apply only to the archived standalone release. Do
-not use them to deploy this staging RC3 package. RC2 must be deployed through
+not use them to deploy this staging RC5 package. RC2 must be deployed through
 the botd-app-staging Cloudflare Worker repository because account context,
 authentication, entitlement enforcement, and template injection are provided by
 src/worker.js.

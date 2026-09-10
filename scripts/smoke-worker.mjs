@@ -123,7 +123,7 @@ try {
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8-entitlement-rc4");
+  assert.equal(healthPayload.version, "6.8-entitlement-rc5");
 
   const rootResponse = await worker.fetch(
     new Request("https://staging.botdhockey.com/"),

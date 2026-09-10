@@ -1,65 +1,54 @@
-# Release candidate 4: ordered subscription and failed-payment state
+# Release candidate 5: signed invoice-event state
 
-Copyright © 2026 FENRIR LLC. All rights reserved.
-
-RC4 fixes the billing-state race discovered by the real Stripe Sandbox Test
-Clock renewal test.
+Copyright (c) 2026 FENRIR LLC. All rights reserved.
 
 ## Acceptance-test finding
 
-Stripe generated a genuine `invoice.payment_failed` event and delivered it to
-RC3 with HTTP 200. Supabase correctly stored `status = past_due`, but
-`grace_period_end` was later overwritten with `NULL`, and the `coach_pro`
-entitlement became inactive.
+A genuine Stripe Sandbox Test Clock renewal produced
+`invoice.payment_failed`. Stripe delivered the signed event to RC4 with HTTP
+200, and the subscription snapshot became `past_due`. However, the following
+fields remained empty:
 
-RC3 processed `invoice.payment_failed` and `customer.subscription.updated` as
-independent read-modify-write operations. Stripe can deliver those events in
-parallel. Both handlers could read an empty grace value, then whichever wrote
-last determined the final row. A subscription update could therefore erase the
-grace deadline created by the failed-invoice handler.
+```text
+last_invoice_state
+grace_period_end
+coach_pro entitlement
+```
+
+RC4 discarded the invoice event object and inferred payment state only from a
+second subscription retrieval. The observed Stripe response did not expose
+`latest_invoice` as an expanded object, so RC4 had no invoice status to apply.
 
 ## Fixed
 
-- Subscription snapshot and invoice-payment state are now applied by one
-  PostgreSQL function under a row lock.
-- Each handler retrieves the current Stripe subscription, including its latest
-  invoice, before applying state.
-- Subscription snapshots are ordered by the time the Worker observed the
-  current Stripe object, preventing a slower stale handler from overwriting a
-  newer snapshot.
-- Invoice states are ordered by invoice creation time and progression:
-  `failed` -> `terminal` -> `paid`.
-- A paid recovery for an invoice wins over any late failure delivery for that
-  same invoice.
-- Duplicate or parallel deliveries for the same failed invoice preserve the
-  original grace deadline instead of extending it.
-- A new failed renewal invoice starts a new seven-day grace period.
-- An unresolved grace deadline takes precedence even if Stripe temporarily
-  reports the subscription as `active`.
-- The authenticated app now displays a visible payment-failure warning and the
-  exact access-through date while grace is active.
-- The health endpoint verifies that the RC4 payment-state schema is installed.
-- A dedicated billing-state smoke test covers concurrent failure events,
-  duplicate delivery, recovery, and stale-handler rejection.
+- `invoice.payment_failed` now supplies the verified invoice payload directly
+  to the billing-state synchronizer.
+- `invoice.paid` uses the same signed-payload path for payment recovery.
+- Event type is authoritative for failed versus paid invoice state.
+- Invoice ID and creation time come from the signed invoice event, with event
+  creation time as a defensive fallback.
+- Current subscription status, customer, price, and period still come from a
+  fresh Stripe subscription retrieval.
+- RC4's PostgreSQL row lock, invoice ordering, replay protection, and
+  paid-over-failed precedence are preserved.
+- The billing smoke test now deliberately returns `latest_invoice` as an
+  unexpanded ID and proves that both failure grace and paid recovery still
+  work.
 
 ## Preserved
 
 - B.O.T.D. Hockey Playbook Studio v6.8 application payload and file format
 - account-scoped browser storage from RC2
 - password-recovery hardening from RC3
+- ordered subscription/invoice database state from RC4
 - monthly and annual Stripe Sandbox checkout
 - Customer Portal
 - Stripe signature verification
 - Cloudflare Access configuration
 - staging-only live-data safety locks
 
-## Required migration
+## Migration
 
-Existing staging databases must run:
-
-```text
-supabase/04_subscription_state_ordering.sql
-```
-
-No DNS, Stripe destination, webhook secret, Cloudflare Access, or runtime
-variable change is required.
+No new SQL migration is required when upgrading from RC4. The existing
+`supabase/04_subscription_state_ordering.sql` function remains the database
+write boundary.
