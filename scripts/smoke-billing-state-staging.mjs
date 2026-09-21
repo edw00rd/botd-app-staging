@@ -24,7 +24,7 @@ const periodEnd = Math.floor(Date.now() / 1000) + 31 * 24 * 60 * 60;
 let stripeSubscription = {
   id: subscriptionId,
   object: "subscription",
-  livemode: true,
+  livemode: false,
   customer: customerId,
   status: "past_due",
   cancel_at_period_end: false,
@@ -117,7 +117,7 @@ function applySubscriptionState(args) {
       status: args.p_status,
       current_period_end: args.p_current_period_end,
       cancel_at_period_end: args.p_cancel_at_period_end,
-      livemode: true,
+      livemode: false,
       grace_period_end: null,
       last_stripe_observed_at: null,
       last_stripe_event_created: null,
@@ -150,7 +150,7 @@ function applySubscriptionState(args) {
       status: args.p_status,
       current_period_end: args.p_current_period_end,
       cancel_at_period_end: args.p_cancel_at_period_end,
-      livemode: true,
+      livemode: false,
       last_stripe_observed_at: args.p_observed_at,
       last_stripe_event_id: args.p_event_id,
       last_stripe_event_created: args.p_event_created,
@@ -225,7 +225,7 @@ globalThis.fetch = async (input, init = {}) => {
     throw new Error(`Unexpected Stripe request: ${method} ${url}`);
   }
 
-  if (url.hostname === "stcobnlzdbkoakgvfaez.supabase.co") {
+  if (url.hostname === "dolbsnodupgppvwnnlgd.supabase.co") {
     const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(.+)$/);
     if (rpcMatch) {
       assert.equal(method, "POST");
@@ -279,12 +279,12 @@ globalThis.fetch = async (input, init = {}) => {
 };
 
 const env = {
-  ENVIRONMENT: "production",
-  APP_URL: "https://app.botdhockey.com",
-  SUPABASE_URL: "https://stcobnlzdbkoakgvfaez.supabase.co",
+  ENVIRONMENT: "staging",
+  APP_URL: "https://staging.botdhockey.com",
+  SUPABASE_URL: "https://dolbsnodupgppvwnnlgd.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: `sb_publishable_${"p".repeat(40)}`,
   SUPABASE_SECRET_KEY: `sb_secret_${"s".repeat(40)}`,
-  STRIPE_SECRET_KEY: `sk_live_${"l".repeat(40)}`,
+  STRIPE_SECRET_KEY: `sk_test_${"l".repeat(40)}`,
   STRIPE_WEBHOOK_SECRET: `whsec_${"w".repeat(40)}`,
   STRIPE_PRICE_MONTHLY: priceId,
   STRIPE_PRICE_ANNUAL: `price_${"a".repeat(24)}`,
@@ -295,7 +295,7 @@ function event(id, type, created, object) {
     id,
     type,
     created,
-    livemode: true,
+    livemode: false,
     data: { object },
   };
 }
@@ -429,7 +429,7 @@ try {
     p_status: "past_due",
     p_current_period_end: new Date(periodEnd * 1000).toISOString(),
     p_cancel_at_period_end: false,
-    p_livemode: true,
+    p_livemode: false,
     p_observed_at: new Date(Date.parse(recoveredObservedAt) - 1_000).toISOString(),
     p_event_id: "evt_stale_failed_handler",
     p_event_created: 2_000_000_009,

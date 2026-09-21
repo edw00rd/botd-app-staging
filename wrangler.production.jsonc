@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "botd-app-staging",
+  "name": "botd-app-production",
   "main": "src/worker.js",
   "compatibility_date": "2025-12-01",
   "keep_vars": true,
@@ -21,8 +21,8 @@
     }
   ],
   "vars": {
-    "ENVIRONMENT": "staging",
-    "APP_URL": "https://staging.botdhockey.com",
-    "SUPABASE_URL": "https://dolbsnodupgppvwnnlgd.supabase.co"
+    "ENVIRONMENT": "production",
+    "APP_URL": "https://app.botdhockey.com",
+    "SUPABASE_URL": "https://stcobnlzdbkoakgvfaez.supabase.co"
   }
 }

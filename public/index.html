@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-B.O.T.D. Hockey Playbook Studio - authenticated staging shell
+B.O.T.D. Hockey Playbook Studio - authenticated production shell
 Copyright © 2026 FENRIR LLC. All rights reserved.
 Proprietary software. No source-code license is granted.
 -->
@@ -11,7 +11,7 @@ Proprietary software. No source-code license is granted.
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="author" content="FENRIR LLC">
   <meta name="theme-color" content="#071625">
-  <title>B.O.T.D. App Staging</title>
+  <title>B.O.T.D. Hockey Playbook Studio</title>
   <link rel="icon" href="/botd-logo.webp">
   <style>
     :root{
@@ -49,7 +49,7 @@ Proprietary software. No source-code license is granted.
     .terms{display:grid;grid-template-columns:18px 1fr;gap:9px;align-items:start;font-size:11px;line-height:1.45;color:var(--muted)}.terms input{width:17px;height:17px;margin:1px 0 0}.form-row{display:flex;justify-content:space-between;align-items:center;gap:10px}.link-button{border:0;padding:0;background:transparent;color:#8ee8ff;text-decoration:underline;font-size:12px}
     .notice{width:min(980px,100%);margin:0 auto 16px;border:1px solid #3b647e;border-radius:12px;padding:11px 14px;background:#0d2b42;color:#d9ebf4;font-size:13px;line-height:1.45}.notice.success{border-color:#2f8b61;background:#0d3b2a}.notice.error{border-color:#a64d59;background:#491d27;color:#ffe1e5}.notice.warn{border-color:#a57e27;background:#3b2e0d;color:#ffebad}
     .pending{margin-top:16px;padding:13px;border:1px solid #385e76;border-radius:11px;background:#0a2133;font-size:12px;color:var(--muted)}
-    .plans{width:min(1030px,100%)}.plans-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px}.identity{color:var(--muted);font-size:12px}.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.price-card{position:relative;border:1px solid #355d77;border-radius:17px;background:linear-gradient(180deg,#12324b,#0b2336);padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.25)}.price-card.featured{border-color:#e2bd3d;box-shadow:0 0 0 2px rgba(248,211,77,.11),0 18px 46px rgba(0,0,0,.32)}.ribbon{position:absolute;right:16px;top:16px;border-radius:999px;padding:5px 8px;background:#4c3b09;color:#ffe78a;font-size:9px;font-weight:1000;letter-spacing:.08em}.price-card h3{margin:0 0 8px;font-size:20px}.price{font-size:43px;font-weight:1000;letter-spacing:-.04em}.price small{font-size:13px;color:var(--muted);letter-spacing:0}.price-card p{color:#bcd0dc;font-size:13px;line-height:1.55}.feature-list{display:grid;gap:8px;margin:17px 0 22px;font-size:12px;color:#dceaf2}.feature-list span:before{content:"•";color:var(--cyan);margin-right:8px}.savings{color:#ffe48a!important;font-weight:850}.test-card{margin-top:18px;border:1px dashed #7d6a2e;border-radius:12px;background:#241f0f;padding:12px;color:#ecdca3;font-size:11px;line-height:1.55}.test-card code{color:#fff2bd;font-weight:900}
+    .plans{width:min(1030px,100%)}.plans-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px}.identity{color:var(--muted);font-size:12px}.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.price-card{position:relative;border:1px solid #355d77;border-radius:17px;background:linear-gradient(180deg,#12324b,#0b2336);padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.25)}.price-card.featured{border-color:#e2bd3d;box-shadow:0 0 0 2px rgba(248,211,77,.11),0 18px 46px rgba(0,0,0,.32)}.ribbon{position:absolute;right:16px;top:16px;border-radius:999px;padding:5px 8px;background:#4c3b09;color:#ffe78a;font-size:9px;font-weight:1000;letter-spacing:.08em}.price-card h3{margin:0 0 8px;font-size:20px}.price{font-size:43px;font-weight:1000;letter-spacing:-.04em}.price small{font-size:13px;color:var(--muted);letter-spacing:0}.price-card p{color:#bcd0dc;font-size:13px;line-height:1.55}.price-card.requested{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(75,215,255,.15),0 18px 46px rgba(0,0,0,.32)}.feature-list{display:grid;gap:8px;margin:17px 0 22px;font-size:12px;color:#dceaf2}.feature-list span:before{content:"•";color:var(--cyan);margin-right:8px}.savings{color:#ffe48a!important;font-weight:850}.plan-selection-note{margin:9px 0 0;color:#9eeaff;font-size:12px;font-weight:800}.billing-card{margin-top:18px;border:1px solid #3d7695;border-radius:12px;background:#0c2a40;padding:12px;color:#cfe8f4;font-size:11px;line-height:1.55}
     .app-view{position:fixed;inset:68px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-status{height:34px;display:flex;align-items:center;gap:9px;padding:5px 14px;background:#0d2b40;border-bottom:1px solid #31536a;color:#bdd1dc;font-size:11px}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}.app-grace-warning{padding:9px 14px;border-bottom:1px solid #a57e27;background:#3b2e0d;color:#ffebad;font-size:12px;line-height:1.4}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
     .loading{display:grid;place-items:center;gap:13px;color:#c2d4df}.spinner{width:42px;height:42px;border:4px solid #274e67;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
@@ -61,8 +61,8 @@ Proprietary software. No source-code license is granted.
   <div class="page">
     <header class="masthead">
       <img class="mark" src="/botd-logo.webp" alt="B.O.T.D. logo">
-      <div class="brand"><strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong><span>Coach Pro · Version 6.8</span></div>
-      <span class="stage-badge">STAGING · TEST MODE</span>
+      <div class="brand"><strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong><span>Coach Pro · Version 6.8.1</span></div>
+      <span class="stage-badge">COACH PRO · SECURE ACCESS</span>
       <div id="headerActions" class="header-actions hidden">
         <span id="headerMeta" class="header-meta"></span>
         <button id="billingButton" class="btn small ghost hidden" type="button">Manage billing</button>
@@ -81,18 +81,18 @@ Proprietary software. No source-code license is granted.
       <section id="authView" class="panel hidden">
         <div class="panel-grid">
           <div class="pitch">
-            <div class="eyebrow">PRIVATE STAGING RELEASE</div>
+            <div class="eyebrow">YOUR COACHING WORKSPACE</div>
             <h1>Build the playbook. Bring it to life.</h1>
             <p>Create animated plays and drills, tune every route and puck action, then keep and share a complete coaching playbook.</p>
             <ul>
               <li>Animate skating, passes, shots, timing, and telestration.</li>
-              <li>Save reusable plays and drills in the v6.8 playbook.</li>
+              <li>Save reusable plays and drills in the v6.8.1 playbook.</li>
               <li>Monthly and annual plans unlock the same Coach Pro tools.</li>
             </ul>
           </div>
           <div class="auth-side">
             <h2>B.O.T.D. account</h2>
-            <p class="subcopy">Sign in or create the customer account that will be linked to Stripe.</p>
+            <p class="subcopy">Sign in or create your account to open Playbook Studio and manage your subscription.</p>
             <div class="tabs" role="tablist">
               <button id="signinTab" class="tab active" type="button" role="tab">Sign in</button>
               <button id="signupTab" class="tab" type="button" role="tab">Create account</button>
@@ -112,19 +112,19 @@ Proprietary software. No source-code license is granted.
               <button class="btn primary" type="submit">Create account</button>
             </form>
 
-            <div id="pendingConfirmation" class="pending hidden">A confirmation email has been sent. Keep this staging tab open, then use the link in that email. <button id="resendButton" class="link-button" type="button">Resend confirmation</button></div>
+            <div id="pendingConfirmation" class="pending hidden">A confirmation email has been sent. Keep this browser tab open, then use the link in that email. <button id="resendButton" class="link-button" type="button">Resend confirmation</button></div>
           </div>
         </div>
       </section>
 
       <section id="plansView" class="plans hidden">
         <div class="plans-head">
-          <div><h2>Choose Coach Pro billing</h2><p class="subcopy">Both options unlock the complete v6.8 Playbook Studio. Only the billing interval changes.</p></div>
+          <div><h2>Choose Coach Pro billing</h2><p class="subcopy">Both options unlock the complete v6.8.1 Playbook Studio. Only the billing interval changes.</p><p id="planSelectionNote" class="plan-selection-note hidden"></p></div>
           <div id="plansIdentity" class="identity"></div>
         </div>
         <div id="billingWarning" class="notice warn hidden"></div>
         <div class="pricing">
-          <article class="price-card featured">
+          <article class="price-card featured" id="plan-annual" data-plan-card="annual">
             <span class="ribbon">BEST VALUE</span>
             <h3>Coach Pro Annual</h3>
             <div class="price">$79 <small>/ year</small></div>
@@ -132,7 +132,7 @@ Proprietary software. No source-code license is granted.
             <div class="feature-list"><span>Complete animated play and drill editor</span><span>Local playbook save, import, and export</span><span>All Coach Pro features</span></div>
             <button class="btn good checkout-button" type="button" data-plan="annual">Continue with annual</button>
           </article>
-          <article class="price-card">
+          <article class="price-card" id="plan-monthly" data-plan-card="monthly">
             <h3>Coach Pro Monthly</h3>
             <div class="price">$9.99 <small>/ month</small></div>
             <p>Flexible month-to-month access with the same complete feature set.</p>
@@ -140,12 +140,12 @@ Proprietary software. No source-code license is granted.
             <button class="btn primary checkout-button" type="button" data-plan="monthly">Continue with monthly</button>
           </article>
         </div>
-        <div class="test-card"><strong>Stripe test mode:</strong> use card <code>4242 4242 4242 4242</code>, any future expiration date, any CVC, and any postal code. No real charge is created.</div>
+        <div class="billing-card"><strong>Secure billing:</strong> Stripe handles payment details, applicable tax, promotion codes, receipts, and recurring billing. You will review the amount due and renewal terms before subscribing.</div>
       </section>
 
       <section id="recoveryView" class="panel recovery hidden" style="max-width:560px;padding:30px">
         <h2>Set a new password</h2>
-        <p class="subcopy">Use at least 10 characters. This updates the password for your B.O.T.D. staging account.</p>
+        <p class="subcopy">Use at least 10 characters. This updates the password for your B.O.T.D. account.</p>
         <form id="recoveryForm">
           <div class="field"><label for="newPassword">New password</label><input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></div>
           <div class="field"><label for="newPasswordConfirm">Confirm new password</label><input id="newPasswordConfirm" type="password" autocomplete="new-password" minlength="10" required></div>
@@ -157,10 +157,10 @@ Proprietary software. No source-code license is granted.
     <section id="appView" class="app-view hidden" aria-label="B.O.T.D. Hockey Playbook Studio">
       <div class="app-status"><span class="status-dot"></span><strong id="appPlanLabel">Coach Pro active</strong><span id="appRenewalLabel"></span></div>
       <div id="appGraceWarning" class="app-grace-warning hidden" role="alert"></div>
-      <iframe id="appFrame" class="app-frame" title="B.O.T.D. Hockey Playbook Studio v6.8" referrerpolicy="same-origin"></iframe>
+      <iframe id="appFrame" class="app-frame" title="B.O.T.D. Hockey Playbook Studio v6.8.1" referrerpolicy="same-origin"></iframe>
     </section>
 
-    <footer class="footer">© 2026 FENRIR LLC. All rights reserved. · <a href="https://botdhockey.com/terms/">Terms</a> · <a href="https://botdhockey.com/privacy/">Privacy</a></footer>
+    <footer class="footer">© 2026 FENRIR LLC. All rights reserved. · <a href="https://botdhockey.com/">Product site</a> · <a href="https://botdhockey.com/terms/">Terms</a> · <a href="https://botdhockey.com/privacy/">Privacy</a></footer>
   </div>
 
   <dialog id="forgotDialog">
@@ -185,11 +185,12 @@ Proprietary software. No source-code license is granted.
         "pendingConfirmation","resendButton","forgotButton","forgotDialog","forgotForm",
         "forgotEmail","forgotCancel","recoveryForm","newPassword","newPasswordConfirm",
         "headerActions","headerMeta","billingButton","signoutButton","plansIdentity",
-        "billingWarning","appGraceWarning","appFrame","appPlanLabel","appRenewalLabel"
+        "billingWarning","planSelectionNote","appGraceWarning","appFrame","appPlanLabel","appRenewalLabel"
       ].map(id => [id, document.getElementById(id)])
     );
 
     const RECOVERY_ACCOUNT_KEY = "botd.recoveryAccount";
+    const PENDING_PLAN_KEY = "botd.pendingPlan";
     let account = null;
     let pendingEmail = sessionStorage.getItem("botd.pendingEmail") || "";
     let loadedAppAccountId = null;
@@ -246,13 +247,57 @@ Proprietary software. No source-code license is granted.
       for (const control of controls) control.disabled = busy;
     }
 
-    function switchAuth(mode) {
+    function switchAuth(mode, clearNotice = true) {
       const signup = mode === "signup";
       elements.signinTab.classList.toggle("active", !signup);
       elements.signupTab.classList.toggle("active", signup);
       elements.signinForm.classList.toggle("hidden", signup);
       elements.signupForm.classList.toggle("hidden", !signup);
-      message("");
+      if (clearNotice) message("");
+    }
+
+    function normalizePlan(value) {
+      return value === "annual" || value === "monthly" ? value : "";
+    }
+
+    function rememberPendingPlan(plan) {
+      const normalized = normalizePlan(plan);
+      if (!normalized) return;
+      try { localStorage.setItem(PENDING_PLAN_KEY, normalized); } catch {}
+    }
+
+    function rememberPlanFromUrl() {
+      const plan = normalizePlan(new URLSearchParams(location.search).get("plan"));
+      if (plan) rememberPendingPlan(plan);
+    }
+
+    function pendingPlan() {
+      const queryPlan = normalizePlan(new URLSearchParams(location.search).get("plan"));
+      if (queryPlan) return queryPlan;
+      try { return normalizePlan(localStorage.getItem(PENDING_PLAN_KEY)); } catch { return ""; }
+    }
+
+    function clearPendingPlan() {
+      try { localStorage.removeItem(PENDING_PLAN_KEY); } catch {}
+    }
+
+    function highlightPendingPlan() {
+      const plan = pendingPlan();
+      document.querySelectorAll("[data-plan-card]").forEach(card => {
+        const selected = Boolean(plan && card.dataset.planCard === plan);
+        card.classList.toggle("requested", selected);
+        card.toggleAttribute("aria-current", selected);
+      });
+      if (!elements.planSelectionNote) return;
+      elements.planSelectionNote.classList.toggle("hidden", !plan);
+      elements.planSelectionNote.textContent = plan
+        ? `${plan === "annual" ? "Annual" : "Monthly"} billing selected from botdhockey.com. Review the plan and continue when ready.`
+        : "";
+      if (plan) {
+        requestAnimationFrame(() => {
+          document.getElementById(`plan-${plan}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        });
+      }
     }
 
     function cleanQuery(...names) {
@@ -324,6 +369,16 @@ Proprietary software. No source-code license is granted.
       return new Intl.DateTimeFormat(undefined, { year:"numeric", month:"short", day:"numeric" }).format(date);
     }
 
+    function formatGraceDeadline(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return "";
+      return new Intl.DateTimeFormat(undefined, {
+        year:"numeric", month:"short", day:"numeric",
+        hour:"numeric", minute:"2-digit", timeZoneName:"short"
+      }).format(date);
+    }
+
     function setAppGraceWarning(text = "") {
       elements.appGraceWarning.textContent = text;
       elements.appGraceWarning.classList.toggle("hidden", !text);
@@ -340,6 +395,9 @@ Proprietary software. No source-code license is granted.
         unloadProtectedApp();
         showOnly("authView");
         elements.billingButton.classList.add("hidden");
+        const action = new URLSearchParams(location.search).get("action");
+        if (action === "signup") switchAuth("signup", false);
+        if (action === "signin") switchAuth("signin", false);
         return;
       }
 
@@ -365,14 +423,16 @@ Proprietary software. No source-code license is granted.
       elements.billingButton.classList.toggle("hidden", !hasBilling);
 
       if (data.entitlement?.active) {
+        clearPendingPlan();
+        cleanQuery("plan", "action");
         showOnly("appView");
-        const graceDate = formatDate(subscription?.grace_period_end);
+        const graceDate = formatGraceDeadline(subscription?.grace_period_end);
         const inPaymentGrace = Boolean(
           graceDate && ["active", "trialing", "past_due"].includes(subscription?.status),
         );
 
         if (inPaymentGrace) {
-          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} · Payment grace`;
+          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} · Payment Grace Period`;
           elements.appRenewalLabel.textContent = `· Access through ${graceDate}`;
           setAppGraceWarning(
             `Payment failed. Coach Pro access continues through ${graceDate}. ` +
@@ -398,12 +458,13 @@ Proprietary software. No source-code license is granted.
       unloadProtectedApp();
       showOnly("plansView");
       elements.plansIdentity.textContent = `Signed in as ${data.user.email}`;
+      highlightPendingPlan();
       const problem = data.subscriptions?.find(item => ["past_due","unpaid","incomplete"].includes(item.status));
       if (problem) {
         elements.billingWarning.classList.remove("hidden");
         elements.billingWarning.textContent = problem.status === "past_due"
-          ? "Stripe could not renew this test subscription. Use Manage billing to update the test payment method."
-          : `Subscription status: ${problem.status}. Use Manage billing or choose a plan after the test subscription is resolved.`;
+          ? "Stripe could not renew this subscription. Use Manage billing to update the payment method."
+          : `Subscription status: ${problem.status}. Use Manage billing or choose a plan after the subscription is resolved.`;
       } else {
         elements.billingWarning.classList.add("hidden");
       }
@@ -421,7 +482,7 @@ Proprietary software. No source-code license is granted.
       const sessionId = params.get("session_id");
       if (!sessionId) return false;
 
-      message("Stripe test payment returned successfully. Confirming Coach Pro access…", "success");
+      message("Stripe payment returned successfully. Confirming Coach Pro access…", "success");
       try {
         const data = await api(`/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`);
         renderAccount(data);
@@ -432,11 +493,12 @@ Proprietary software. No source-code license is granted.
             if (refreshed.entitlement?.active) break;
           }
         }
-        message("Stripe test subscription confirmed. Coach Pro is active.", "success");
+        message("Subscription confirmed. Coach Pro is active.", "success");
       } catch (error) {
         message(error.message, "error");
       } finally {
-        cleanQuery("checkout", "session_id");
+        clearPendingPlan();
+        cleanQuery("checkout", "session_id", "plan", "action");
       }
       return true;
     }
@@ -556,8 +618,9 @@ Proprietary software. No source-code license is granted.
     document.querySelectorAll(".checkout-button").forEach(button => {
       button.addEventListener("click", async () => {
         setBusy(button, true);
-        message("Creating a Stripe test checkout…");
+        message("Creating a secure Stripe checkout…");
         try {
+          rememberPendingPlan(button.dataset.plan);
           const result = await api("/api/checkout", { method:"POST", body:{ plan:button.dataset.plan } });
           location.assign(result.url);
         } catch (error) {
@@ -589,6 +652,7 @@ Proprietary software. No source-code license is granted.
 
     (async function boot() {
       try {
+        rememberPlanFromUrl();
         const adoptedType = await adoptHashSession();
         const params = new URLSearchParams(location.search);
         if (adoptedType === "recovery") {
@@ -598,7 +662,7 @@ Proprietary software. No source-code license is granted.
         }
         if (params.get("auth_error")) message("That email link is invalid or expired. Request a new message and try again.", "error");
         if (params.get("checkout") === "cancelled") {
-          message("Stripe test checkout was canceled. No charge was created.", "warn");
+          message("Checkout was canceled. No charge was created.", "warn");
           cleanQuery("checkout");
         }
         await refreshAccount();
@@ -607,7 +671,7 @@ Proprietary software. No source-code license is granted.
         sessionStorage.removeItem(RECOVERY_ACCOUNT_KEY);
         cleanQuery("mode", "auth_error");
         showOnly("authView");
-        message(error.message || "The staging account service could not be loaded.", "error");
+        message(error.message || "The production account service could not be loaded.", "error");
       }
     })();
   </script>

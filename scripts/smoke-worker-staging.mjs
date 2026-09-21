@@ -47,7 +47,7 @@ globalThis.fetch = async (input, init = {}) => {
         id: monthlyId,
         object: "price",
         active: true,
-        livemode: true,
+        livemode: false,
         type: "recurring",
         currency: "usd",
         unit_amount: 999,
@@ -60,7 +60,7 @@ globalThis.fetch = async (input, init = {}) => {
         id: annualId,
         object: "price",
         active: true,
-        livemode: true,
+        livemode: false,
         type: "recurring",
         currency: "usd",
         unit_amount: 7900,
@@ -78,11 +78,11 @@ globalThis.fetch = async (input, init = {}) => {
     assert.equal((init.method || "GET").toUpperCase(), "POST");
     capturedCheckoutForm = new URLSearchParams(String(init.body || ""));
     return new Response(JSON.stringify({
-      id: "cs_live_production_smoke_001",
+      id: "cs_test_production_smoke_001",
       object: "checkout.session",
-      livemode: true,
+      livemode: false,
       status: "open",
-      url: "https://checkout.stripe.com/c/pay/cs_live_production_smoke_001",
+      url: "https://checkout.stripe.com/c/pay/cs_test_production_smoke_001",
     }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
@@ -145,12 +145,12 @@ globalThis.fetch = async (input, init = {}) => {
 try {
   const { default: worker } = await import(`${pathToFileURL(temporaryPath).href}?v=${Date.now()}`);
   const env = {
-    ENVIRONMENT: "production",
-    APP_URL: "https://app.botdhockey.com",
-    SUPABASE_URL: "https://stcobnlzdbkoakgvfaez.supabase.co",
+    ENVIRONMENT: "staging",
+    APP_URL: "https://staging.botdhockey.com",
+    SUPABASE_URL: "https://dolbsnodupgppvwnnlgd.supabase.co",
     SUPABASE_PUBLISHABLE_KEY: `sb_publishable_${"p".repeat(40)}`,
     SUPABASE_SECRET_KEY: `sb_secret_${"s".repeat(40)}`,
-    STRIPE_SECRET_KEY: `sk_live_${"l".repeat(40)}`,
+    STRIPE_SECRET_KEY: `sk_test_${"l".repeat(40)}`,
     STRIPE_WEBHOOK_SECRET: `whsec_${"w".repeat(40)}`,
     STRIPE_PRICE_MONTHLY: `price_${"m".repeat(24)}`,
     STRIPE_PRICE_ANNUAL: `price_${"a".repeat(24)}`,
@@ -173,22 +173,22 @@ try {
   };
 
   const health = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/health"),
+    new Request("https://staging.botdhockey.com/api/health"),
     env,
     {},
   );
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8.1-production-v3");
-  assert.equal(healthPayload.service, "botd-app-production");
-  assert.equal(healthPayload.mode, "live-production");
+  assert.equal(healthPayload.version, "6.8.1-staging-v3");
+  assert.equal(healthPayload.service, "botd-app-staging");
+  assert.equal(healthPayload.mode, "staging-test-only");
   assert.equal(healthPayload.checks.stripeModeSecretKey, true);
   assert.equal(healthPayload.checks.stripeMonthlyPrice, true);
   assert.equal(healthPayload.checks.stripeAnnualPrice, true);
 
   const rootResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/"),
+    new Request("https://staging.botdhockey.com/"),
     env,
     {},
   );
@@ -196,18 +196,18 @@ try {
   assert.match(rootResponse.headers.get("content-security-policy") || "", /frame-src 'self'/);
 
   const protectedResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/protected/app.html"),
+    new Request("https://staging.botdhockey.com/protected/app.html"),
     env,
     {},
   );
   assert.equal(protectedResponse.status, 303);
-  assert.equal(protectedResponse.headers.get("location"), "https://app.botdhockey.com/?next=app");
+  assert.equal(protectedResponse.headers.get("location"), "https://staging.botdhockey.com/?next=app");
 
   const recoveryRequestResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/recover", {
+    new Request("https://staging.botdhockey.com/api/auth/recover", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ email: "account-a@example.invalid" }),
@@ -216,14 +216,14 @@ try {
     {},
   );
   assert.equal(recoveryRequestResponse.status, 200);
-  assert.equal(capturedRecoveryRedirect, "https://app.botdhockey.com/");
+  assert.equal(capturedRecoveryRedirect, "https://staging.botdhockey.com/");
   assert.ok(!capturedRecoveryRedirect.includes("mode=recovery"));
 
   const adoptRecoveryResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/adopt", {
+    new Request("https://staging.botdhockey.com/api/auth/adopt", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -249,7 +249,7 @@ try {
     `__Host-botd_recovery=${userA.id}`,
   ].join("; ");
   const recoverySessionResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/session", {
+    new Request("https://staging.botdhockey.com/api/auth/session", {
       headers: { Cookie: recoverySessionCookie },
     }),
     env,
@@ -261,10 +261,10 @@ try {
   assert.equal(recoverySessionPayload.recovery, true);
 
   const ordinaryPasswordChange = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/password", {
+    new Request("https://staging.botdhockey.com/api/auth/password", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         Cookie: "__Host-botd_access=access-a",
         "Content-Type": "application/json",
       },
@@ -277,10 +277,10 @@ try {
   assert.equal((await ordinaryPasswordChange.json()).error, "recovery_session_required");
 
   const recoveryPasswordChange = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/password", {
+    new Request("https://staging.botdhockey.com/api/auth/password", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         Cookie: recoverySessionCookie,
         "Content-Type": "application/json",
       },
@@ -296,7 +296,7 @@ try {
   assert.match(clearedCookies, /__Host-botd_recovery=.*Max-Age=0/);
 
   const accountAResponse = await worker.fetch(
-    new Request(`https://app.botdhockey.com/protected/app.html?account=${userA.id}`, {
+    new Request(`https://staging.botdhockey.com/protected/app.html?account=${userA.id}`, {
       headers: { Cookie: "__Host-botd_access=access-a" },
     }),
     env,
@@ -312,7 +312,7 @@ try {
   assert.ok(!accountABody.includes(userB.id));
 
   const accountBResponse = await worker.fetch(
-    new Request(`https://app.botdhockey.com/protected/app.html?account=${userB.id}`, {
+    new Request(`https://staging.botdhockey.com/protected/app.html?account=${userB.id}`, {
       headers: { Cookie: "__Host-botd_access=access-b" },
     }),
     env,
@@ -328,7 +328,7 @@ try {
   assert.notEqual(accountABody, accountBBody);
 
   const mismatchResponse = await worker.fetch(
-    new Request(`https://app.botdhockey.com/protected/app.html?account=${userB.id}`, {
+    new Request(`https://staging.botdhockey.com/protected/app.html?account=${userB.id}`, {
       headers: { Cookie: "__Host-botd_access=access-a" },
     }),
     env,
@@ -338,7 +338,7 @@ try {
   assert.equal((await mismatchResponse.json()).error, "account_context_mismatch");
 
   const directPayload = await worker.fetch(
-    new Request("https://app.botdhockey.com/app-v6.8.html"),
+    new Request("https://staging.botdhockey.com/app-v6.8.html"),
     env,
     {},
   );
@@ -346,10 +346,10 @@ try {
 
   entitlementActive = false;
   const checkoutResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/checkout", {
+    new Request("https://staging.botdhockey.com/api/checkout", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         Cookie: "__Host-botd_access=access-a",
         "Content-Type": "application/json",
       },
@@ -362,31 +362,31 @@ try {
   const checkoutPayload = await checkoutResponse.json();
   assert.equal(
     checkoutPayload.url,
-    "https://checkout.stripe.com/c/pay/cs_live_production_smoke_001",
+    "https://checkout.stripe.com/c/pay/cs_test_production_smoke_001",
   );
   assert.ok(capturedCheckoutForm);
   assert.equal(capturedCheckoutForm.get("mode"), "subscription");
   assert.equal(capturedCheckoutForm.get("allow_promotion_codes"), "true");
   assert.equal(capturedCheckoutForm.get("customer"), "cus_live_production_smoke_001");
   assert.equal(capturedCheckoutForm.get("line_items[0][price]"), env.STRIPE_PRICE_MONTHLY);
-  assert.equal(capturedCheckoutForm.get("subscription_data[metadata][environment]"), "production");
-  assert.equal(capturedCheckoutForm.get("metadata[environment]"), "production");
+  assert.equal(capturedCheckoutForm.get("subscription_data[metadata][environment]"), "staging");
+  assert.equal(capturedCheckoutForm.get("metadata[environment]"), "staging");
   assert.equal(
     capturedCheckoutForm.get("success_url"),
-    "https://app.botdhockey.com/?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+    "https://staging.botdhockey.com/?checkout=success&session_id={CHECKOUT_SESSION_ID}",
   );
 
   const testKeyResponse = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/checkout", {
+    new Request("https://staging.botdhockey.com/api/checkout", {
       method: "POST",
       headers: {
-        Origin: "https://app.botdhockey.com",
+        Origin: "https://staging.botdhockey.com",
         Cookie: "__Host-botd_access=access-a",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ plan: "monthly" }),
     }),
-    { ...env, STRIPE_SECRET_KEY: `sk_test_${"x".repeat(40)}` },
+    { ...env, STRIPE_SECRET_KEY: `sk_live_${"x".repeat(40)}` },
     {},
   );
   assert.equal(testKeyResponse.status, 503);
@@ -394,14 +394,14 @@ try {
   entitlementActive = true;
 
   const webhookGet = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/stripe/webhook"),
+    new Request("https://staging.botdhockey.com/api/stripe/webhook"),
     env,
     {},
   );
   assert.equal(webhookGet.status, 405);
 
   // During the DNS/webhook cutover, Stripe may briefly continue sending to
-  // launch.botdhockey.com while APP_URL is already app.botdhockey.com. The
+  // launch.botdhockey.com while APP_URL is already staging.botdhockey.com. The
   // signature-protected route must remain available on the transition host.
   const transitionWebhookGet = await worker.fetch(
     new Request("https://launch.botdhockey.com/api/stripe/webhook"),
@@ -416,10 +416,10 @@ try {
     {},
   );
   assert.equal(transitionRoot.status, 303);
-  assert.equal(transitionRoot.headers.get("location"), "https://app.botdhockey.com/");
+  assert.equal(transitionRoot.headers.get("location"), "https://staging.botdhockey.com/");
 
   const invalidWebhook = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/stripe/webhook", {
+    new Request("https://staging.botdhockey.com/api/stripe/webhook", {
       method: "POST",
       headers: { "Stripe-Signature": "t=1,v1=invalid" },
       body: "{}",
@@ -430,7 +430,7 @@ try {
   assert.equal(invalidWebhook.status, 400);
 
   const crossOrigin = await worker.fetch(
-    new Request("https://app.botdhockey.com/api/auth/signup", {
+    new Request("https://staging.botdhockey.com/api/auth/signup", {
       method: "POST",
       headers: {
         Origin: "https://example.invalid",
@@ -448,7 +448,7 @@ try {
   assert.equal(crossOrigin.status, 403);
 
   console.log("Worker smoke tests passed.");
-  console.log("Live Checkout Session safety and metadata checks passed.");
+  console.log("Staging Checkout Session safety and metadata checks passed.");
   console.log("Account-scoped protected application responses passed for two distinct users.");
   console.log("Short opaque refresh-token adoption and recovery-session controls passed.");
 } finally {

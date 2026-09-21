@@ -1,54 +1,14 @@
-# Release candidate 5: signed invoice-event state
+# v6.8.1 — staging-gate-rc1
 
-Copyright (c) 2026 FENRIR LLC. All rights reserved.
+Status: undeployed candidate, pending staging acceptance and owner approval.
 
-## Acceptance-test finding
+The language update renames US English to English, removes Canadian English, and normalizes legacy en-CA to en-US. Other languages and account-scoped v6_8 browser storage remain supported.
 
-A genuine Stripe Sandbox Test Clock renewal produced
-`invoice.payment_failed`. Stripe delivered the signed event to RC4 with HTTP
-200, and the subscription snapshot became `past_due`. However, the following
-fields remained empty:
+The shared Worker adds explicit environment/project isolation, mode-specific Stripe checks and staging labels. Separate staging and production Wrangler configurations and build commands are included. The release workflow requires local validation, staging browser/integration tests, explicit approval, and promotion of the same source commit. These infrastructure changes broaden the scope beyond the original language-only patch and require billing/authentication regression acceptance.
 
-```text
-last_invoice_state
-grace_period_end
-coach_pro entitlement
-```
+No SQL migration is executed. Reference schemas are included separately for staging and production. Deployed constraints, credentials and webhook delivery still need verification.
 
-RC4 discarded the invoice event object and inferred payment state only from a
-second subscription retrieval. The observed Stripe response did not expose
-`latest_invoice` as an expanded object, so RC4 had no invoice status to apply.
+Protected editor SHA-256: 659bde8be3a04f5c4bebc4b17f05f7b81ab7977a05098238d1d636a1343edd69
+Health identities: 6.8.1-staging-v3 and 6.8.1-production-v3.
 
-## Fixed
-
-- `invoice.payment_failed` now supplies the verified invoice payload directly
-  to the billing-state synchronizer.
-- `invoice.paid` uses the same signed-payload path for payment recovery.
-- Event type is authoritative for failed versus paid invoice state.
-- Invoice ID and creation time come from the signed invoice event, with event
-  creation time as a defensive fallback.
-- Current subscription status, customer, price, and period still come from a
-  fresh Stripe subscription retrieval.
-- RC4's PostgreSQL row lock, invoice ordering, replay protection, and
-  paid-over-failed precedence are preserved.
-- The billing smoke test now deliberately returns `latest_invoice` as an
-  unexpanded ID and proves that both failure grace and paid recovery still
-  work.
-
-## Preserved
-
-- B.O.T.D. Hockey Playbook Studio v6.8 application payload and file format
-- account-scoped browser storage from RC2
-- password-recovery hardening from RC3
-- ordered subscription/invoice database state from RC4
-- monthly and annual Stripe Sandbox checkout
-- Customer Portal
-- Stripe signature verification
-- Cloudflare Access configuration
-- staging-only live-data safety locks
-
-## Migration
-
-No new SQL migration is required when upgrading from RC4. The existing
-`supabase/04_subscription_state_ordering.sql` function remains the database
-write boundary.
+See RELEASE_PROCEDURE.md and VALIDATION_RECORD.md for steps and actual evidence.

@@ -1,5 +1,5 @@
 FENRIR LLC PROPRIETARY SOFTWARE LICENSE
-B.O.T.D. Hockey Playbook Studio v6.8
+B.O.T.D. Hockey Playbook Studio v6.8.1
 Effective date: September 7, 2026
 
 Copyright © 2026 FENRIR LLC. All rights reserved.

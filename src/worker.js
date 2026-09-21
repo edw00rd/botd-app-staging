@@ -1,10 +1,34 @@
 import APP_HTML from "../private/app-v6.8.html.txt";
 
 /*
- * B.O.T.D. Hockey Playbook Studio - staging access and billing worker
+ * B.O.T.D. Hockey Playbook Studio - shared access and billing worker
  * Copyright (c) 2026 FENRIR LLC. All rights reserved.
  * Proprietary software. No source-code license is granted.
  */
+
+
+// One source revision is used in both environments. No implicit environment fallback.
+const RELEASE_VERSION = "6.8.1";
+const ENVIRONMENTS = Object.freeze({
+  staging: {appUrl:"https://staging.botdhockey.com",supabaseUrl:"https://dolbsnodupgppvwnnlgd.supabase.co",live:false},
+  production: {appUrl:"https://app.botdhockey.com",supabaseUrl:"https://stcobnlzdbkoakgvfaez.supabase.co",live:true},
+});
+function deployment(env) {
+  const config = Object.hasOwn(ENVIRONMENTS, env.ENVIRONMENT) && ENVIRONMENTS[env.ENVIRONMENT];
+  if (!config) throw new AppError(503,"environment_required","An explicit staging or production environment is required.");
+  return config;
+}
+function assertEnvironmentIsolation(env) {
+  const config=deployment(env);
+  if (env.APP_URL?.replace(/\/$/, "") !== config.appUrl || env.SUPABASE_URL?.replace(/\/$/, "") !== config.supabaseUrl)
+    throw new AppError(503,"environment_isolation_failed","Application and Supabase URLs must match the selected environment.");
+}
+function isLive(env) { return deployment(env).live; }
+function environmentLabel(html, env) {
+  if (isLive(env)) return html;
+  return html.replace("<body", '<body data-botd-environment="staging"').replace(/(<body[^>]*>)/,
+    '$1<div role="status" style="position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:#ffdb4d;color:#111;text-align:center;font:700 13px sans-serif;padding:5px;pointer-events:none">STAGING · TEST MODE · No live payments</div>');
+}
 
 const ACCESS_COOKIE = "__Host-botd_access";
 const REFRESH_COOKIE = "__Host-botd_refresh";
@@ -61,12 +85,21 @@ export default {
 };
 
 async function routeRequest(request, env, ctx) {
+  assertEnvironmentIsolation(env);
   const url = new URL(request.url);
   const path = normalizePath(url.pathname);
 
-  // Keep all browser sessions on the branded staging origin so secure cookies,
+  // Stripe webhooks are signature-verified and intentionally accepted before the
+  // browser-host canonical redirect. This keeps billing delivery continuous while
+  // the production hostname moves from launch.botdhockey.com to app.botdhockey.com.
+  if (path === "/api/stripe/webhook") {
+    if (request.method !== "POST") return methodNotAllowed(["POST"]);
+    return handleStripeWebhook(request, env);
+  }
+
+  // Keep browser sessions on the configured production origin so secure cookies,
   // Supabase redirects, and Stripe return URLs never split across Worker hosts.
-  if (isValidStagingAppUrl(env.APP_URL) && url.origin !== getAppUrl(env)) {
+  if (env.APP_URL?.replace(/\/$/, "") === deployment(env).appUrl && url.origin !== getAppUrl(env)) {
     if (request.method === "GET" || request.method === "HEAD") {
       const canonical = new URL(`${path}${url.search}`, getAppUrl(env));
       return redirectResponse(canonical.toString());
@@ -74,13 +107,8 @@ async function routeRequest(request, env, ctx) {
     throw new AppError(
       421,
       "canonical_host_required",
-      "Use the branded staging hostname for this request.",
+      "Use the configured B.O.T.D. application hostname for this request.",
     );
-  }
-
-  if (path === "/api/stripe/webhook") {
-    if (request.method !== "POST") return methodNotAllowed(["POST"]);
-    return handleStripeWebhook(request, env);
   }
 
   if (path === "/auth/confirm") {
@@ -154,23 +182,20 @@ async function routeApiRequest(request, env, ctx, path) {
 }
 
 async function handleHealth(env) {
+  const livePrices = await checkStripePrices(env);
   const checks = {
-    environment: env.ENVIRONMENT === "staging",
-    appUrl: isValidStagingAppUrl(env.APP_URL),
-    supabaseUrl: Boolean(normalizeSupabaseUrl(env.SUPABASE_URL)),
+    environment: Object.hasOwn(ENVIRONMENTS, env.ENVIRONMENT),
+    appUrl: env.APP_URL?.replace(/\/$/, "") === deployment(env).appUrl,
+    supabaseUrl: normalizeSupabaseUrl(env.SUPABASE_URL) === deployment(env).supabaseUrl,
     supabasePublishableKey: isPublishableSupabaseKey(
       env.SUPABASE_PUBLISHABLE_KEY,
     ),
     supabaseSecretKey: isBackendSupabaseKey(env.SUPABASE_SECRET_KEY),
-    stripeTestSecretKey:
+    stripeModeSecretKey:
       typeof env.STRIPE_SECRET_KEY === "string" &&
-      env.STRIPE_SECRET_KEY.startsWith("sk_test_"),
-    stripeMonthlyPrice:
-      typeof env.STRIPE_PRICE_MONTHLY === "string" &&
-      env.STRIPE_PRICE_MONTHLY.startsWith("price_"),
-    stripeAnnualPrice:
-      typeof env.STRIPE_PRICE_ANNUAL === "string" &&
-      env.STRIPE_PRICE_ANNUAL.startsWith("price_"),
+      env.STRIPE_SECRET_KEY.startsWith(isLive(env) ? "sk_live_" : "sk_test_"),
+    stripeMonthlyPrice: livePrices.monthly,
+    stripeAnnualPrice: livePrices.annual,
     stripeWebhookSecret:
       typeof env.STRIPE_WEBHOOK_SECRET === "string" &&
       env.STRIPE_WEBHOOK_SECRET.startsWith("whsec_"),
@@ -179,9 +204,11 @@ async function handleHealth(env) {
 
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
-    service: "botd-app-staging",
-    version: "6.8-entitlement-rc5",
-    mode: "staging-test-only",
+    service: `botd-app-${env.ENVIRONMENT}`,
+    version: `${RELEASE_VERSION}-${env.ENVIRONMENT}-v3`,
+    release: RELEASE_VERSION,
+    environment: env.ENVIRONMENT,
+    mode: isLive(env) ? "live-production" : "staging-test-only",
     checks,
     now: new Date().toISOString(),
   });
@@ -475,7 +502,7 @@ async function handleAccount(request, env) {
 }
 
 async function handleCreateCheckout(request, env) {
-  assertStagingBackendConfig(env);
+  assertBackendConfig(env);
   const session = await requireSession(request, env);
   const body = await readJson(request);
   const plan = body.plan === "monthly" || body.plan === "annual"
@@ -502,6 +529,7 @@ async function handleCreateCheckout(request, env) {
   const priceId = plan === "monthly"
     ? env.STRIPE_PRICE_MONTHLY
     : env.STRIPE_PRICE_ANNUAL;
+  await requireExpectedPrice(env, priceId, plan);
 
   const form = new URLSearchParams();
   form.set("mode", "subscription");
@@ -512,15 +540,16 @@ async function handleCreateCheckout(request, env) {
   form.set("success_url", `${getAppUrl(env)}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`);
   form.set("cancel_url", `${getAppUrl(env)}/?checkout=cancelled`);
   form.set("automatic_tax[enabled]", "true");
+  form.set("allow_promotion_codes", "true");
   form.set("billing_address_collection", "auto");
   form.set("customer_update[address]", "auto");
   form.set("customer_update[name]", "auto");
   form.set("subscription_data[metadata][supabase_user_id]", session.user.id);
   form.set("subscription_data[metadata][plan]", plan);
-  form.set("subscription_data[metadata][environment]", "staging");
+  form.set("subscription_data[metadata][environment]", env.ENVIRONMENT);
   form.set("metadata[supabase_user_id]", session.user.id);
   form.set("metadata[plan]", plan);
-  form.set("metadata[environment]", "staging");
+  form.set("metadata[environment]", env.ENVIRONMENT);
 
   const checkout = await stripeRequest(env, "/v1/checkout/sessions", {
     method: "POST",
@@ -528,11 +557,11 @@ async function handleCreateCheckout(request, env) {
     idempotencyKey: `botd-checkout-${session.user.id}-${crypto.randomUUID()}`,
   });
 
-  if (checkout.livemode === true || !String(checkout.id || "").startsWith("cs_test_")) {
+  if (checkout.livemode !== isLive(env) || !String(checkout.id || "").startsWith(isLive(env) ? "cs_live_" : "cs_test_")) {
     throw new AppError(
       500,
-      "staging_safety_lock",
-      "Staging refused a non-test Stripe Checkout Session.",
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
       false,
     );
   }
@@ -554,12 +583,12 @@ async function handleCreateCheckout(request, env) {
 }
 
 async function handleCheckoutStatus(request, env) {
-  assertStagingBackendConfig(env);
+  assertBackendConfig(env);
   const session = await requireSession(request, env);
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id") || "";
 
-  if (!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId)) {
+  if (!new RegExp(`^cs_${isLive(env) ? "live" : "test"}_[A-Za-z0-9_]+$`).test(sessionId)) {
     throw new AppError(
       400,
       "invalid_checkout_session",
@@ -583,11 +612,11 @@ async function handleCheckoutStatus(request, env) {
     );
   }
 
-  if (checkout.livemode === true) {
+  if (checkout.livemode !== isLive(env)) {
     throw new AppError(
       500,
-      "staging_safety_lock",
-      "Staging refused a live Stripe checkout result.",
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
       false,
     );
   }
@@ -619,7 +648,7 @@ async function handleCheckoutStatus(request, env) {
 }
 
 async function handleBillingPortal(request, env) {
-  assertStagingBackendConfig(env);
+  assertBackendConfig(env);
   const session = await requireSession(request, env);
   const customer = await findBillingCustomerByUser(session.user.id, env);
 
@@ -737,7 +766,7 @@ async function serveProtectedApplication(request, env) {
 
   const body = request.method === "HEAD"
     ? null
-    : renderAccountScopedApplication(APP_HTML, session.user.id);
+    : environmentLabel(renderAccountScopedApplication(APP_HTML, session.user.id), env);
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "private, no-store, max-age=0",
@@ -812,7 +841,12 @@ async function serveAssetAt(request, env, assetPath, options = {}) {
     headers.set("Cache-Control", "public, max-age=300");
   }
 
-  return new Response(asset.body, {
+  let body = asset.body;
+  if (assetPath === "/index.html" && request.method !== "HEAD" && asset.status === 200 && !isLive(env)) {
+    body = environmentLabel(await asset.text(), env);
+    headers.delete("Content-Length"); headers.delete("ETag"); headers.delete("Content-Encoding");
+  }
+  return new Response(body, {
     status: asset.status,
     statusText: asset.statusText,
     headers,
@@ -1012,7 +1046,8 @@ async function buildAccountPayload(session, env) {
         },
     subscriptions: normalizedSubscriptions,
     hasBillingCustomer: billingCustomers.length > 0,
-    staging: true,
+    production: isLive(env),
+    staging: !isLive(env),
   };
 }
 
@@ -1045,7 +1080,7 @@ async function getOrCreateStripeCustomer(user, env) {
   const form = new URLSearchParams();
   form.set("email", user.email);
   form.set("metadata[supabase_user_id]", user.id);
-  form.set("metadata[environment]", "staging");
+  form.set("metadata[environment]", env.ENVIRONMENT);
 
   const customer = await stripeRequest(env, "/v1/customers", {
     method: "POST",
@@ -1053,11 +1088,11 @@ async function getOrCreateStripeCustomer(user, env) {
     idempotencyKey: `botd-customer-${user.id}`,
   });
 
-  if (customer.livemode === true) {
+  if (customer.livemode !== isLive(env)) {
     throw new AppError(
       500,
-      "staging_safety_lock",
-      "Staging refused a live Stripe customer.",
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
       false,
     );
   }
@@ -1233,8 +1268,70 @@ async function checkPaymentStateSchema(env) {
   }
 }
 
+async function checkStripePrices(env) {
+  const result = { monthly: false, annual: false };
+  try {
+    assertStripeConfig(env);
+    const [monthly, annual] = await Promise.all([
+      fetchStripePrice(env, env.STRIPE_PRICE_MONTHLY),
+      fetchStripePrice(env, env.STRIPE_PRICE_ANNUAL),
+    ]);
+    result.monthly = isExpectedPrice(monthly, "monthly", env);
+    result.annual = isExpectedPrice(annual, "annual", env);
+  } catch {
+    // Health checks report false rather than exposing provider details.
+  }
+  return result;
+}
+
+async function fetchStripePrice(env, priceId) {
+  const response = await fetch(
+    `https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}?expand%5B%5D=product`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        Accept: JSON_TYPE,
+      },
+    },
+  );
+  if (!response.ok) return null;
+  return readResponseData(response);
+}
+
+function isExpectedPrice(price, plan, env) {
+  const expected = plan === "monthly"
+    ? { amount: 999, interval: "month" }
+    : { amount: 7900, interval: "year" };
+  return Boolean(
+    price &&
+    price.livemode === isLive(env) &&
+    price.active === true &&
+    price.type === "recurring" &&
+    price.currency === "usd" &&
+    price.unit_amount === expected.amount &&
+    price.recurring?.interval === expected.interval &&
+    Number(price.recurring?.interval_count || 1) === 1 &&
+    (!price.product || typeof price.product === "string" || price.product.active !== false)
+  );
+}
+
+async function requireExpectedPrice(env, priceId, plan) {
+  const price = await fetchStripePrice(env, priceId);
+  if (!isExpectedPrice(price, plan, env)) {
+    throw new AppError(
+      503,
+      "stripe_price_mismatch",
+      plan === "monthly"
+        ? "The configured monthly price must be active USD 9.99 per month."
+        : "The configured annual price must be active USD 79.00 per year.",
+      false,
+    );
+  }
+}
+
 async function stripeRequest(env, path, options = {}) {
-  assertStripeTestConfig(env);
+  assertStripeConfig(env);
   const headers = new Headers({
     Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
     Accept: JSON_TYPE,
@@ -1265,7 +1362,7 @@ async function stripeRequest(env, path, options = {}) {
       message: stripeMessage,
     });
     const safeMessage = stripeMessage.toLowerCase().includes("portal")
-      ? "The Stripe customer portal is not configured in test mode yet."
+      ? "The Stripe customer portal is not configured yet."
       : "Stripe could not complete the billing request.";
     throw new AppError(
       response.status >= 500 ? 502 : 400,
@@ -1295,7 +1392,7 @@ async function retrieveStripeSubscription(subscriptionId, env) {
 }
 
 async function handleStripeWebhook(request, env) {
-  assertStagingBackendConfig(env, { requireWebhook: true });
+  assertBackendConfig(env, { requireWebhook: true });
   const rawBody = await readLimitedText(request, MAX_WEBHOOK_BYTES);
   const signature = request.headers.get("Stripe-Signature") || "";
 
@@ -1318,11 +1415,11 @@ async function handleStripeWebhook(request, env) {
   if (!event?.id || !event?.type || !event?.data?.object) {
     throw new AppError(400, "invalid_webhook_event", "Incomplete Stripe event.");
   }
-  if (event.livemode === true) {
+  if (event.livemode !== isLive(env)) {
     throw new AppError(
       400,
-      "staging_safety_lock",
-      "Live Stripe events are not accepted by staging.",
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
     );
   }
 
@@ -1430,11 +1527,11 @@ async function syncStripeSubscription(
   const subscription = await retrieveStripeSubscription(subscriptionId, env);
   const observedAt = new Date().toISOString();
 
-  if (subscription.livemode === true) {
+  if (subscription.livemode !== isLive(env)) {
     throw new AppError(
       400,
-      "staging_safety_lock",
-      "Staging refused a live subscription.",
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
       false,
     );
   }
@@ -1550,7 +1647,7 @@ async function recomputeCoachProEntitlement(userId, env) {
     select:
       "stripe_subscription_id,status,current_period_end,grace_period_end,livemode",
     user_id: `eq.${userId}`,
-    livemode: "eq.false",
+    livemode: `eq.${isLive(env)}`,
   });
 
   const candidates = subscriptions
@@ -1692,12 +1789,13 @@ function assertSameOrigin(request) {
 }
 
 function assertSupabaseAuthConfig(env) {
+  assertEnvironmentIsolation(env);
   const base = normalizeSupabaseUrl(env.SUPABASE_URL);
   if (!base || !isPublishableSupabaseKey(env.SUPABASE_PUBLISHABLE_KEY)) {
     throw new AppError(
       503,
       "supabase_not_configured",
-      "Supabase staging authentication is not configured.",
+      "Supabase authentication is not configured.",
       false,
     );
   }
@@ -1715,51 +1813,36 @@ function assertSupabaseDataConfig(env, userMode) {
   }
 }
 
-function assertStripeTestConfig(env) {
-  if (env.ENVIRONMENT !== "staging") {
-    throw new AppError(
-      503,
-      "staging_environment_required",
-      "This release is restricted to the staging environment.",
-      false,
-    );
-  }
-  if (!isValidStagingAppUrl(env.APP_URL)) {
-    throw new AppError(
-      503,
-      "invalid_staging_url",
-      "APP_URL must be https://staging.botdhockey.com.",
-      false,
-    );
-  }
+function assertStripeConfig(env) {
+  assertEnvironmentIsolation(env);
   if (
     typeof env.STRIPE_SECRET_KEY !== "string" ||
-    !env.STRIPE_SECRET_KEY.startsWith("sk_test_") ||
-    env.STRIPE_SECRET_KEY.startsWith("sk_live_")
+    !env.STRIPE_SECRET_KEY.startsWith(isLive(env) ? "sk_live_" : "sk_test_")
   ) {
     throw new AppError(
       503,
-      "stripe_test_key_required",
-      "Staging requires a Stripe test-mode secret key.",
+      "stripe_mode_key_required",
+      "Stripe secret key must match the selected environment.",
       false,
     );
   }
   if (
     !String(env.STRIPE_PRICE_MONTHLY || "").startsWith("price_") ||
-    !String(env.STRIPE_PRICE_ANNUAL || "").startsWith("price_")
+    !String(env.STRIPE_PRICE_ANNUAL || "").startsWith("price_") ||
+    env.STRIPE_PRICE_MONTHLY === env.STRIPE_PRICE_ANNUAL
   ) {
     throw new AppError(
       503,
-      "stripe_test_prices_required",
-      "Both Stripe test-mode Price IDs must be configured.",
+      "stripe_live_prices_required",
+      "Distinct monthly and annual Stripe Price IDs in the selected mode must be configured.",
       false,
     );
   }
 }
 
-function assertStagingBackendConfig(env, options = {}) {
+function assertBackendConfig(env, options = {}) {
   assertSupabaseDataConfig(env, false);
-  assertStripeTestConfig(env);
+  assertStripeConfig(env);
   if (
     options.requireWebhook &&
     !String(env.STRIPE_WEBHOOK_SECRET || "").startsWith("whsec_")
@@ -1767,7 +1850,7 @@ function assertStagingBackendConfig(env, options = {}) {
     throw new AppError(
       503,
       "stripe_webhook_not_configured",
-      "The Stripe test webhook signing secret is not configured.",
+      "The Stripe environment-specific webhook signing secret is not configured.",
       false,
     );
   }
@@ -1801,25 +1884,12 @@ function isBackendSupabaseKey(value) {
   );
 }
 
-function isValidStagingAppUrl(value) {
-  try {
-    const url = new URL(String(value || ""));
-    return (
-      url.protocol === "https:" &&
-      url.hostname === "staging.botdhockey.com" &&
-      (url.pathname === "/" || url.pathname === "")
-    );
-  } catch {
-    return false;
-  }
-}
-
 function getAppUrl(env) {
-  if (!isValidStagingAppUrl(env.APP_URL)) {
+  if (env.APP_URL?.replace(/\/$/, "") !== deployment(env).appUrl) {
     throw new AppError(
       503,
-      "invalid_staging_url",
-      "The staging application URL is not configured.",
+      "invalid_environment_url",
+      "The application URL is not configured.",
       false,
     );
   }
