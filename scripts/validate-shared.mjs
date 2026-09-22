@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'659bde8be3a04f5c4bebc4b17f05f7b81ab7977a05098238d1d636a1343edd69');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'a25518beb3d5dd85a8d19f9fa52b7d8a50c48d655700a3f44151fbba4ae9bddc');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
