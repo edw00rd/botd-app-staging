@@ -732,6 +732,11 @@ body.theme-light .v63-telestration-clip{border-color:rgba(10,35,55,.45)}
 
 .ownership-card a{color:var(--cyan);font-weight:700;text-decoration:none}
 .ownership-card a:hover,.ownership-card a:focus-visible{text-decoration:underline}
+
+/* Version 6.8.2 step 2 — shell-integrated maximum-viewport header. */
+body{grid-template-rows:minmax(0,1fr) var(--toolbar-h) var(--timeline-h)}
+.topbar{display:none!important}
+#fullscreenBottomBtn{display:none!important}
 </style>
 
 <style id="v64Styles">
@@ -4756,7 +4761,35 @@ Object.assign(window.BOTD_TEST,{
 });
 
 
+const BOTD_SHELL_MESSAGE_SOURCE="botd-shell";
+function v682ApplyShellFocusMode(active){
+  document.body.classList.toggle("focus-mode",Boolean(active));
+  updateDrawerHandles();
+  requestAnimationFrame(()=>{fitRink();if(!document.body.classList.contains("timeline-hidden"))renderTimeline()})
+}
+function v682RunShellCommand(command,detail={}){
+  if(command==="new-board"){newBoard();return true}
+  if(command==="save-play"){saveCurrentPlay();return true}
+  if(command==="set-focus-mode"){v682ApplyShellFocusMode(detail.active);return true}
+  return false
+}
+window.addEventListener("message",event=>{
+  if(event.source!==window.parent||event.origin!==window.location.origin)return;
+  const payload=event.data;
+  if(!payload||payload.source!==BOTD_SHELL_MESSAGE_SOURCE||payload.type!=="editor-command")return;
+  v682RunShellCommand(payload.command,payload)
+});
+function v682NotifyShellReady(){
+  if(window.parent===window)return;
+  window.parent.postMessage({source:"botd-editor",type:"editor-ready",version:APP_VERSION},window.location.origin)
+}
+Object.assign(window.BOTD_TEST,{
+  shellCommand:(command,detail={})=>v682RunShellCommand(command,detail),
+  shellLayout:()=>({topbarDisplay:getComputedStyle(document.querySelector(".topbar")).display,focusMode:document.body.classList.contains("focus-mode")})
+});
+
 init();
+v682NotifyShellReady();
 </script>
 </body>
 </html>

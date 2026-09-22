@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'a25518beb3d5dd85a8d19f9fa52b7d8a50c48d655700a3f44151fbba4ae9bddc');
+const shell=read('public/index.html');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c3b9b917e26c78fc274be1c181f8642a6ecb32d8bf9ac27aea758fe20e9095ab');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'6674ba61452f529a9c385dda1e50604323f4390fc9348b77c0927845b0509743');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
@@ -14,7 +16,39 @@ const select=app.match(/<select id="languageSelect">([\s\S]*?)<\/select>/)[1];
 assert.deepEqual([...select.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)].map(x=>[x[1],x[2]]),[['en-US','English'],['sv','Swedish'],['fi','Finnish'],['ru','Russian']]);
 const normalize=new Function(app.match(/const SUPPORTED_LANGUAGES[^\n]+/)[0]+'\n'+app.match(/function normalizeLanguage[^\n]+/)[0]+'; return normalizeLanguage;')();
 for(const [input,expected] of [['en-CA','en-US'],['en-US','en-US'],['sv','sv'],['fi','fi'],['ru','ru'],['invalid','en-US'],[undefined,'en-US']])assert.equal(normalize(input),expected);
-for(const html of [app,read('public/index.html')]){const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new Function(scripts[0][1]);}
+for(const marker of [
+ 'id="headerSubscription"',
+ 'id="editorActions"',
+ 'id="shellNewButton"',
+ 'id="shellSaveButton"',
+ 'id="fullscreenButton"',
+ 'postEditorCommand("new-board")',
+ 'postEditorCommand("save-play")',
+ 'command, ...detail',
+ 'payload.type !== "editor-ready"',
+])assert.ok(shell.includes(marker),`Missing shell header marker: ${marker}`);
+assert.ok(!shell.includes('class="app-status"'));
+const masthead=shell.match(/<header class="masthead">([\s\S]*?)<\/header>/)?.[1]||'';
+assert.ok(masthead,'Missing consolidated masthead');
+const headerOrder=['id="headerSubscription"','id="editorActions"','id="headerActions"','id="fullscreenButton"'];
+let previous=-1;
+for(const marker of headerOrder){const position=masthead.indexOf(marker);assert.ok(position>previous,`Incorrect masthead order: ${marker}`);previous=position;}
+assert.match(masthead,/id="fullscreenButton"[\s\S]*?<\/button>\s*$/);
+assert.ok(masthead.indexOf('Version 6.8.1')<masthead.indexOf('id="headerSubscription"'));
+assert.ok(shell.includes('id="headerSubscription" class="brand-subscription hidden" aria-live="polite"'));
+assert.ok(shell.includes('.app-view{position:fixed;inset:64px 0 0'));
+assert.ok(shell.includes('@media(max-width:800px)')&&shell.includes('.app-view{inset:60px 0 0}'));
+for(const marker of [
+ 'Version 6.8.2 step 2 — shell-integrated maximum-viewport header.',
+ '.topbar{display:none!important}',
+ '#fullscreenBottomBtn{display:none!important}',
+ 'const BOTD_SHELL_MESSAGE_SOURCE="botd-shell"',
+ 'command==="new-board"',
+ 'command==="save-play"',
+ 'command==="set-focus-mode"',
+ 'type:"editor-ready"',
+])assert.ok(app.includes(marker),`Missing editor shell-bridge marker: ${marker}`);
+for(const html of [app,shell]){const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new Function(scripts[0][1]);}
 for(const [mode,url,ref] of [['staging','https://staging.botdhockey.com','dolbsnodupgppvwnnlgd'],['production','https://app.botdhockey.com','stcobnlzdbkoakgvfaez']]) {
  const c=JSON.parse(read(mode==='staging'?'wrangler.jsonc':'wrangler.production.jsonc'));
  assert.equal(c.name,'botd-app-'+mode);assert.equal(c.main,'src/worker.js');assert.equal(c.workers_dev,false);assert.equal(c.preview_urls,false);assert.equal(c.keep_vars,true);

@@ -30,11 +30,12 @@ Proprietary software. No source-code license is granted.
     a{color:#8ee8ff}
     .hidden{display:none!important}
     .page{min-height:100%;display:flex;flex-direction:column}
-    .masthead{height:68px;display:flex;align-items:center;gap:12px;padding:8px clamp(14px,3vw,34px);border-bottom:1px solid rgba(112,171,207,.25);background:rgba(4,15,25,.88);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20}
-    .mark{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.5))}
-    .brand{min-width:0;line-height:1.08}.brand strong{display:block;letter-spacing:.055em;font-size:15px}.brand span{color:var(--muted);font-size:11px}
-    .stage-badge{margin-left:auto;border:1px solid #b89327;background:#3f320d;color:#ffe895;border-radius:999px;padding:7px 10px;font-weight:900;font-size:10px;letter-spacing:.09em;white-space:nowrap}
-    .header-actions{display:flex;align-items:center;gap:8px;margin-left:4px}.header-meta{font-size:11px;color:var(--muted);text-align:right;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .masthead{height:64px;display:flex;align-items:center;gap:8px;padding:6px clamp(10px,2vw,24px);border-bottom:1px solid rgba(112,171,207,.25);background:rgba(4,15,25,.94);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;overflow:hidden}
+    .mark{width:44px;height:44px;flex:0 0 44px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.5))}
+    .brand{min-width:108px;max-width:420px;line-height:1.04;display:grid;gap:1px;flex:1 1 320px;margin-right:auto;overflow:hidden}.brand strong{display:block;letter-spacing:.055em;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand-version,.brand-subscription{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand-version{color:var(--muted);font-size:10px}.brand-subscription{color:#8ff0ba;font-size:10px;font-weight:800}.brand-subscription.warning{color:#ffe48a}.brand-subscription.muted{color:var(--muted)}
+    .stage-badge{flex:0 0 auto;border:1px solid #b89327;background:#3f320d;color:#ffe895;border-radius:999px;padding:6px 9px;font-weight:900;font-size:9px;letter-spacing:.08em;white-space:nowrap}
+    .header-editor-actions,.header-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}.header-meta{font-size:10px;color:var(--muted);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.compact-label{display:none}
+    .fullscreen-button{width:38px;height:38px;min-height:38px;flex:0 0 38px;padding:0;display:grid;place-items:center;font-size:19px;line-height:1;border-radius:10px}.fullscreen-button[aria-pressed="true"]{border-color:var(--cyan);background:#155b7b;box-shadow:0 0 0 2px rgba(75,215,255,.14)}
     .btn{min-height:42px;border:1px solid #3c6681;border-radius:11px;padding:9px 14px;color:#fff;background:#173b55;font-weight:800;box-shadow:0 3px 0 rgba(0,0,0,.18);transition:transform .15s ease,background .15s ease}
     .btn:hover{background:#205170}.btn:active{transform:translateY(1px)}.btn.primary{background:#16739f;border-color:#50c6ef}.btn.primary:hover{background:#1a82b3}.btn.good{background:#176742;border-color:#45d38a}.btn.ghost{background:transparent}.btn.small{min-height:35px;padding:7px 10px;font-size:12px}
     .content{flex:1;display:grid;place-items:center;padding:clamp(20px,5vw,66px) 16px}
@@ -50,24 +51,37 @@ Proprietary software. No source-code license is granted.
     .notice{width:min(980px,100%);margin:0 auto 16px;border:1px solid #3b647e;border-radius:12px;padding:11px 14px;background:#0d2b42;color:#d9ebf4;font-size:13px;line-height:1.45}.notice.success{border-color:#2f8b61;background:#0d3b2a}.notice.error{border-color:#a64d59;background:#491d27;color:#ffe1e5}.notice.warn{border-color:#a57e27;background:#3b2e0d;color:#ffebad}
     .pending{margin-top:16px;padding:13px;border:1px solid #385e76;border-radius:11px;background:#0a2133;font-size:12px;color:var(--muted)}
     .plans{width:min(1030px,100%)}.plans-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px}.identity{color:var(--muted);font-size:12px}.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.price-card{position:relative;border:1px solid #355d77;border-radius:17px;background:linear-gradient(180deg,#12324b,#0b2336);padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.25)}.price-card.featured{border-color:#e2bd3d;box-shadow:0 0 0 2px rgba(248,211,77,.11),0 18px 46px rgba(0,0,0,.32)}.ribbon{position:absolute;right:16px;top:16px;border-radius:999px;padding:5px 8px;background:#4c3b09;color:#ffe78a;font-size:9px;font-weight:1000;letter-spacing:.08em}.price-card h3{margin:0 0 8px;font-size:20px}.price{font-size:43px;font-weight:1000;letter-spacing:-.04em}.price small{font-size:13px;color:var(--muted);letter-spacing:0}.price-card p{color:#bcd0dc;font-size:13px;line-height:1.55}.price-card.requested{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(75,215,255,.15),0 18px 46px rgba(0,0,0,.32)}.feature-list{display:grid;gap:8px;margin:17px 0 22px;font-size:12px;color:#dceaf2}.feature-list span:before{content:"•";color:var(--cyan);margin-right:8px}.savings{color:#ffe48a!important;font-weight:850}.plan-selection-note{margin:9px 0 0;color:#9eeaff;font-size:12px;font-weight:800}.billing-card{margin-top:18px;border:1px solid #3d7695;border-radius:12px;background:#0c2a40;padding:12px;color:#cfe8f4;font-size:11px;line-height:1.55}
-    .app-view{position:fixed;inset:68px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-status{height:34px;display:flex;align-items:center;gap:9px;padding:5px 14px;background:#0d2b40;border-bottom:1px solid #31536a;color:#bdd1dc;font-size:11px}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}.app-grace-warning{padding:9px 14px;border-bottom:1px solid #a57e27;background:#3b2e0d;color:#ffebad;font-size:12px;line-height:1.4}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
+    .app-view{position:fixed;inset:64px 0 0;display:flex;flex-direction:column;background:#061423;z-index:10}.app-grace-warning{padding:9px 14px;border-bottom:1px solid #a57e27;background:#3b2e0d;color:#ffebad;font-size:12px;line-height:1.4}.app-frame{border:0;width:100%;flex:1;min-height:0;background:#061423}
     .loading{display:grid;place-items:center;gap:13px;color:#c2d4df}.spinner{width:42px;height:42px;border:4px solid #274e67;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
     .footer{padding:15px;text-align:center;color:#7f9bac;font-size:10px}.footer a{color:#9bcde1}
-    @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.header-meta{display:none}.masthead{height:64px;padding:7px 10px}.mark{width:44px;height:44px}.brand strong{font-size:12px}.stage-badge{font-size:8px;padding:6px 8px}.header-actions .btn{padding:7px 8px;min-height:36px;font-size:11px}.app-view{inset:64px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
+    @media(max-width:1180px){.header-meta{display:none}}
+    @media(max-width:1020px){.stage-badge{display:none}}
+    @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.masthead{height:60px;padding:5px 8px;gap:5px}.mark{width:40px;height:40px;flex-basis:40px}.brand{flex-basis:220px}.brand strong{font-size:11px}.brand-version,.brand-subscription{font-size:9px}.header-editor-actions,.header-actions{gap:4px}.masthead .btn.small{padding:5px 7px;min-height:34px;font-size:10px}.fullscreen-button{width:36px;height:36px;min-height:36px;flex-basis:36px}.app-view{inset:60px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
+    @media(max-width:640px){.mark{display:none}.brand{flex-basis:150px;min-width:88px}.full-label{display:none}.compact-label{display:inline}.masthead .btn.small{padding-left:6px;padding-right:6px}.brand strong{font-size:10px}}
+    @media(max-width:460px){.brand{flex-basis:96px}.brand strong{letter-spacing:.02em}.brand-subscription{max-width:118px}.masthead{gap:3px}.header-editor-actions,.header-actions{gap:3px}.masthead .btn.small{padding-left:5px;padding-right:5px;font-size:9px}.fullscreen-button{width:34px;height:34px;min-height:34px;flex-basis:34px}}
   </style>
 </head>
 <body>
   <div class="page">
     <header class="masthead">
       <img class="mark" src="/botd-logo.webp" alt="B.O.T.D. logo">
-      <div class="brand"><strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong><span>Coach Pro · Version 6.8.1</span></div>
+      <div class="brand">
+        <strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong>
+        <span class="brand-version">Version 6.8.1</span>
+        <span id="headerSubscription" class="brand-subscription hidden" aria-live="polite"></span>
+      </div>
       <span class="stage-badge">COACH PRO · SECURE ACCESS</span>
+      <div id="editorActions" class="header-editor-actions hidden" aria-label="Play controls">
+        <button id="shellNewButton" class="btn small ghost" type="button" disabled>New</button>
+        <button id="shellSaveButton" class="btn small" type="button" disabled><span class="full-label">Save play</span><span class="compact-label">Save</span></button>
+      </div>
       <div id="headerActions" class="header-actions hidden">
         <span id="headerMeta" class="header-meta"></span>
-        <button id="billingButton" class="btn small ghost hidden" type="button">Manage billing</button>
+        <button id="billingButton" class="btn small ghost hidden" type="button"><span class="full-label">Manage billing</span><span class="compact-label">Billing</span></button>
         <button id="signoutButton" class="btn small" type="button">Sign out</button>
       </div>
+      <button id="fullscreenButton" class="btn fullscreen-button hidden" type="button" title="Full screen" aria-label="Full screen" aria-pressed="false">⛶</button>
     </header>
 
     <main id="mainContent" class="content">
@@ -155,7 +169,6 @@ Proprietary software. No source-code license is granted.
     </main>
 
     <section id="appView" class="app-view hidden" aria-label="B.O.T.D. Hockey Playbook Studio">
-      <div class="app-status"><span class="status-dot"></span><strong id="appPlanLabel">Coach Pro active</strong><span id="appRenewalLabel"></span></div>
       <div id="appGraceWarning" class="app-grace-warning hidden" role="alert"></div>
       <iframe id="appFrame" class="app-frame" title="B.O.T.D. Hockey Playbook Studio v6.8.1" referrerpolicy="same-origin"></iframe>
     </section>
@@ -184,8 +197,9 @@ Proprietary software. No source-code license is granted.
         "signupEmail","signupPassword","signupPasswordConfirm","acceptTerms",
         "pendingConfirmation","resendButton","forgotButton","forgotDialog","forgotForm",
         "forgotEmail","forgotCancel","recoveryForm","newPassword","newPasswordConfirm",
-        "headerActions","headerMeta","billingButton","signoutButton","plansIdentity",
-        "billingWarning","planSelectionNote","appGraceWarning","appFrame","appPlanLabel","appRenewalLabel"
+        "headerActions","headerMeta","headerSubscription","editorActions","shellNewButton","shellSaveButton",
+        "billingButton","signoutButton","fullscreenButton","plansIdentity","billingWarning","planSelectionNote",
+        "appGraceWarning","appFrame"
       ].map(id => [id, document.getElementById(id)])
     );
 
@@ -194,19 +208,86 @@ Proprietary software. No source-code license is granted.
     let account = null;
     let pendingEmail = sessionStorage.getItem("botd.pendingEmail") || "";
     let loadedAppAccountId = null;
+    let editorReady = false;
+    let fullscreenFallback = false;
+
+    function setEditorReady(ready) {
+      editorReady = Boolean(ready);
+      elements.shellNewButton.disabled = !editorReady;
+      elements.shellSaveButton.disabled = !editorReady;
+    }
+
+    function setHeaderSubscription(text = "", tone = "normal") {
+      elements.headerSubscription.textContent = text;
+      elements.headerSubscription.classList.toggle("hidden", !text);
+      elements.headerSubscription.classList.toggle("warning", tone === "warning");
+      elements.headerSubscription.classList.toggle("muted", tone === "muted");
+      elements.headerSubscription.title = text;
+    }
 
     function showOnly(view) {
       for (const id of ["loadingView","authView","plansView","recoveryView","appView"]) {
         elements[id].classList.toggle("hidden", id !== view);
       }
-      document.getElementById("mainContent").classList.toggle("hidden", view === "appView");
+      const editorVisible = view === "appView";
+      document.getElementById("mainContent").classList.toggle("hidden", editorVisible);
+      elements.editorActions.classList.toggle("hidden", !editorVisible);
+      elements.fullscreenButton.classList.toggle("hidden", !editorVisible);
+    }
+
+    function postEditorCommand(command, detail = {}) {
+      if (!editorReady || !elements.appFrame.contentWindow) return false;
+      elements.appFrame.contentWindow.postMessage(
+        { source:"botd-shell", type:"editor-command", command, ...detail },
+        location.origin,
+      );
+      return true;
+    }
+
+    function fullscreenIsActive() {
+      return Boolean(document.fullscreenElement) || fullscreenFallback;
+    }
+
+    function syncFullscreenState() {
+      const active = fullscreenIsActive();
+      elements.fullscreenButton.setAttribute("aria-pressed", String(active));
+      elements.fullscreenButton.title = active ? "Exit full screen" : "Full screen";
+      elements.fullscreenButton.setAttribute("aria-label", elements.fullscreenButton.title);
+      postEditorCommand("set-focus-mode", { active });
+    }
+
+    async function toggleApplicationFullscreen() {
+      if (fullscreenFallback && !document.fullscreenElement) {
+        fullscreenFallback = false;
+        syncFullscreenState();
+        return;
+      }
+      if (!document.fullscreenElement) {
+        if (!document.fullscreenEnabled || !document.documentElement.requestFullscreen) {
+          fullscreenFallback = true;
+          syncFullscreenState();
+          return;
+        }
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch {
+          fullscreenFallback = true;
+          syncFullscreenState();
+        }
+        return;
+      }
+      try { await document.exitFullscreen(); } catch {}
     }
 
     function unloadProtectedApp() {
+      setEditorReady(false);
       if (loadedAppAccountId !== null || elements.appFrame.hasAttribute("src")) {
         elements.appFrame.removeAttribute("src");
       }
       loadedAppAccountId = null;
+      fullscreenFallback = false;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      syncFullscreenState();
     }
 
     function message(text, type = "info") {
@@ -387,6 +468,7 @@ Proprietary software. No source-code license is granted.
     function renderAccount(data) {
       account = data;
       setAppGraceWarning();
+      setHeaderSubscription();
       const authenticated = Boolean(data?.authenticated);
       elements.headerActions.classList.toggle("hidden", !authenticated);
       elements.headerMeta.textContent = authenticated ? data.user.email : "";
@@ -408,6 +490,7 @@ Proprietary software. No source-code license is granted.
         sessionStorage.setItem(RECOVERY_ACCOUNT_KEY, data.user.id);
         unloadProtectedApp();
         showOnly("recoveryView");
+        setHeaderSubscription("Account recovery", "muted");
         elements.billingButton.classList.add("hidden");
         return;
       }
@@ -432,23 +515,26 @@ Proprietary software. No source-code license is granted.
         );
 
         if (inPaymentGrace) {
-          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} · Payment Grace Period`;
-          elements.appRenewalLabel.textContent = `· Access through ${graceDate}`;
+          setHeaderSubscription(
+            `${planName(subscription?.plan)} · Payment grace · Access through ${graceDate}`,
+            "warning",
+          );
           setAppGraceWarning(
             `Payment failed. Coach Pro access continues through ${graceDate}. ` +
             "Use Manage billing to update the payment method and avoid interruption.",
           );
         } else {
-          elements.appPlanLabel.textContent = `${planName(subscription?.plan)} active`;
           const date = formatDate(subscription?.current_period_end || data.entitlement.expires_at);
-          elements.appRenewalLabel.textContent = date
+          const renewal = date
             ? subscription?.cancel_at_period_end
-              ? `· Access through ${date}`
-              : `· Renews ${date}`
+              ? ` · Access through ${date}`
+              : ` · Renews ${date}`
             : "";
+          setHeaderSubscription(`${planName(subscription?.plan)} active${renewal}`);
         }
 
         if (loadedAppAccountId !== data.user.id) {
+          setEditorReady(false);
           elements.appFrame.src = `/protected/app.html?account=${encodeURIComponent(data.user.id)}`;
           loadedAppAccountId = data.user.id;
         }
@@ -457,6 +543,7 @@ Proprietary software. No source-code license is granted.
 
       unloadProtectedApp();
       showOnly("plansView");
+      setHeaderSubscription("Subscription required", "muted");
       elements.plansIdentity.textContent = `Signed in as ${data.user.email}`;
       highlightPendingPlan();
       const problem = data.subscriptions?.find(item => ["past_due","unpaid","incomplete"].includes(item.status));
@@ -628,6 +715,21 @@ Proprietary software. No source-code license is granted.
           setBusy(button, false);
         }
       });
+    });
+
+    elements.shellNewButton.addEventListener("click", () => postEditorCommand("new-board"));
+    elements.shellSaveButton.addEventListener("click", () => postEditorCommand("save-play"));
+    elements.fullscreenButton.addEventListener("click", toggleApplicationFullscreen);
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenFallback = false;
+      syncFullscreenState();
+    });
+    window.addEventListener("message", event => {
+      if (event.origin !== location.origin || event.source !== elements.appFrame.contentWindow) return;
+      const payload = event.data;
+      if (!payload || payload.source !== "botd-editor" || payload.type !== "editor-ready") return;
+      setEditorReady(true);
+      syncFullscreenState();
     });
 
     elements.billingButton.addEventListener("click", async () => {
