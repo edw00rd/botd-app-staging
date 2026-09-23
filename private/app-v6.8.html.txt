@@ -801,6 +801,25 @@ body.theme-light .puck-event.v65-puck-action-clip{
 }
 </style>
 
+<style id="v682WorkspacePolishStyles">
+/* Version 6.8.2 step 3A — workspace controls, edit-mode Glow/Blink, and full-screen setup access. */
+.rink-status-strip{flex:0 0 auto;min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;padding:3px 8px;border:1px solid rgba(104,137,163,.58);border-radius:10px;background:rgba(5,26,43,.92);box-shadow:0 3px 10px rgba(3,18,31,.12)}
+.rink-view-controls{display:flex;align-items:center;gap:6px;min-width:0}.rink-control-label{font-size:9px;font-weight:950;letter-spacing:.08em;color:#b9d9ec;white-space:nowrap}
+.rink-status-strip .view-badge{position:static!important;left:auto!important;top:auto!important;min-height:27px;padding:4px 10px;background:#0b2b43;color:#edf6fb;white-space:nowrap}
+.rink-status-strip .half-end-pill{position:relative!important;left:auto!important;top:auto!important;z-index:1;width:118px;height:27px;min-height:27px;box-shadow:none}
+.rink-status-strip .half-end-pill-thumb{height:19px}.rink-status-strip .offside-light{position:static;right:auto;top:auto;width:auto;max-width:min(48%,430px);height:27px;min-height:27px;display:inline-flex;align-items:center;gap:7px;padding:3px 9px;border:1px solid #3c5b72;border-radius:999px;background:#0b2b43;color:#dcebf4;box-shadow:none;animation:none;white-space:nowrap;overflow:hidden}
+.rink-status-strip .offside-light::before{content:"";width:10px;height:10px;flex:0 0 10px;border-radius:50%;background:#22c55e;border:1px solid rgba(255,255,255,.9);box-shadow:0 0 7px currentColor}.rink-status-strip .offside-light::after{content:attr(aria-label);min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:9px;font-weight:900;letter-spacing:.035em}
+.rink-status-strip .offside-light.orange,.rink-status-strip .offside-light.red{background:#0b2b43}.rink-status-strip .offside-light.orange::before{background:#b77908}.rink-status-strip .offside-light.red::before{background:#ef3340;animation:blinkLight .58s steps(1) infinite}
+body.theme-light .rink-status-strip{background:#f8fbfd;border-color:#a9bdcd;box-shadow:0 3px 10px rgba(26,59,83,.08)}body.theme-light .rink-control-label{color:#536f85}body.theme-light .rink-status-strip .view-badge,body.theme-light .rink-status-strip .offside-light{background:#fff;color:#0a3158;border-color:#9db4c7}
+.command-bar{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;column-gap:9px;overflow:hidden}.command-left,.command-right{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:none}.command-left::-webkit-scrollbar,.command-right::-webkit-scrollbar{display:none}.command-left{justify-self:stretch}.command-right{justify-self:stretch;justify-content:flex-end}.toolbar-playback{justify-self:center;margin:0!important;border-color:rgba(82,114,138,.78);box-shadow:0 0 0 2px rgba(57,216,255,.06),0 3px 10px rgba(0,0,0,.2)}
+.telestration-tools{display:flex;align-items:center;gap:5px}.telestration-tools[hidden]{display:none!important}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:36px;height:36px;min-width:36px}.tool-btn.telestration-parent-active{border-color:#57c4ef;box-shadow:0 0 0 2px rgba(57,216,255,.13)}.command-right #timelineToggleBtn{margin-left:2px}.command-right #fullscreenBottomBtn{display:none!important}
+body.focus-mode{--right-w:0px}body.focus-mode:not(.left-hidden){--left-w:360px}body.focus-mode .workspace{grid-template-columns:var(--left-w) minmax(0,1fr)}body.focus-mode .left-drawer{display:flex!important}body.focus-mode .right-drawer{display:none!important}body.focus-mode .drawer-edge-left{display:grid!important}body.focus-mode .drawer-edge-right{display:none!important}
+.v682-glow-halo{fill:none;stroke:var(--glow-color,#39d8ff);pointer-events:none;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center}.v682-glow-halo-outer{stroke-width:var(--v682-outer-width,7px);opacity:var(--v682-outer-opacity,.32);filter:drop-shadow(0 0 var(--v682-outer-blur,5px) var(--glow-color,#39d8ff)) drop-shadow(0 0 var(--v682-outer-spread,11px) var(--glow-color,#39d8ff))}.v682-glow-halo-inner{stroke-width:var(--v682-inner-width,3px);opacity:var(--v682-inner-opacity,.9);filter:drop-shadow(0 0 var(--v682-inner-blur,3px) var(--glow-color,#39d8ff))}.v682-edit-blink .v682-glow-halo{animation:v682EditGlowBlink var(--v682-blink-period,.83s) steps(1,end) infinite}@keyframes v682EditGlowBlink{0%,55%{opacity:var(--v682-halo-opacity,.9)}56%,100%{opacity:.08}}
+@media(max-width:1180px){body.focus-mode{--left-w:0px}.command-bar{column-gap:5px}.command-left,.command-right{gap:4px}.command-left>.tool-btn,.command-right>.tool-btn{width:38px;height:38px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:34px;height:34px;min-width:34px}.command-right .route-toggle span{display:none}.command-right select{max-width:72px}}
+@media(max-width:720px){.rink-status-strip{min-height:31px;margin-bottom:4px;padding:2px 5px;gap:5px}.rink-control-label{display:none}.rink-status-strip .view-badge{padding-left:7px;padding-right:7px}.rink-status-strip .half-end-pill{width:104px}.rink-status-strip .offside-light{max-width:46%;padding-left:6px;padding-right:6px}.command-bar{column-gap:3px;padding-left:4px;padding-right:4px}.command-left,.command-right{gap:3px}.command-left .separator{display:none}.command-left>.tool-btn,.command-right>.tool-btn{width:35px;height:35px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:32px;height:32px;min-width:32px}.command-right select{max-width:58px;padding-left:3px;padding-right:3px}}
+@media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-glow-halo,.rink-status-strip .offside-light.red::before{animation:none!important}}
+</style>
+
 </head>
 <body class="theme-light left-hidden right-hidden timeline-hidden">
 <header class="topbar">
@@ -844,8 +863,11 @@ body.theme-light .puck-event.v65-puck-action-clip{
       </button>
       <div class="bench-rack team-benches" id="benchRack"><div class="bench bench-team" id="benchA"></div><div class="bench bench-team" id="benchB"></div></div>
     </section>
+    <div class="rink-status-strip" id="rinkStatusStrip" aria-label="Rink view and offsides status">
+      <div class="rink-view-controls" role="group" aria-label="Ice view controls"><span class="rink-control-label">ICE VIEW</span><button class="view-badge" id="viewBadge" type="button" aria-label="Switch to Half Ice - Right End" title="Switch to Half Ice - Right End">FULL ICE</button><button class="half-end-pill" id="halfEndPill" type="button" hidden data-side="right" aria-label="Half Ice end: Right" title="Choose the visible Half Ice end"><span class="half-end-pill-thumb" aria-hidden="true"></span><span class="half-end-pill-label half-end-pill-left" data-half-pill-side="left">LEFT</span><span class="half-end-pill-label half-end-pill-right" data-half-pill-side="right">RIGHT</span></button></div>
+      <div class="offside-light" id="offsideLight" title="Onside" aria-label="Onside"></div>
+    </div>
     <div class="rink-shell"><div class="rink-frame whole" id="rinkFrame">
-      <button class="half-end-pill" id="halfEndPill" type="button" hidden data-side="right" aria-label="Half Ice end: Right" title="Choose the visible Half Ice end"><span class="half-end-pill-thumb" aria-hidden="true"></span><span class="half-end-pill-label half-end-pill-left" data-half-pill-side="left">LEFT</span><span class="half-end-pill-label half-end-pill-right" data-half-pill-side="right">RIGHT</span></button><button class="view-badge" id="viewBadge" type="button" aria-label="Switch to Half Ice - Right End" title="Switch to Half Ice - Right End">FULL ICE</button><div class="offside-light" id="offsideLight" title="Onside" aria-label="Onside"></div>
       <div class="live-hud" id="liveHud"><strong>LIVE PUCK DIRECTOR</strong><span>Pass: tap a player or open ice</span></div>
       <div class="goal-banner" id="goalBanner"><div>GOAL!</div></div><div class="action-record-hud" id="actionRecordHud" hidden><strong id="actionRecordHudTitle">TRACE NEW ACTION</strong><span id="actionRecordHudDetail"></span><button id="cancelActionRecordBtn" type="button">Cancel</button></div>
       <svg class="rink-svg" id="rinkSvg" viewBox="0 0 1000 600" role="application" aria-label="Interactive hockey coaching board">
@@ -901,15 +923,17 @@ body.theme-light .puck-event.v65-puck-action-clip{
 </div>
 
 <div class="command-bar" id="commandBar">
-  <button class="tool-btn active" data-tool="select" title="Select (V)">↖</button><button class="tool-btn" data-tool="draw" title="Pencil (D)">✎</button><button class="tool-btn" data-tool="erase" title="Erase (E)">⌫</button><button class="tool-btn marker-swatch" id="markerSwatch" title="Marker color and width" aria-label="Marker color and width"><span class="marker-width-dot" aria-hidden="true"></span></button>
-  <div class="separator"></div><button class="tool-btn" id="undoBtn" title="Undo timeline edit">↶</button><button class="tool-btn" id="redoBtn" title="Redo timeline edit">↷</button><button class="tool-btn" id="clearDrawingBtn" title="Clear telestration">⌦</button>
-  <button class="tool-btn legacy-step-control" id="stepBackBtn" hidden aria-hidden="true" tabindex="-1">−</button><button class="tool-btn legacy-step-control" id="stepForwardBtn" hidden aria-hidden="true" tabindex="-1">+</button>
-  <div class="command-spacer"></div>
+  <div class="command-left" role="group" aria-label="Selection and telestration tools">
+    <button class="tool-btn active" data-tool="select" title="Select (V)">↖</button><button class="tool-btn" data-tool="draw" title="Pencil (D)" aria-expanded="false" aria-controls="telestrationTools">✎</button>
+    <div class="telestration-tools" id="telestrationTools" role="group" aria-label="Pen controls" hidden><button class="tool-btn" data-tool="erase" title="Erase (E)">⌫</button><button class="tool-btn marker-swatch" id="markerSwatch" title="Marker color and width" aria-label="Marker color and width"><span class="marker-width-dot" aria-hidden="true"></span></button><button class="tool-btn" id="clearDrawingBtn" title="Clear telestration">⌦</button></div>
+    <div class="separator"></div><button class="tool-btn" id="undoBtn" title="Undo timeline edit">↶</button><button class="tool-btn" id="redoBtn" title="Redo timeline edit">↷</button>
+    <button class="tool-btn legacy-step-control" id="stepBackBtn" hidden aria-hidden="true" tabindex="-1">−</button><button class="tool-btn legacy-step-control" id="stepForwardBtn" hidden aria-hidden="true" tabindex="-1">+</button>
+  </div>
   <div class="toolbar-playback" id="toolbarPlayback" role="group" aria-label="Playback controls">
     <button class="transport" id="jumpStartBtn" title="Go to start" aria-label="Go to start">⏮</button><button class="transport" id="rewindBtn" title="Rewind 1 second" aria-label="Rewind 1 second">⏪</button><button class="transport" id="prevActionBtn" title="Previous action" aria-label="Previous action">◀│</button><button class="transport" id="stepBackSmallBtn" title="Step back 0.1 seconds" aria-label="Step back 0.1 seconds">−.1</button><button class="transport primary" id="playBtn" title="Play or pause" aria-label="Play or pause">▶</button><button class="transport" id="stepForwardSmallBtn" title="Step forward 0.1 seconds" aria-label="Step forward 0.1 seconds">+.1</button><button class="transport" id="nextActionBtn" title="Next action" aria-label="Next action">│▶</button><button class="transport" id="jumpEndBtn" title="Go to end" aria-label="Go to end">⏭</button>
     <select id="playSpeed" class="toolbar-speed" title="Playback speed" aria-label="Playback speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value=".75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select><span class="time-code" id="timeCode" aria-live="off">0:00.0 / 0:12.0</span>
   </div>
-  <label class="route-toggle"><input id="toolbarRoutes" type="checkbox" checked><span>Routes</span></label><select id="toolbarRouteMode"><option value="ahead">Ahead</option><option value="full">All</option><option value="off">Hidden</option></select><button class="tool-btn" id="timelineToggleBtn" title="Show or hide timeline">⌁</button><button class="tool-btn" id="fullscreenBottomBtn" title="Full-screen focus">⛶</button>
+  <div class="command-right" role="group" aria-label="Route and timeline controls"><label class="route-toggle"><input id="toolbarRoutes" type="checkbox" checked><span>Routes</span></label><select id="toolbarRouteMode"><option value="ahead">Ahead</option><option value="full">All</option><option value="off">Hidden</option></select><button class="tool-btn" id="timelineToggleBtn" title="Show or hide timeline">⌁</button><button class="tool-btn" id="fullscreenBottomBtn" title="Full-screen focus">⛶</button></div>
 </div>
 
 <section class="timeline-dock" id="timelineDock" aria-label="Single continuous timeline">
@@ -4761,6 +4785,35 @@ Object.assign(window.BOTD_TEST,{
 });
 
 
+
+/* Version 6.8.2 step 3A — workspace polish and cross-browser edit-mode glow. */
+function v682SyncTelestrationTools(){
+  const active=ui.tool==="draw"||ui.tool==="erase",group=$("#telestrationTools"),pen=document.querySelector('[data-tool="draw"]');
+  if(group){group.hidden=!active;group.setAttribute("aria-hidden",String(!active))}
+  if(pen){pen.setAttribute("aria-expanded",String(active));pen.classList.toggle("telestration-parent-active",active&&ui.tool!=="draw")}
+}
+const updateToolButtonsV682Workspace=updateToolButtons;
+updateToolButtons=function(){const result=updateToolButtonsV682Workspace();v682SyncTelestrationTools();return result};
+
+const setGlowStyleV682Workspace=setGlowStyle;
+setGlowStyle=function(node,glow,defaultColor){
+  if(!node||!glow?.enabled)return;
+  const color=glow.color||defaultColor||"#39D8FF",brightness=clamp(Number(glow.brightness)||65,10,100),intensity=brightness/100,rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0,isPuck=node.classList?.contains("puck-disc"),player=node.dataset?.playerId?playerById(node.dataset.playerId):null;
+  const outerOpacity=round(.12+intensity*.31,3),innerOpacity=round(.48+intensity*.48,3);
+  node.classList.remove("player-glow","puck-glow-static","v65-timeline-glow","v682-edit-blink");node.style.setProperty("--glow-color",color);node.style.setProperty("--glow-size",`${4+brightness/8}px`);node.style.setProperty("--v682-blink-period",`${1/rate}s`);node.style.setProperty("--v682-outer-width",`${4+brightness/24}px`);node.style.setProperty("--v682-inner-width",`${1.8+brightness/55}px`);node.style.setProperty("--v682-outer-opacity",String(outerOpacity));node.style.setProperty("--v682-inner-opacity",String(innerOpacity));node.style.setProperty("--v682-outer-blur",`${3+brightness/20}px`);node.style.setProperty("--v682-outer-spread",`${6+brightness/10}px`);node.style.setProperty("--v682-inner-blur",`${1.5+brightness/35}px`);node.style.filter=isPuck?"drop-shadow(2px 4px 2px rgba(0,0,0,.47))":"";node.style.webkitFilter=node.style.filter;
+  const radius=player?.role==="goalie"?38:player?.role==="coach"||player?.role==="manager"?39:35,outer=isPuck?svgEl("ellipse",{class:"v682-glow-halo v682-glow-halo-outer",cx:0,cy:0,rx:28,ry:18}):svgEl("circle",{class:"v682-glow-halo v682-glow-halo-outer",cx:0,cy:0,r:radius}),inner=isPuck?svgEl("ellipse",{class:"v682-glow-halo v682-glow-halo-inner",cx:0,cy:0,rx:22,ry:13}):svgEl("circle",{class:"v682-glow-halo v682-glow-halo-inner",cx:0,cy:0,r:Math.max(26,radius-6)});
+  node.append(outer,inner);
+  let phaseOn=true;if(glow.blink===true&&ui.playing){const phase=((((timelineTime-start)*rate)%1)+1)%1;phaseOn=phase<.56}
+  if(glow.blink===true&&!ui.playing){node.classList.add("v682-edit-blink");outer.style.setProperty("--v682-halo-opacity",String(outerOpacity));inner.style.setProperty("--v682-halo-opacity",String(innerOpacity))}else if(!phaseOn){outer.style.opacity=".04";inner.style.opacity=".04"}
+  node.dataset.v65GlowPhase=phaseOn?"on":"off";node.dataset.v65GlowClip=String(glow.clipId||"");node.dataset.v682Glow="1"
+};
+
+Object.assign(window.BOTD_TEST,{
+  workspacePolish:()=>({statusStripOutsideRink:!$("#rinkFrame")?.contains($("#rinkStatusStrip")),telestrationToolsHidden:$("#telestrationTools")?.hidden??true,focusLeftHandle:getComputedStyle($("#leftDrawerHandle")).display,toolbarOrder:[...$("#commandBar").children].map(node=>node.className)}),
+  setWorkspaceTool:tool=>{ui.tool=tool;updateToolButtons();return{tool:ui.tool,controlsHidden:$("#telestrationTools").hidden}},
+  glowHaloState:selector=>{const node=document.querySelector(selector);return node?{haloCount:node.querySelectorAll(".v682-glow-halo").length,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null}
+});
+
 const BOTD_SHELL_MESSAGE_SOURCE="botd-shell";
 function v682ApplyShellFocusMode(active){
   document.body.classList.toggle("focus-mode",Boolean(active));
@@ -4789,6 +4842,7 @@ Object.assign(window.BOTD_TEST,{
 });
 
 init();
+v682SyncTelestrationTools();
 v682NotifyShellReady();
 </script>
 </body>

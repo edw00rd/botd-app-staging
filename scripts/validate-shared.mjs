@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c3b9b917e26c78fc274be1c181f8642a6ecb32d8bf9ac27aea758fe20e9095ab');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c58de3296e9dd87adc0b5e040537187978d0842b2bc2365f4a9bfad1e3524d68');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'6674ba61452f529a9c385dda1e50604323f4390fc9348b77c0927845b0509743');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
@@ -48,6 +48,47 @@ for(const marker of [
  'command==="set-focus-mode"',
  'type:"editor-ready"',
 ])assert.ok(app.includes(marker),`Missing editor shell-bridge marker: ${marker}`);
+
+for(const marker of [
+ 'Version 6.8.2 step 3A — workspace controls, edit-mode Glow/Blink, and full-screen setup access.',
+ 'id="rinkStatusStrip"',
+ 'id="telestrationTools"',
+ 'class="command-left"',
+ 'class="command-right"',
+ 'body.focus-mode .left-drawer{display:flex!important}',
+ 'body.focus-mode .drawer-edge-left{display:grid!important}',
+ '.command-left::-webkit-scrollbar,.command-right::-webkit-scrollbar{display:none}',
+ 'function v682SyncTelestrationTools()',
+ 'glow.blink===true&&!ui.playing',
+ 'class:"v682-glow-halo v682-glow-halo-outer"',
+ 'statusStripOutsideRink',
+ 'toolbarOrder:',
+])assert.ok(app.includes(marker),`Missing workspace-polish marker: ${marker}`);
+for(const id of ['rinkStatusStrip','viewBadge','halfEndPill','offsideLight','commandBar','toolbarPlayback','telestrationTools','timelineToggleBtn']){
+  assert.equal((app.match(new RegExp(`id=\"${id}\"`,'g'))||[]).length,1,`Expected one #${id}`)
+}
+const statusStart=app.indexOf('<div class="rink-status-strip" id="rinkStatusStrip"');
+const rinkShellStart=app.indexOf('<div class="rink-shell">');
+const rinkFrameStart=app.indexOf('<div class="rink-frame whole" id="rinkFrame">');
+assert.ok(statusStart>0&&statusStart<rinkShellStart&&rinkShellStart<rinkFrameStart,'Rink status strip must precede and remain outside rink frame');
+for(const id of ['viewBadge','halfEndPill','offsideLight']){
+  const position=app.indexOf(`id="${id}"`);
+  assert.ok(position>statusStart&&position<rinkShellStart,`#${id} must remain in the off-ice status strip`)
+}
+const commandStart=app.indexOf('<div class="command-bar" id="commandBar">');
+const timelineStart=app.indexOf('<section class="timeline-dock"',commandStart);
+assert.ok(commandStart>0&&timelineStart>commandStart,'Missing command toolbar region');
+const command=app.slice(commandStart,timelineStart);
+const commandOrder=['class="command-left"','id="toolbarPlayback"','class="command-right"'];
+let commandPrevious=-1;
+for(const marker of commandOrder){const position=command.indexOf(marker);assert.ok(position>commandPrevious,`Incorrect bottom toolbar order: ${marker}`);commandPrevious=position;}
+const telestrationStart=command.indexOf('id="telestrationTools"');
+const telestrationEnd=command.indexOf('</div>',telestrationStart);
+assert.ok(telestrationStart>0&&telestrationEnd>telestrationStart,'Missing conditional telestration control group');
+for(const marker of ['data-tool="erase"','id="markerSwatch"','id="clearDrawingBtn"']){
+  const position=command.indexOf(marker);assert.ok(position>telestrationStart&&position<telestrationEnd,`${marker} must remain inside conditional telestration controls`)
+}
+assert.ok(command.indexOf('id="timelineToggleBtn"')>command.indexOf('class="command-right"'),'Timeline toggle must remain in the far-right toolbar group');
 for(const html of [app,shell]){const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new Function(scripts[0][1]);}
 for(const [mode,url,ref] of [['staging','https://staging.botdhockey.com','dolbsnodupgppvwnnlgd'],['production','https://app.botdhockey.com','stcobnlzdbkoakgvfaez']]) {
  const c=JSON.parse(read(mode==='staging'?'wrangler.jsonc':'wrangler.production.jsonc'));
