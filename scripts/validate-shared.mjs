@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c58de3296e9dd87adc0b5e040537187978d0842b2bc2365f4a9bfad1e3524d68');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'53ec448adf0f2b7525d9fe382cbc5e3578fd65a63db20070272201c4e991f141');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'6674ba61452f529a9c385dda1e50604323f4390fc9348b77c0927845b0509743');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
@@ -51,6 +51,7 @@ for(const marker of [
 
 for(const marker of [
  'Version 6.8.2 step 3A — workspace controls, edit-mode Glow/Blink, and full-screen setup access.',
+ 'Step 3A.1 keeps the original independent rink controls, but places them in a transparent reserved layer outside the rink image.',
  'id="rinkStatusStrip"',
  'id="telestrationTools"',
  'class="command-left"',
@@ -71,6 +72,9 @@ const statusStart=app.indexOf('<div class="rink-status-strip" id="rinkStatusStri
 const rinkShellStart=app.indexOf('<div class="rink-shell">');
 const rinkFrameStart=app.indexOf('<div class="rink-frame whole" id="rinkFrame">');
 assert.ok(statusStart>0&&statusStart<rinkShellStart&&rinkShellStart<rinkFrameStart,'Rink status strip must precede and remain outside rink frame');
+assert.ok(app.includes('.rink-status-strip{flex:0 0 31px')&&app.includes('background:transparent;box-shadow:none;pointer-events:none}'),'Rink controls must use a transparent off-ice layer');
+assert.ok(!app.includes('<span class="rink-control-label">ICE VIEW</span>'),'The added ICE VIEW toolbar label must remain removed');
+assert.ok(app.includes('.rink-status-strip .offside-light::before,.rink-status-strip .offside-light::after{content:none!important'),'Offside status must render as the original compact dot');
 for(const id of ['viewBadge','halfEndPill','offsideLight']){
   const position=app.indexOf(`id="${id}"`);
   assert.ok(position>statusStart&&position<rinkShellStart,`#${id} must remain in the off-ice status strip`)
