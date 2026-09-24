@@ -803,13 +803,13 @@ body.theme-light .puck-event.v65-puck-action-clip{
 
 <style id="v682WorkspacePolishStyles">
 /* Version 6.8.2 step 3A — workspace controls, edit-mode Glow/Blink, and full-screen setup access. */
-/* Step 3A.1 keeps the original independent rink controls, but places them in a transparent reserved layer outside the rink image. */
-.rink-status-strip{flex:0 0 31px;min-height:31px;position:relative;display:block;margin:0 2px 2px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;pointer-events:none}
-.rink-view-controls{position:absolute;left:4px;top:0;display:flex;align-items:center;gap:6px;min-width:0;pointer-events:auto}.rink-control-label{display:none!important}
+/* Step 3A.3 keeps the original independent rink controls in a zero-height floating layer so the rink uses the full stage height. */
+.rink-status-strip{position:absolute;left:0;right:0;top:0;height:0;z-index:30;display:block;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;pointer-events:none;overflow:visible}
+.rink-view-controls{position:absolute;left:var(--v682-view-left,4px);top:var(--v682-view-top,0);display:flex;align-items:center;gap:6px;min-width:0;pointer-events:auto}.rink-control-label{display:none!important}
 .rink-status-strip .view-badge{position:relative!important;left:auto!important;top:auto!important;min-height:27px;padding:4px 9px;background:#061827cc;color:#edf6fb;border-color:#3c5b72;box-shadow:0 2px 8px rgba(0,0,0,.24);white-space:nowrap}
 .rink-status-strip .half-end-pill{position:relative!important;left:auto!important;top:auto!important;z-index:8;width:122px;height:31px;min-height:31px;margin:0;box-shadow:0 2px 8px rgba(0,0,0,.28)}
 .rink-status-strip .half-end-pill-thumb{height:23px}
-.rink-status-strip .offside-light{position:absolute!important;right:8px!important;top:7px!important;width:13px;height:13px;min-height:0;display:block;padding:0;border:2px solid #dfeef5;border-radius:50%;background:#22c55e;color:#22c55e;box-shadow:0 0 0 3px #061827,0 0 12px currentColor;animation:none;overflow:visible;pointer-events:auto}
+.rink-status-strip .offside-light{position:absolute!important;left:var(--v682-offside-left,calc(100% - 21px))!important;right:auto!important;top:var(--v682-offside-top,7px)!important;width:13px;height:13px;min-height:0;display:block;padding:0;border:2px solid #dfeef5;border-radius:50%;background:#22c55e;color:#22c55e;box-shadow:0 0 0 3px #061827,0 0 12px currentColor;animation:none;overflow:visible;pointer-events:auto}
 .rink-status-strip .offside-light::before,.rink-status-strip .offside-light::after{content:none!important;display:none!important}
 .rink-status-strip .offside-light.orange{background:#b77908;color:#b77908}.rink-status-strip .offside-light.red{background:#ef3340;color:#ef3340;animation:blinkLight .58s steps(1) infinite}
 body.theme-light .rink-status-strip{background:transparent;border:0;box-shadow:none}body.theme-light .rink-status-strip .view-badge{background:#061827e6;color:#edf6fb;border-color:#3c5b72}body.theme-light .rink-status-strip .offside-light{border-color:#dfeef5;box-shadow:0 0 0 3px #061827,0 0 12px currentColor}
@@ -820,7 +820,7 @@ body.focus-mode{--right-w:0px}body.focus-mode:not(.left-hidden){--left-w:360px}b
 /* Version 6.8.2 step 3A.2 — compact conditional Glow/Blink controls and icon cleanup. */
 .v682-glow-intensity{width:82px;height:24px;margin:0;accent-color:#39d8ff;touch-action:none}.v682-tool-icon{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 @media(max-width:1180px){body.focus-mode{--left-w:0px}.command-bar{column-gap:5px}.command-left,.command-right{gap:4px}.command-left>.tool-btn,.command-right>.tool-btn{width:38px;height:38px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:34px;height:34px;min-width:34px}.command-right .route-toggle span{display:none}.command-right select{max-width:72px}.v682-glow-intensity{width:68px}}
-@media(max-width:720px){.rink-status-strip{flex-basis:29px;min-height:29px;margin-left:0;margin-right:0;margin-bottom:2px}.rink-view-controls{left:2px}.rink-status-strip .view-badge{min-height:27px;padding-left:7px;padding-right:7px}.rink-status-strip .half-end-pill{width:104px;height:29px;min-height:29px}.rink-status-strip .half-end-pill-thumb{height:21px}.rink-status-strip .offside-light{right:7px!important;top:6px!important}.command-bar{column-gap:3px;padding-left:4px;padding-right:4px}.command-left,.command-right{gap:3px}.command-left .separator{display:none}.command-left>.tool-btn,.command-right>.tool-btn{width:35px;height:35px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:32px;height:32px;min-width:32px}.command-right select{max-width:58px;padding-left:3px;padding-right:3px}.v682-glow-intensity{width:54px}}
+@media(max-width:720px){.rink-status-strip{min-height:0;margin:0}.rink-view-controls{left:var(--v682-view-left,2px)}.rink-status-strip .view-badge{min-height:27px;padding-left:7px;padding-right:7px}.rink-status-strip .half-end-pill{width:104px;height:29px;min-height:29px}.rink-status-strip .half-end-pill-thumb{height:21px}.rink-status-strip .offside-light{right:auto!important;top:var(--v682-offside-top,6px)!important}.command-bar{column-gap:3px;padding-left:4px;padding-right:4px}.command-left,.command-right{gap:3px}.command-left .separator{display:none}.command-left>.tool-btn,.command-right>.tool-btn{width:35px;height:35px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:32px;height:32px;min-width:32px}.command-right select{max-width:58px;padding-left:3px;padding-right:3px}.v682-glow-intensity{width:54px}}
 @media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-glow-halo,.rink-status-strip .offside-light.red{animation:none!important}}
 </style>
 
@@ -867,11 +867,12 @@ body.focus-mode{--right-w:0px}body.focus-mode:not(.left-hidden){--left-w:360px}b
       </button>
       <div class="bench-rack team-benches" id="benchRack"><div class="bench bench-team" id="benchA"></div><div class="bench bench-team" id="benchB"></div></div>
     </section>
-    <div class="rink-status-strip" id="rinkStatusStrip" aria-label="Rink view and offsides status">
-      <div class="rink-view-controls" role="group" aria-label="Ice view controls"><button class="view-badge" id="viewBadge" type="button" aria-label="Switch to Half Ice - Right End" title="Switch to Half Ice - Right End">FULL ICE</button><button class="half-end-pill" id="halfEndPill" type="button" hidden data-side="right" aria-label="Half Ice end: Right" title="Choose the visible Half Ice end"><span class="half-end-pill-thumb" aria-hidden="true"></span><span class="half-end-pill-label half-end-pill-left" data-half-pill-side="left">LEFT</span><span class="half-end-pill-label half-end-pill-right" data-half-pill-side="right">RIGHT</span></button></div>
-      <div class="offside-light" id="offsideLight" title="Onside" aria-label="Onside"></div>
-    </div>
-    <div class="rink-shell"><div class="rink-frame whole" id="rinkFrame">
+    <div class="rink-shell">
+      <div class="rink-status-strip" id="rinkStatusStrip" aria-label="Rink view and offsides status">
+        <div class="rink-view-controls" role="group" aria-label="Ice view controls"><button class="view-badge" id="viewBadge" type="button" aria-label="Switch to Half Ice - Right End" title="Switch to Half Ice - Right End">FULL ICE</button><button class="half-end-pill" id="halfEndPill" type="button" hidden data-side="right" aria-label="Half Ice end: Right" title="Choose the visible Half Ice end"><span class="half-end-pill-thumb" aria-hidden="true"></span><span class="half-end-pill-label half-end-pill-left" data-half-pill-side="left">LEFT</span><span class="half-end-pill-label half-end-pill-right" data-half-pill-side="right">RIGHT</span></button></div>
+        <div class="offside-light" id="offsideLight" title="Onside" aria-label="Onside"></div>
+      </div>
+      <div class="rink-frame whole" id="rinkFrame">
       <div class="live-hud" id="liveHud"><strong>LIVE PUCK DIRECTOR</strong><span>Pass: tap a player or open ice</span></div>
       <div class="goal-banner" id="goalBanner"><div>GOAL!</div></div><div class="action-record-hud" id="actionRecordHud" hidden><strong id="actionRecordHudTitle">TRACE NEW ACTION</strong><span id="actionRecordHudDetail"></span><button id="cancelActionRecordBtn" type="button">Cancel</button></div>
       <svg class="rink-svg" id="rinkSvg" viewBox="0 0 1000 600" role="application" aria-label="Interactive hockey coaching board">
@@ -4810,11 +4811,88 @@ setGlowStyle=function(node,glow,defaultColor){
 };
 
 Object.assign(window.BOTD_TEST,{
-  workspacePolish:()=>({statusStripOutsideRink:!$("#rinkFrame")?.contains($("#rinkStatusStrip")),telestrationToolsHidden:$("#telestrationTools")?.hidden??true,focusLeftHandle:getComputedStyle($("#leftDrawerHandle")).display,toolbarOrder:[...$("#commandBar").children].map(node=>node.className)}),
+  workspacePolish:()=>({statusStripOutsideRink:!$("#rinkFrame")?.contains($("#rinkStatusStrip")),statusStripOverlayParent:$("#rinkStatusStrip")?.parentElement?.classList.contains("rink-shell")??false,statusStripHeight:$("#rinkStatusStrip")?.getBoundingClientRect().height??null,telestrationToolsHidden:$("#telestrationTools")?.hidden??true,focusLeftHandle:getComputedStyle($("#leftDrawerHandle")).display,toolbarOrder:[...$("#commandBar").children].map(node=>node.className)}),
   setWorkspaceTool:tool=>{ui.tool=tool;updateToolButtons();return{tool:ui.tool,controlsHidden:$("#telestrationTools").hidden}},
   glowHaloState:selector=>{const node=document.querySelector(selector);return node?{haloCount:node.querySelectorAll(".v682-glow-halo").length,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
   compactGlowControls:()=>{const editor=document.querySelector("[data-v61-glow-kind]");if(!editor)return null;const intensity=editor.querySelector('[data-v61-glow="brightness"]'),rate=editor.querySelector('[data-v61-glow="rate"]'),out=editor.querySelector("[data-v61-glow-output]");return{hasTimingText:!!editor.querySelector(".v63-glow-time"),intensityHidden:intensity?.classList.contains("v61-hidden")??true,rateHidden:rate?.classList.contains("v61-hidden")??true,rateOutputHidden:out?.classList.contains("v61-hidden")??true}}
 });
+
+
+/* Version 6.8.2 step 3A.3 — remove the invisible status-row reservation.
+   The compact ice-view and offside controls float in natural side/top gutters,
+   and the fit routine only reduces the rink when that is required to prevent
+   either control from covering the rink image. */
+function v682RinkControlRectsOverlap(first,second){
+  return first.right>second.left&&first.left<second.right&&first.bottom>second.top&&first.top<second.bottom
+}
+function v682RinkControlLayout(){
+  const shell=$(".rink-shell"),frame=$("#rinkFrame"),strip=$("#rinkStatusStrip"),view=$(".rink-view-controls"),light=$("#offsideLight");
+  if(!shell||!frame||!strip||!view||!light)return null;
+  const shellRect=shell.getBoundingClientRect(),frameRect=frame.getBoundingClientRect(),viewRect=view.getBoundingClientRect(),lightRect=light.getBoundingClientRect();
+  return{
+    placement:shell.dataset.rinkControlPlacement||"",
+    stripHeight:round(strip.getBoundingClientRect().height,2),
+    shellHeight:round(shellRect.height,2),
+    frameTop:round(frameRect.top-shellRect.top,2),
+    viewOverlapsRink:v682RinkControlRectsOverlap(viewRect,frameRect),
+    offsideOverlapsRink:light.style.display!=="none"&&v682RinkControlRectsOverlap(lightRect,frameRect)
+  }
+}
+function v682FitRinkWithFloatingControls(){
+  const shell=$(".rink-shell"),frame=$("#rinkFrame"),strip=$("#rinkStatusStrip"),view=$(".rink-view-controls"),light=$("#offsideLight");
+  if(!shell||!frame)return;
+  const shellWidth=Math.max(0,shell.clientWidth),shellHeight=Math.max(0,shell.clientHeight);
+  if(shellWidth<40||shellHeight<40)return;
+  const ratio=state.view==="half"?V59_HALF_VIEWBOX.width/V59_HALF_VIEWBOX.height:1000/600;
+  const availableWidth=Math.max(40,shellWidth-2),availableHeight=Math.max(40,shellHeight-2);
+  let width=availableWidth,height=width/ratio;
+  if(height>availableHeight){height=availableHeight;width=height*ratio}
+  if(!strip||!view||!light){frame.style.width=`${Math.floor(width)}px`;frame.style.height=`${Math.floor(height)}px`;return}
+
+  const viewBox=view.getBoundingClientRect(),lightBox=light.getBoundingClientRect(),gap=8;
+  const viewWidth=Math.max(1,Math.ceil(viewBox.width)),viewHeight=Math.max(1,Math.ceil(viewBox.height));
+  const lightWidth=Math.max(17,Math.ceil(lightBox.width)),lightHeight=Math.max(17,Math.ceil(lightBox.height));
+  const controlHeight=Math.max(viewHeight,lightHeight),sideNeed=Math.max(viewWidth,lightWidth)+gap;
+  const naturalSide=(shellWidth-width)/2,naturalTop=(shellHeight-height)/2;
+  let placement=naturalSide>=sideNeed?"sides":naturalTop>=controlHeight+gap?"above":"";
+
+  if(!placement){
+    let sideWidth=Math.max(40,shellWidth-2*sideNeed),sideHeight=sideWidth/ratio;
+    if(sideHeight>availableHeight){sideHeight=availableHeight;sideWidth=sideHeight*ratio}
+    let aboveHeight=Math.max(40,shellHeight-2*(controlHeight+gap)),aboveWidth=aboveHeight*ratio;
+    if(aboveWidth>availableWidth){aboveWidth=availableWidth;aboveHeight=aboveWidth/ratio}
+    const sideArea=sideWidth*sideHeight,aboveArea=aboveWidth*aboveHeight;
+    if(sideArea>=aboveArea){width=sideWidth;height=sideHeight;placement="sides"}
+    else{width=aboveWidth;height=aboveHeight;placement="above"}
+  }
+
+  frame.style.width=`${Math.max(40,Math.floor(width))}px`;
+  frame.style.height=`${Math.max(40,Math.floor(height))}px`;
+  const frameLeft=frame.offsetLeft,frameTop=frame.offsetTop,frameRight=frameLeft+frame.offsetWidth;
+  let viewLeft,viewTop,lightLeft,lightTop;
+  if(placement==="above"){
+    const rowTop=Math.max(0,frameTop-controlHeight-gap);
+    viewLeft=Math.max(0,Math.min(shellWidth-viewWidth,frameLeft));
+    viewTop=rowTop+Math.max(0,(controlHeight-viewHeight)/2);
+    lightLeft=Math.max(0,Math.min(shellWidth-lightWidth,frameRight-lightWidth));
+    lightTop=rowTop+Math.max(0,(controlHeight-lightHeight)/2)
+  }else{
+    viewLeft=Math.max(0,frameLeft-viewWidth-gap);
+    viewTop=Math.max(0,Math.min(shellHeight-viewHeight,frameTop+2));
+    lightLeft=Math.max(0,Math.min(shellWidth-lightWidth,frameRight+gap));
+    lightTop=Math.max(0,Math.min(shellHeight-lightHeight,frameTop+6))
+  }
+  strip.style.setProperty("--v682-view-left",`${Math.round(viewLeft)}px`);
+  strip.style.setProperty("--v682-view-top",`${Math.round(viewTop)}px`);
+  strip.style.setProperty("--v682-offside-left",`${Math.round(lightLeft)}px`);
+  strip.style.setProperty("--v682-offside-top",`${Math.round(lightTop)}px`);
+  shell.dataset.rinkControlPlacement=placement
+}
+fitRink=function(){
+  cancelAnimationFrame(rinkFitRaf);
+  rinkFitRaf=requestAnimationFrame(v682FitRinkWithFloatingControls)
+};
+Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
 
 const BOTD_SHELL_MESSAGE_SOURCE="botd-shell";
 function v682ApplyShellFocusMode(active){

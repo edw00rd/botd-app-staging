@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'f6a84523ee43a727fca87b840736e83fddc61972d2e429d8dae5edb37cbcd53a');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'b7b3221a74fc4143f84c2dc9bbabc6a03af9e0cb9f70d1223c883c922c11d635');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'8561f2952b4fc2c5b27e6bce98c3076aba0020f9de652ac930e3f1ac6680ce06');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
@@ -60,7 +60,7 @@ for(const marker of [
 
 for(const marker of [
  'Version 6.8.2 step 3A — workspace controls, edit-mode Glow/Blink, and full-screen setup access.',
- 'Step 3A.1 keeps the original independent rink controls, but places them in a transparent reserved layer outside the rink image.',
+ 'Step 3A.3 keeps the original independent rink controls in a zero-height floating layer so the rink uses the full stage height.',
  'id="rinkStatusStrip"',
  'id="telestrationTools"',
  'class="command-left"',
@@ -72,22 +72,28 @@ for(const marker of [
  'glow.blink===true&&!ui.playing',
  'class:"v682-glow-halo v682-glow-halo-outer"',
  'statusStripOutsideRink',
+ 'statusStripOverlayParent',
+ 'function v682FitRinkWithFloatingControls()',
+ 'rinkControlLayout:v682RinkControlLayout',
  'toolbarOrder:',
 ])assert.ok(app.includes(marker),`Missing workspace-polish marker: ${marker}`);
 for(const id of ['rinkStatusStrip','viewBadge','halfEndPill','offsideLight','commandBar','toolbarPlayback','telestrationTools','timelineToggleBtn']){
   assert.equal((app.match(new RegExp(`id=\"${id}\"`,'g'))||[]).length,1,`Expected one #${id}`)
 }
-const statusStart=app.indexOf('<div class="rink-status-strip" id="rinkStatusStrip"');
 const rinkShellStart=app.indexOf('<div class="rink-shell">');
+const statusStart=app.indexOf('<div class="rink-status-strip" id="rinkStatusStrip"');
 const rinkFrameStart=app.indexOf('<div class="rink-frame whole" id="rinkFrame">');
-assert.ok(statusStart>0&&statusStart<rinkShellStart&&rinkShellStart<rinkFrameStart,'Rink status strip must precede and remain outside rink frame');
-assert.ok(app.includes('.rink-status-strip{flex:0 0 31px')&&app.includes('background:transparent;box-shadow:none;pointer-events:none}'),'Rink controls must use a transparent off-ice layer');
+assert.ok(rinkShellStart>0&&rinkShellStart<statusStart&&statusStart<rinkFrameStart,'Rink status strip must be a sibling overlay inside rink shell and outside rink frame');
+assert.ok(app.includes('.rink-status-strip{position:absolute;left:0;right:0;top:0;height:0')&&app.includes('background:transparent;box-shadow:none;pointer-events:none;overflow:visible}'),'Rink controls must use a zero-height transparent floating layer');
+assert.ok(!app.includes('.rink-status-strip{flex:0 0 31px'),'Rink status controls must not reserve a flex row');
+assert.ok(!app.includes('flex-basis:29px'),'Responsive rink status controls must not reserve a row');
 assert.ok(!app.includes('<span class="rink-control-label">ICE VIEW</span>'),'The added ICE VIEW toolbar label must remain removed');
 assert.ok(app.includes('.rink-status-strip .offside-light::before,.rink-status-strip .offside-light::after{content:none!important'),'Offside status must render as the original compact dot');
 for(const id of ['viewBadge','halfEndPill','offsideLight']){
   const position=app.indexOf(`id="${id}"`);
-  assert.ok(position>statusStart&&position<rinkShellStart,`#${id} must remain in the off-ice status strip`)
+  assert.ok(position>statusStart&&position<rinkFrameStart,`#${id} must remain in the floating off-ice status layer`)
 }
+for(const marker of ['function v682RinkControlLayout()','function v682FitRinkWithFloatingControls()','shell.dataset.rinkControlPlacement=placement','stripHeight:round(strip.getBoundingClientRect().height,2)','viewOverlapsRink:','offsideOverlapsRink:'])assert.ok(app.includes(marker),`Missing no-reservation rink-control marker: ${marker}`);
 const commandStart=app.indexOf('<div class="command-bar" id="commandBar">');
 const timelineStart=app.indexOf('<section class="timeline-dock"',commandStart);
 assert.ok(commandStart>0&&timelineStart>commandStart,'Missing command toolbar region');
