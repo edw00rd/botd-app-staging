@@ -32,8 +32,7 @@ Proprietary software. No source-code license is granted.
     .page{min-height:100%;display:flex;flex-direction:column}
     .masthead{height:64px;display:flex;align-items:center;gap:8px;padding:6px clamp(10px,2vw,24px);border-bottom:1px solid rgba(112,171,207,.25);background:rgba(4,15,25,.94);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;overflow:hidden}
     .mark{width:44px;height:44px;flex:0 0 44px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.5))}
-    .brand{min-width:108px;max-width:420px;line-height:1.04;display:grid;gap:1px;flex:1 1 320px;margin-right:auto;overflow:hidden}.brand strong{display:block;letter-spacing:.055em;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand-version,.brand-subscription{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand-version{color:var(--muted);font-size:10px}.brand-subscription{color:#8ff0ba;font-size:10px;font-weight:800}.brand-subscription.warning{color:#ffe48a}.brand-subscription.muted{color:var(--muted)}
-    .stage-badge{flex:0 0 auto;border:1px solid #b89327;background:#3f320d;color:#ffe895;border-radius:999px;padding:6px 9px;font-weight:900;font-size:9px;letter-spacing:.08em;white-space:nowrap}
+    .brand{min-width:108px;max-width:420px;line-height:1.04;display:grid;gap:1px;flex:1 1 320px;margin-right:auto;overflow:hidden}.brand strong{display:block;letter-spacing:.055em;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand-version{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:10px}.brand-subscription{display:flex;align-items:center;gap:3px;min-width:0;color:#8ff0ba;font-size:10px;font-weight:800}.brand-subscription-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.header-secure-lock{display:inline-grid;place-items:center;flex:0 0 auto;width:9px;height:10px;color:var(--gold)}.header-secure-lock svg{display:block;width:9px;height:10px;fill:currentColor}.brand-subscription.warning{color:#ffe48a}.brand-subscription.muted{color:var(--muted)}
     .header-editor-actions,.header-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}.header-meta{font-size:10px;color:var(--muted);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.compact-label{display:none}
     .fullscreen-button{width:38px;height:38px;min-height:38px;flex:0 0 38px;padding:0;display:grid;place-items:center;font-size:19px;line-height:1;border-radius:10px}.fullscreen-button[aria-pressed="true"]{border-color:var(--cyan);background:#155b7b;box-shadow:0 0 0 2px rgba(75,215,255,.14)}
     .btn{min-height:42px;border:1px solid #3c6681;border-radius:11px;padding:9px 14px;color:#fff;background:#173b55;font-weight:800;box-shadow:0 3px 0 rgba(0,0,0,.18);transition:transform .15s ease,background .15s ease}
@@ -56,7 +55,6 @@ Proprietary software. No source-code license is granted.
     dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
     .footer{padding:15px;text-align:center;color:#7f9bac;font-size:10px}.footer a{color:#9bcde1}
     @media(max-width:1180px){.header-meta{display:none}}
-    @media(max-width:1020px){.stage-badge{display:none}}
     @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.masthead{height:60px;padding:5px 8px;gap:5px}.mark{width:40px;height:40px;flex-basis:40px}.brand{flex-basis:220px}.brand strong{font-size:11px}.brand-version,.brand-subscription{font-size:9px}.header-editor-actions,.header-actions{gap:4px}.masthead .btn.small{padding:5px 7px;min-height:34px;font-size:10px}.fullscreen-button{width:36px;height:36px;min-height:36px;flex-basis:36px}.app-view{inset:60px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
     @media(max-width:640px){.mark{display:none}.brand{flex-basis:150px;min-width:88px}.full-label{display:none}.compact-label{display:inline}.masthead .btn.small{padding-left:6px;padding-right:6px}.brand strong{font-size:10px}}
     @media(max-width:460px){.brand{flex-basis:96px}.brand strong{letter-spacing:.02em}.brand-subscription{max-width:118px}.masthead{gap:3px}.header-editor-actions,.header-actions{gap:3px}.masthead .btn.small{padding-left:5px;padding-right:5px;font-size:9px}.fullscreen-button{width:34px;height:34px;min-height:34px;flex-basis:34px}}
@@ -69,9 +67,8 @@ Proprietary software. No source-code license is granted.
       <div class="brand">
         <strong>B.O.T.D. HOCKEY PLAYBOOK STUDIO</strong>
         <span class="brand-version">Version 6.8.1</span>
-        <span id="headerSubscription" class="brand-subscription hidden" aria-live="polite"></span>
+        <span id="headerSubscription" class="brand-subscription hidden" aria-live="polite"><span id="headerSubscriptionText" class="brand-subscription-text"></span><span id="headerSecureLock" class="header-secure-lock hidden" role="img" aria-label="Secure access" title="Secure access"><svg viewBox="0 0 12 14" aria-hidden="true" focusable="false"><path d="M3 6V4a3 3 0 0 1 6 0v2h.75A1.25 1.25 0 0 1 11 7.25v5.5A1.25 1.25 0 0 1 9.75 14h-7.5A1.25 1.25 0 0 1 1 12.75v-5.5A1.25 1.25 0 0 1 2.25 6H3Zm1.5 0h3V4a1.5 1.5 0 0 0-3 0v2Z"></path></svg></span></span>
       </div>
-      <span class="stage-badge">COACH PRO · SECURE ACCESS</span>
       <div id="editorActions" class="header-editor-actions hidden" aria-label="Play controls">
         <button id="shellNewButton" class="btn small ghost" type="button" disabled>New</button>
         <button id="shellSaveButton" class="btn small" type="button" disabled><span class="full-label">Save play</span><span class="compact-label">Save</span></button>
@@ -197,7 +194,7 @@ Proprietary software. No source-code license is granted.
         "signupEmail","signupPassword","signupPasswordConfirm","acceptTerms",
         "pendingConfirmation","resendButton","forgotButton","forgotDialog","forgotForm",
         "forgotEmail","forgotCancel","recoveryForm","newPassword","newPasswordConfirm",
-        "headerActions","headerMeta","headerSubscription","editorActions","shellNewButton","shellSaveButton",
+        "headerActions","headerMeta","headerSubscription","headerSubscriptionText","headerSecureLock","editorActions","shellNewButton","shellSaveButton",
         "billingButton","signoutButton","fullscreenButton","plansIdentity","billingWarning","planSelectionNote",
         "appGraceWarning","appFrame"
       ].map(id => [id, document.getElementById(id)])
@@ -217,11 +214,12 @@ Proprietary software. No source-code license is granted.
       elements.shellSaveButton.disabled = !editorReady;
     }
 
-    function setHeaderSubscription(text = "", tone = "normal") {
-      elements.headerSubscription.textContent = text;
+    function setHeaderSubscription(text = "", tone = "normal", secure = false) {
+      elements.headerSubscriptionText.textContent = text;
       elements.headerSubscription.classList.toggle("hidden", !text);
       elements.headerSubscription.classList.toggle("warning", tone === "warning");
       elements.headerSubscription.classList.toggle("muted", tone === "muted");
+      elements.headerSecureLock.classList.toggle("hidden", !text || !secure);
       elements.headerSubscription.title = text;
     }
 
@@ -518,6 +516,7 @@ Proprietary software. No source-code license is granted.
           setHeaderSubscription(
             `${planName(subscription?.plan)} · Payment grace · Access through ${graceDate}`,
             "warning",
+            true,
           );
           setAppGraceWarning(
             `Payment failed. Coach Pro access continues through ${graceDate}. ` +
@@ -530,7 +529,7 @@ Proprietary software. No source-code license is granted.
               ? ` · Access through ${date}`
               : ` · Renews ${date}`
             : "";
-          setHeaderSubscription(`${planName(subscription?.plan)} active${renewal}`);
+          setHeaderSubscription(`${planName(subscription?.plan)} active${renewal}`, "normal", true);
         }
 
         if (loadedAppAccountId !== data.user.id) {

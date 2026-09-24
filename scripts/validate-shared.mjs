@@ -6,8 +6,8 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'53ec448adf0f2b7525d9fe382cbc5e3578fd65a63db20070272201c4e991f141');
-assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'6674ba61452f529a9c385dda1e50604323f4390fc9348b77c0927845b0509743');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'f6a84523ee43a727fca87b840736e83fddc61972d2e429d8dae5edb37cbcd53a');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'8561f2952b4fc2c5b27e6bce98c3076aba0020f9de652ac930e3f1ac6680ce06');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
@@ -18,6 +18,8 @@ const normalize=new Function(app.match(/const SUPPORTED_LANGUAGES[^\n]+/)[0]+'\n
 for(const [input,expected] of [['en-CA','en-US'],['en-US','en-US'],['sv','sv'],['fi','fi'],['ru','ru'],['invalid','en-US'],[undefined,'en-US']])assert.equal(normalize(input),expected);
 for(const marker of [
  'id="headerSubscription"',
+ 'id="headerSubscriptionText"',
+ 'id="headerSecureLock"',
  'id="editorActions"',
  'id="shellNewButton"',
  'id="shellSaveButton"',
@@ -36,6 +38,13 @@ for(const marker of headerOrder){const position=masthead.indexOf(marker);assert.
 assert.match(masthead,/id="fullscreenButton"[\s\S]*?<\/button>\s*$/);
 assert.ok(masthead.indexOf('Version 6.8.1')<masthead.indexOf('id="headerSubscription"'));
 assert.ok(shell.includes('id="headerSubscription" class="brand-subscription hidden" aria-live="polite"'));
+assert.ok(shell.includes('id="headerSubscriptionText" class="brand-subscription-text"'));
+assert.ok(shell.includes('id="headerSecureLock" class="header-secure-lock hidden" role="img" aria-label="Secure access" title="Secure access"'));
+assert.ok(!shell.includes('COACH PRO · SECURE ACCESS'));
+assert.ok(!shell.includes('class="stage-badge"'));
+assert.match(shell,/id="headerSubscriptionText"[\s\S]*?id="headerSecureLock"/);
+assert.ok(shell.includes('elements.headerSecureLock.classList.toggle("hidden", !text || !secure)'));
+assert.ok(shell.includes('setHeaderSubscription(`${planName(subscription?.plan)} active${renewal}`, "normal", true)'));
 assert.ok(shell.includes('.app-view{position:fixed;inset:64px 0 0'));
 assert.ok(shell.includes('@media(max-width:800px)')&&shell.includes('.app-view{inset:60px 0 0}'));
 for(const marker of [
@@ -93,6 +102,35 @@ for(const marker of ['data-tool="erase"','id="markerSwatch"','id="clearDrawingBt
   const position=command.indexOf(marker);assert.ok(position>telestrationStart&&position<telestrationEnd,`${marker} must remain inside conditional telestration controls`)
 }
 assert.ok(command.indexOf('id="timelineToggleBtn"')>command.indexOf('class="command-right"'),'Timeline toggle must remain in the far-right toolbar group');
+
+for(const marker of [
+ 'Version 6.8.2 step 3A.2 — compact conditional Glow/Blink controls and icon cleanup.',
+ 'class="v682-glow-intensity',
+ 'data-v61-glow="brightness"',
+ 'aria-label="Glow intensity"',
+ 'function v682RememberGlowPreset(kind,id,source)',
+ 'else if(glowKey==="brightness")v63UpdateGlowSetting(editor,"brightness",target.value)',
+ 'compactGlowControls:',
+])assert.ok(app.includes(marker),`Missing compact-controls marker: ${marker}`);
+const finalGlowStart=app.indexOf('function v67GlowMarkup(kind,id){');
+const finalGlowEnd=app.indexOf('v63GlowMarkup=v67GlowMarkup;',finalGlowStart);
+assert.ok(finalGlowStart>0&&finalGlowEnd>finalGlowStart,'Missing final Glow editor implementation');
+const finalGlow=app.slice(finalGlowStart,finalGlowEnd);
+assert.ok(!finalGlow.includes('v63-glow-time'),'Glow toolbar must not show scope/timing text');
+assert.ok(!app.includes('function v67GlowStatus(kind,id,clip)'),'Obsolete Glow timing-status function must remain removed');
+assert.ok(finalGlow.includes('class="v682-glow-intensity ${enabled?"":"v61-hidden"}"'),'Glow intensity slider must be conditional on Glow');
+assert.ok(finalGlow.includes('class="v61-glow-rate ${blink?"":"v61-hidden"}"'),'Blink-rate slider must be conditional on Blink');
+assert.ok(finalGlow.includes('class="v61-glow-rate-out ${blink?"":"v61-hidden"}"'),'Blink-rate readout must be conditional on Blink');
+assert.ok(!finalGlow.includes('data-v61-glow-dependent'),'Blink checkbox must remain available while Glow is off');
+assert.ok(finalGlow.includes('class="v61-glow-color"'),'Glow color selector must remain compact and available');
+assert.ok(app.includes('brightness.classList.toggle("v61-hidden",!enabled)'));
+assert.ok(app.includes('rate?.classList.toggle("v61-hidden",!blink)'));
+assert.ok(app.includes('out?.classList.toggle("v61-hidden",!blink)'));
+assert.ok(!app.includes('<span class="branch-label">PUCK ROUTE</span>'),'Visible PUCK ROUTE label must remain removed');
+assert.ok(app.includes('id="timelineTakeSelect" aria-label="Puck route" title="Puck route"'),'Puck-route selector must retain an accessible label');
+const eraserButton=command.match(/<button class="tool-btn" data-tool="erase"[\s\S]*?<\/button>/)?.[0]||'';
+assert.ok(eraserButton.includes('aria-label="Eraser"')&&eraserButton.includes('class="v682-tool-icon"'),'Eraser must use the matching icon treatment');
+assert.ok(!eraserButton.includes('⌫'),'Legacy eraser glyph must remain removed');
 for(const html of [app,shell]){const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new Function(scripts[0][1]);}
 for(const [mode,url,ref] of [['staging','https://staging.botdhockey.com','dolbsnodupgppvwnnlgd'],['production','https://app.botdhockey.com','stcobnlzdbkoakgvfaez']]) {
  const c=JSON.parse(read(mode==='staging'?'wrangler.jsonc':'wrangler.production.jsonc'));
