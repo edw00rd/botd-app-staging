@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'b7b3221a74fc4143f84c2dc9bbabc6a03af9e0cb9f70d1223c883c922c11d635');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'4274bb55052368e53d6969055cbafb645bd5732ae8918583162a8a4c5a9d0c20');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'8561f2952b4fc2c5b27e6bce98c3076aba0020f9de652ac930e3f1ac6680ce06');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
@@ -70,7 +70,7 @@ for(const marker of [
  '.command-left::-webkit-scrollbar,.command-right::-webkit-scrollbar{display:none}',
  'function v682SyncTelestrationTools()',
  'glow.blink===true&&!ui.playing',
- 'class:"v682-glow-halo v682-glow-halo-outer"',
+ 'class:"v682-underglow"',
  'statusStripOutsideRink',
  'statusStripOverlayParent',
  'function v682FitRinkWithFloatingControls()',
@@ -108,6 +108,31 @@ for(const marker of ['data-tool="erase"','id="markerSwatch"','id="clearDrawingBt
   const position=command.indexOf(marker);assert.ok(position>telestrationStart&&position<telestrationEnd,`${marker} must remain inside conditional telestration controls`)
 }
 assert.ok(command.indexOf('id="timelineToggleBtn"')>command.indexOf('class="command-right"'),'Timeline toggle must remain in the far-right toolbar group');
+
+
+for(const marker of [
+ 'Version 6.8.2 step 3A.4 — centered radial underglow only.',
+ '.v682-underglow-layer{stroke:none',
+ '.v682-edit-blink .v682-underglow{animation:v682EditGlowBlink',
+ 'function v682UnderglowGeometry(isPuck,player,intensity)',
+ 'function v682GlowBlurFilter(id,stdDeviation)',
+ 'function v682UnderglowLayer(className,paintId,filterId,rx,ry,cy,opacity)',
+ 'svgEl("radialGradient"',
+ 'svgEl("feGaussianBlur"',
+ 'node.insertBefore(underglow,node.firstChild)',
+ 'glowUnderglowState:',
+])assert.ok(app.includes(marker),`Missing centered-underglow marker: ${marker}`);
+assert.ok(!app.includes('v682-glow-halo'),'Retired perimeter-halo rendering must remain removed');
+const underglowStart=app.indexOf('let v682UnderglowPaintSerial=0;');
+const underglowEnd=app.indexOf('Object.assign(window.BOTD_TEST,{',underglowStart);
+assert.ok(underglowStart>0&&underglowEnd>underglowStart,'Missing final underglow renderer');
+const underglow=app.slice(underglowStart,underglowEnd);
+for(const layer of ['v682-underglow-haze','v682-underglow-bloom','v682-underglow-core'])assert.ok(underglow.includes(`v682UnderglowLayer("${layer}"`),`Missing ${layer}`);
+assert.equal((underglow.match(/v682UnderglowLayer\("v682-underglow-/g)||[]).length,3,'Underglow must use exactly three centered radial layers');
+assert.ok(underglow.includes('stroke:"none"'),'Underglow shapes must not draw perimeter strokes');
+assert.ok(!underglow.includes('stroke-width'),'Underglow renderer must not trace the player or puck outline');
+assert.ok(underglow.includes('underglow.style.opacity=".035"'),'Playback Blink must pulse only the underglow layer');
+assert.ok(underglow.includes('node.insertBefore(underglow,node.firstChild)'),'Underglow must render beneath the unchanged player or puck artwork');
 
 for(const marker of [
  'Version 6.8.2 step 3A.2 — compact conditional Glow/Blink controls and icon cleanup.',

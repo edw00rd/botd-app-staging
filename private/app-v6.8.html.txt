@@ -816,12 +816,13 @@ body.theme-light .rink-status-strip{background:transparent;border:0;box-shadow:n
 .command-bar{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;column-gap:9px;overflow:hidden}.command-left,.command-right{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:none}.command-left::-webkit-scrollbar,.command-right::-webkit-scrollbar{display:none}.command-left{justify-self:stretch}.command-right{justify-self:stretch;justify-content:flex-end}.toolbar-playback{justify-self:center;margin:0!important;border-color:rgba(82,114,138,.78);box-shadow:0 0 0 2px rgba(57,216,255,.06),0 3px 10px rgba(0,0,0,.2)}
 .telestration-tools{display:flex;align-items:center;gap:5px}.telestration-tools[hidden]{display:none!important}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:36px;height:36px;min-width:36px}.tool-btn.telestration-parent-active{border-color:#57c4ef;box-shadow:0 0 0 2px rgba(57,216,255,.13)}.command-right #timelineToggleBtn{margin-left:2px}.command-right #fullscreenBottomBtn{display:none!important}
 body.focus-mode{--right-w:0px}body.focus-mode:not(.left-hidden){--left-w:360px}body.focus-mode .workspace{grid-template-columns:var(--left-w) minmax(0,1fr)}body.focus-mode .left-drawer{display:flex!important}body.focus-mode .right-drawer{display:none!important}body.focus-mode .drawer-edge-left{display:grid!important}body.focus-mode .drawer-edge-right{display:none!important}
-.v682-glow-halo{fill:none;stroke:var(--glow-color,#39d8ff);pointer-events:none;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center}.v682-glow-halo-outer{stroke-width:var(--v682-outer-width,7px);opacity:var(--v682-outer-opacity,.32);filter:drop-shadow(0 0 var(--v682-outer-blur,5px) var(--glow-color,#39d8ff)) drop-shadow(0 0 var(--v682-outer-spread,11px) var(--glow-color,#39d8ff))}.v682-glow-halo-inner{stroke-width:var(--v682-inner-width,3px);opacity:var(--v682-inner-opacity,.9);filter:drop-shadow(0 0 var(--v682-inner-blur,3px) var(--glow-color,#39d8ff))}.v682-edit-blink .v682-glow-halo{animation:v682EditGlowBlink var(--v682-blink-period,.83s) steps(1,end) infinite}@keyframes v682EditGlowBlink{0%,55%{opacity:var(--v682-halo-opacity,.9)}56%,100%{opacity:.08}}
+/* Version 6.8.2 step 3A.4 — centered radial underglow only. */
+.v682-underglow{pointer-events:none;transform-box:fill-box;transform-origin:center}.v682-underglow-layer{stroke:none;pointer-events:none}.v682-edit-blink .v682-underglow{animation:v682EditGlowBlink var(--v682-blink-period,.83s) steps(1,end) infinite}@keyframes v682EditGlowBlink{0%,55%{opacity:1}56%,100%{opacity:.035}}
 /* Version 6.8.2 step 3A.2 — compact conditional Glow/Blink controls and icon cleanup. */
 .v682-glow-intensity{width:82px;height:24px;margin:0;accent-color:#39d8ff;touch-action:none}.v682-tool-icon{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 @media(max-width:1180px){body.focus-mode{--left-w:0px}.command-bar{column-gap:5px}.command-left,.command-right{gap:4px}.command-left>.tool-btn,.command-right>.tool-btn{width:38px;height:38px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:34px;height:34px;min-width:34px}.command-right .route-toggle span{display:none}.command-right select{max-width:72px}.v682-glow-intensity{width:68px}}
 @media(max-width:720px){.rink-status-strip{min-height:0;margin:0}.rink-view-controls{left:var(--v682-view-left,2px)}.rink-status-strip .view-badge{min-height:27px;padding-left:7px;padding-right:7px}.rink-status-strip .half-end-pill{width:104px;height:29px;min-height:29px}.rink-status-strip .half-end-pill-thumb{height:21px}.rink-status-strip .offside-light{right:auto!important;top:var(--v682-offside-top,6px)!important}.command-bar{column-gap:3px;padding-left:4px;padding-right:4px}.command-left,.command-right{gap:3px}.command-left .separator{display:none}.command-left>.tool-btn,.command-right>.tool-btn{width:35px;height:35px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:32px;height:32px;min-width:32px}.command-right select{max-width:58px;padding-left:3px;padding-right:3px}.v682-glow-intensity{width:54px}}
-@media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-glow-halo,.rink-status-strip .offside-light.red{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-underglow,.rink-status-strip .offside-light.red{animation:none!important}}
 </style>
 
 </head>
@@ -4798,22 +4799,49 @@ const updateToolButtonsV682Workspace=updateToolButtons;
 updateToolButtons=function(){const result=updateToolButtonsV682Workspace();v682SyncTelestrationTools();return result};
 
 const setGlowStyleV682Workspace=setGlowStyle;
+let v682UnderglowPaintSerial=0;
+function v682UnderglowGeometry(isPuck,player,intensity){
+  let baseRx=30,baseRy=27,centerY=1;
+  if(isPuck){baseRx=18;baseRy=11;centerY=2}
+  else if(player?.role==="goalie"){baseRx=34;baseRy=40}
+  else if(player?.role==="coach"||player?.role==="manager"){baseRx=40;baseRy=30}
+  const coreScale=.96+intensity*.18,bloomScale=1.2+intensity*.32,hazeScale=1.55+intensity*.5;
+  return{
+    centerY,
+    coreRx:round(baseRx*coreScale,2),coreRy:round(baseRy*coreScale,2),
+    bloomRx:round(baseRx*bloomScale,2),bloomRy:round(baseRy*bloomScale,2),
+    hazeRx:round(baseRx*hazeScale,2),hazeRy:round(baseRy*hazeScale,2)
+  }
+}
+function v682GlowBlurFilter(id,stdDeviation){
+  const filter=svgEl("filter",{id,x:"-120%",y:"-120%",width:"340%",height:"340%","color-interpolation-filters":"sRGB"});
+  filter.append(svgEl("feGaussianBlur",{stdDeviation:round(stdDeviation,2)}));return filter
+}
+function v682UnderglowLayer(className,paintId,filterId,rx,ry,cy,opacity){
+  return svgEl("ellipse",{class:`v682-underglow-layer ${className}`,cx:0,cy,rx,ry,fill:`url(#${paintId})`,stroke:"none",filter:`url(#${filterId})`,opacity:round(opacity,3),"aria-hidden":"true"})
+}
 setGlowStyle=function(node,glow,defaultColor){
   if(!node||!glow?.enabled)return;
-  const color=glow.color||defaultColor||"#39D8FF",brightness=clamp(Number(glow.brightness)||65,10,100),intensity=brightness/100,rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0,isPuck=node.classList?.contains("puck-disc"),player=node.dataset?.playerId?playerById(node.dataset.playerId):null;
-  const outerOpacity=round(.12+intensity*.31,3),innerOpacity=round(.48+intensity*.48,3);
-  node.classList.remove("player-glow","puck-glow-static","v65-timeline-glow","v682-edit-blink");node.style.setProperty("--glow-color",color);node.style.setProperty("--glow-size",`${4+brightness/8}px`);node.style.setProperty("--v682-blink-period",`${1/rate}s`);node.style.setProperty("--v682-outer-width",`${4+brightness/24}px`);node.style.setProperty("--v682-inner-width",`${1.8+brightness/55}px`);node.style.setProperty("--v682-outer-opacity",String(outerOpacity));node.style.setProperty("--v682-inner-opacity",String(innerOpacity));node.style.setProperty("--v682-outer-blur",`${3+brightness/20}px`);node.style.setProperty("--v682-outer-spread",`${6+brightness/10}px`);node.style.setProperty("--v682-inner-blur",`${1.5+brightness/35}px`);node.style.filter=isPuck?"drop-shadow(2px 4px 2px rgba(0,0,0,.47))":"";node.style.webkitFilter=node.style.filter;
-  const radius=player?.role==="goalie"?38:player?.role==="coach"||player?.role==="manager"?39:35,outer=isPuck?svgEl("ellipse",{class:"v682-glow-halo v682-glow-halo-outer",cx:0,cy:0,rx:28,ry:18}):svgEl("circle",{class:"v682-glow-halo v682-glow-halo-outer",cx:0,cy:0,r:radius}),inner=isPuck?svgEl("ellipse",{class:"v682-glow-halo v682-glow-halo-inner",cx:0,cy:0,rx:22,ry:13}):svgEl("circle",{class:"v682-glow-halo v682-glow-halo-inner",cx:0,cy:0,r:Math.max(26,radius-6)});
-  node.append(outer,inner);
+  const color=glow.color||defaultColor||"#39D8FF",brightness=clamp(Number(glow.brightness)||65,10,100),intensity=brightness/100,rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0,isPuck=node.classList?.contains("puck-disc"),player=node.dataset?.playerId?playerById(node.dataset.playerId):null,geometry=v682UnderglowGeometry(isPuck,player,intensity),blurScale=isPuck?.72:1;
+  const serial=++v682UnderglowPaintSerial,paintId=`v682UnderglowPaint${serial}`,coreFilterId=`v682UnderglowCore${serial}`,bloomFilterId=`v682UnderglowBloom${serial}`,hazeFilterId=`v682UnderglowHaze${serial}`;
+  const coreOpacity=.18+intensity*.44,bloomOpacity=.12+intensity*.34,hazeOpacity=.06+intensity*.2;
+  node.classList.remove("player-glow","puck-glow-static","v65-timeline-glow","v682-edit-blink");node.style.setProperty("--glow-color",color);node.style.setProperty("--glow-size",`${4+brightness/8}px`);node.style.setProperty("--v682-blink-period",`${1/rate}s`);node.style.filter=isPuck?"drop-shadow(2px 4px 2px rgba(0,0,0,.47))":"";node.style.webkitFilter=node.style.filter;
+  const defs=svgEl("defs"),gradient=svgEl("radialGradient",{id:paintId,cx:"50%",cy:"50%",r:"50%"});
+  gradient.append(svgEl("stop",{offset:"0%","stop-color":color,"stop-opacity":1}),svgEl("stop",{offset:"28%","stop-color":color,"stop-opacity":.82}),svgEl("stop",{offset:"62%","stop-color":color,"stop-opacity":.34}),svgEl("stop",{offset:"100%","stop-color":color,"stop-opacity":0}));
+  defs.append(gradient,v682GlowBlurFilter(coreFilterId,(1.2+intensity*1.8)*blurScale),v682GlowBlurFilter(bloomFilterId,(3.2+intensity*3.2)*blurScale),v682GlowBlurFilter(hazeFilterId,(6+intensity*5)*blurScale));
+  const underglow=svgEl("g",{class:"v682-underglow","aria-hidden":"true"});
+  underglow.append(defs,v682UnderglowLayer("v682-underglow-haze",paintId,hazeFilterId,geometry.hazeRx,geometry.hazeRy,geometry.centerY,hazeOpacity),v682UnderglowLayer("v682-underglow-bloom",paintId,bloomFilterId,geometry.bloomRx,geometry.bloomRy,geometry.centerY,bloomOpacity),v682UnderglowLayer("v682-underglow-core",paintId,coreFilterId,geometry.coreRx,geometry.coreRy,geometry.centerY,coreOpacity));
+  node.insertBefore(underglow,node.firstChild);
   let phaseOn=true;if(glow.blink===true&&ui.playing){const phase=((((timelineTime-start)*rate)%1)+1)%1;phaseOn=phase<.56}
-  if(glow.blink===true&&!ui.playing){node.classList.add("v682-edit-blink");outer.style.setProperty("--v682-halo-opacity",String(outerOpacity));inner.style.setProperty("--v682-halo-opacity",String(innerOpacity))}else if(!phaseOn){outer.style.opacity=".04";inner.style.opacity=".04"}
+  if(glow.blink===true&&!ui.playing)node.classList.add("v682-edit-blink");else if(!phaseOn)underglow.style.opacity=".035";
   node.dataset.v65GlowPhase=phaseOn?"on":"off";node.dataset.v65GlowClip=String(glow.clipId||"");node.dataset.v682Glow="1"
 };
 
 Object.assign(window.BOTD_TEST,{
   workspacePolish:()=>({statusStripOutsideRink:!$("#rinkFrame")?.contains($("#rinkStatusStrip")),statusStripOverlayParent:$("#rinkStatusStrip")?.parentElement?.classList.contains("rink-shell")??false,statusStripHeight:$("#rinkStatusStrip")?.getBoundingClientRect().height??null,telestrationToolsHidden:$("#telestrationTools")?.hidden??true,focusLeftHandle:getComputedStyle($("#leftDrawerHandle")).display,toolbarOrder:[...$("#commandBar").children].map(node=>node.className)}),
   setWorkspaceTool:tool=>{ui.tool=tool;updateToolButtons();return{tool:ui.tool,controlsHidden:$("#telestrationTools").hidden}},
-  glowHaloState:selector=>{const node=document.querySelector(selector);return node?{haloCount:node.querySelectorAll(".v682-glow-halo").length,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
+  glowHaloState:selector=>{const node=document.querySelector(selector),underglow=node?.querySelector(".v682-underglow");return node?{haloCount:underglow?1:0,underglowCount:underglow?1:0,layerCount:underglow?.querySelectorAll(".v682-underglow-layer").length||0,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
+  glowUnderglowState:selector=>{const node=document.querySelector(selector),underglow=node?.querySelector(".v682-underglow");return node?{underglowCount:underglow?1:0,layerCount:underglow?.querySelectorAll(".v682-underglow-layer").length||0,outlineCount:underglow?.querySelectorAll('[stroke]:not([stroke="none"])').length||0,firstChild:node.firstElementChild===underglow,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
   compactGlowControls:()=>{const editor=document.querySelector("[data-v61-glow-kind]");if(!editor)return null;const intensity=editor.querySelector('[data-v61-glow="brightness"]'),rate=editor.querySelector('[data-v61-glow="rate"]'),out=editor.querySelector("[data-v61-glow-output]");return{hasTimingText:!!editor.querySelector(".v63-glow-time"),intensityHidden:intensity?.classList.contains("v61-hidden")??true,rateHidden:rate?.classList.contains("v61-hidden")??true,rateOutputHidden:out?.classList.contains("v61-hidden")??true}}
 });
 
