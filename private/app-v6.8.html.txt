@@ -822,6 +822,43 @@ body.focus-mode{--right-w:0px}body.focus-mode:not(.left-hidden){--left-w:360px}b
 .v682-glow-intensity{width:82px;height:24px;margin:0;accent-color:#39d8ff;touch-action:none}.v682-tool-icon{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 @media(max-width:1180px){body.focus-mode{--left-w:0px}.command-bar{column-gap:5px}.command-left,.command-right{gap:4px}.command-left>.tool-btn,.command-right>.tool-btn{width:38px;height:38px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:34px;height:34px;min-width:34px}.command-right .route-toggle span{display:none}.command-right select{max-width:72px}.v682-glow-intensity{width:68px}}
 @media(max-width:720px){.rink-status-strip{min-height:0;margin:0}.rink-view-controls{left:var(--v682-view-left,2px)}.rink-status-strip .view-badge{min-height:27px;padding-left:7px;padding-right:7px}.rink-status-strip .half-end-pill{width:104px;height:29px;min-height:29px}.rink-status-strip .half-end-pill-thumb{height:21px}.rink-status-strip .offside-light{right:auto!important;top:var(--v682-offside-top,6px)!important}.command-bar{column-gap:3px;padding-left:4px;padding-right:4px}.command-left,.command-right{gap:3px}.command-left .separator{display:none}.command-left>.tool-btn,.command-right>.tool-btn{width:35px;height:35px}.telestration-tools .tool-btn,#telestrationTools #markerSwatch.marker-swatch{width:32px;height:32px;min-width:32px}.command-right select{max-width:58px;padding-left:3px;padding-right:3px}.v682-glow-intensity{width:54px}}
+/* Version 6.8.2 step 3A.5 — stronger calibrated underglow and direct Pointer Events slider dragging. */
+.v63-glow-editor input[type="range"][data-v61-glow="brightness"],
+.v63-glow-editor input[type="range"][data-v61-glow="rate"]{
+  --v682-glow-range-accent:#39d8ff;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  width:96px!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:-10px 0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:999px!important;
+  outline:0!important;
+  background:
+    linear-gradient(to right,
+      var(--v682-glow-range-accent) 0,
+      var(--v682-glow-range-accent) var(--v682-glow-range-progress,0%),
+      color-mix(in srgb,var(--line) 78%,transparent) var(--v682-glow-range-progress,0%),
+      color-mix(in srgb,var(--line) 78%,transparent) 100%) center/100% 7px no-repeat!important;
+  cursor:ew-resize!important;
+  touch-action:none!important;
+  user-select:none!important;
+  -webkit-user-select:none!important;
+}
+.v63-glow-editor input[type="range"][data-v61-glow="rate"]{--v682-glow-range-accent:#9b5de5}
+.v63-glow-editor input[type="range"][data-v61-glow]::-webkit-slider-runnable-track{height:7px!important;border:0!important;border-radius:999px!important;background:transparent!important}
+.v63-glow-editor input[type="range"][data-v61-glow]::-webkit-slider-thumb{-webkit-appearance:none!important;appearance:none!important;width:22px!important;height:22px!important;margin-top:-7.5px!important;border:3px solid #eefaff!important;border-radius:50%!important;background:var(--v682-glow-range-accent)!important;box-shadow:0 0 0 2px rgba(5,37,57,.48),0 3px 8px rgba(0,0,0,.34)!important;cursor:grab!important}
+.v63-glow-editor input[type="range"][data-v61-glow]::-moz-range-track{height:7px!important;border:0!important;border-radius:999px!important;background:transparent!important}
+.v63-glow-editor input[type="range"][data-v61-glow]::-moz-range-progress{height:7px!important;border-radius:999px!important;background:var(--v682-glow-range-accent)!important}
+.v63-glow-editor input[type="range"][data-v61-glow]::-moz-range-thumb{width:18px!important;height:18px!important;border:3px solid #eefaff!important;border-radius:50%!important;background:var(--v682-glow-range-accent)!important;box-shadow:0 0 0 2px rgba(5,37,57,.48),0 3px 8px rgba(0,0,0,.34)!important;cursor:grab!important}
+.v63-glow-editor input[type="range"][data-v61-glow]:focus-visible{box-shadow:0 0 0 3px rgba(57,216,255,.42)!important}
+body.v682-glow-range-dragging,body.v682-glow-range-dragging *{cursor:ew-resize!important;user-select:none!important;-webkit-user-select:none!important}
+body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow]::-webkit-slider-thumb{cursor:grabbing!important;transform:scale(1.08)}
+body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow]::-moz-range-thumb{cursor:grabbing!important;transform:scale(1.08)}
+@media(max-width:1180px){.v63-glow-editor input[type="range"][data-v61-glow="brightness"],.v63-glow-editor input[type="range"][data-v61-glow="rate"]{width:80px!important}}
+@media(max-width:720px){.v63-glow-editor input[type="range"][data-v61-glow="brightness"],.v63-glow-editor input[type="range"][data-v61-glow="rate"]{width:68px!important}}
 @media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-underglow,.rink-status-strip .offside-light.red{animation:none!important}}
 </style>
 
@@ -4800,12 +4837,15 @@ updateToolButtons=function(){const result=updateToolButtonsV682Workspace();v682S
 
 const setGlowStyleV682Workspace=setGlowStyle;
 let v682UnderglowPaintSerial=0;
-function v682UnderglowGeometry(isPuck,player,intensity){
+function v682UnderglowStrength(brightness){
+  const normalized=clamp((Number(brightness)-10)/90,0,1);return Math.pow(normalized,.72)
+}
+function v682UnderglowGeometry(isPuck,player,strength){
   let baseRx=30,baseRy=27,centerY=1;
   if(isPuck){baseRx=18;baseRy=11;centerY=2}
   else if(player?.role==="goalie"){baseRx=34;baseRy=40}
   else if(player?.role==="coach"||player?.role==="manager"){baseRx=40;baseRy=30}
-  const coreScale=.96+intensity*.18,bloomScale=1.2+intensity*.32,hazeScale=1.55+intensity*.5;
+  const coreScale=.98+strength*.28,bloomScale=1.18+strength*.68,hazeScale=1.5+strength;
   return{
     centerY,
     coreRx:round(baseRx*coreScale,2),coreRy:round(baseRy*coreScale,2),
@@ -4822,19 +4862,19 @@ function v682UnderglowLayer(className,paintId,filterId,rx,ry,cy,opacity){
 }
 setGlowStyle=function(node,glow,defaultColor){
   if(!node||!glow?.enabled)return;
-  const color=glow.color||defaultColor||"#39D8FF",brightness=clamp(Number(glow.brightness)||65,10,100),intensity=brightness/100,rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0,isPuck=node.classList?.contains("puck-disc"),player=node.dataset?.playerId?playerById(node.dataset.playerId):null,geometry=v682UnderglowGeometry(isPuck,player,intensity),blurScale=isPuck?.72:1;
+  const color=glow.color||defaultColor||"#39D8FF",brightness=clamp(Number(glow.brightness)||70,10,100),strength=v682UnderglowStrength(brightness),rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0,isPuck=node.classList?.contains("puck-disc"),player=node.dataset?.playerId?playerById(node.dataset.playerId):null,geometry=v682UnderglowGeometry(isPuck,player,strength),blurScale=isPuck?.72:1;
   const serial=++v682UnderglowPaintSerial,paintId=`v682UnderglowPaint${serial}`,coreFilterId=`v682UnderglowCore${serial}`,bloomFilterId=`v682UnderglowBloom${serial}`,hazeFilterId=`v682UnderglowHaze${serial}`;
-  const coreOpacity=.18+intensity*.44,bloomOpacity=.12+intensity*.34,hazeOpacity=.06+intensity*.2;
+  const coreOpacity=.14+strength*.72,bloomOpacity=.08+strength*.58,hazeOpacity=.025+strength*.34;
   node.classList.remove("player-glow","puck-glow-static","v65-timeline-glow","v682-edit-blink");node.style.setProperty("--glow-color",color);node.style.setProperty("--glow-size",`${4+brightness/8}px`);node.style.setProperty("--v682-blink-period",`${1/rate}s`);node.style.filter=isPuck?"drop-shadow(2px 4px 2px rgba(0,0,0,.47))":"";node.style.webkitFilter=node.style.filter;
   const defs=svgEl("defs"),gradient=svgEl("radialGradient",{id:paintId,cx:"50%",cy:"50%",r:"50%"});
-  gradient.append(svgEl("stop",{offset:"0%","stop-color":color,"stop-opacity":1}),svgEl("stop",{offset:"28%","stop-color":color,"stop-opacity":.82}),svgEl("stop",{offset:"62%","stop-color":color,"stop-opacity":.34}),svgEl("stop",{offset:"100%","stop-color":color,"stop-opacity":0}));
-  defs.append(gradient,v682GlowBlurFilter(coreFilterId,(1.2+intensity*1.8)*blurScale),v682GlowBlurFilter(bloomFilterId,(3.2+intensity*3.2)*blurScale),v682GlowBlurFilter(hazeFilterId,(6+intensity*5)*blurScale));
+  gradient.append(svgEl("stop",{offset:"0%","stop-color":color,"stop-opacity":1}),svgEl("stop",{offset:"28%","stop-color":color,"stop-opacity":.9}),svgEl("stop",{offset:"62%","stop-color":color,"stop-opacity":.42}),svgEl("stop",{offset:"100%","stop-color":color,"stop-opacity":0}));
+  defs.append(gradient,v682GlowBlurFilter(coreFilterId,(1+strength*2.2)*blurScale),v682GlowBlurFilter(bloomFilterId,(2.8+strength*3.6)*blurScale),v682GlowBlurFilter(hazeFilterId,(5.6+strength*5.8)*blurScale));
   const underglow=svgEl("g",{class:"v682-underglow","aria-hidden":"true"});
   underglow.append(defs,v682UnderglowLayer("v682-underglow-haze",paintId,hazeFilterId,geometry.hazeRx,geometry.hazeRy,geometry.centerY,hazeOpacity),v682UnderglowLayer("v682-underglow-bloom",paintId,bloomFilterId,geometry.bloomRx,geometry.bloomRy,geometry.centerY,bloomOpacity),v682UnderglowLayer("v682-underglow-core",paintId,coreFilterId,geometry.coreRx,geometry.coreRy,geometry.centerY,coreOpacity));
   node.insertBefore(underglow,node.firstChild);
   let phaseOn=true;if(glow.blink===true&&ui.playing){const phase=((((timelineTime-start)*rate)%1)+1)%1;phaseOn=phase<.56}
   if(glow.blink===true&&!ui.playing)node.classList.add("v682-edit-blink");else if(!phaseOn)underglow.style.opacity=".035";
-  node.dataset.v65GlowPhase=phaseOn?"on":"off";node.dataset.v65GlowClip=String(glow.clipId||"");node.dataset.v682Glow="1"
+  node.dataset.v65GlowPhase=phaseOn?"on":"off";node.dataset.v65GlowClip=String(glow.clipId||"");node.dataset.v682Glow="1";node.dataset.v682GlowStrength=String(round(strength,3))
 };
 
 Object.assign(window.BOTD_TEST,{
@@ -4843,6 +4883,82 @@ Object.assign(window.BOTD_TEST,{
   glowHaloState:selector=>{const node=document.querySelector(selector),underglow=node?.querySelector(".v682-underglow");return node?{haloCount:underglow?1:0,underglowCount:underglow?1:0,layerCount:underglow?.querySelectorAll(".v682-underglow-layer").length||0,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
   glowUnderglowState:selector=>{const node=document.querySelector(selector),underglow=node?.querySelector(".v682-underglow");return node?{underglowCount:underglow?1:0,layerCount:underglow?.querySelectorAll(".v682-underglow-layer").length||0,outlineCount:underglow?.querySelectorAll('[stroke]:not([stroke="none"])').length||0,firstChild:node.firstElementChild===underglow,blink:node.classList.contains("v682-edit-blink"),phase:node.dataset.v65GlowPhase||""}:null},
   compactGlowControls:()=>{const editor=document.querySelector("[data-v61-glow-kind]");if(!editor)return null;const intensity=editor.querySelector('[data-v61-glow="brightness"]'),rate=editor.querySelector('[data-v61-glow="rate"]'),out=editor.querySelector("[data-v61-glow-output]");return{hasTimingText:!!editor.querySelector(".v63-glow-time"),intensityHidden:intensity?.classList.contains("v61-hidden")??true,rateHidden:rate?.classList.contains("v61-hidden")??true,rateOutputHidden:out?.classList.contains("v61-hidden")??true}}
+});
+
+
+/* Version 6.8.2 step 3A.5 — direct Glow/Blink slider manipulation.
+   The native range remains keyboard-accessible, while Pointer Events provide
+   a larger Pencil-friendly hit surface, tap-to-jump, and continuous dragging. */
+function v682GlowRangeSelector(){return 'input[type="range"][data-v61-glow="brightness"],input[type="range"][data-v61-glow="rate"]'}
+function v682GlowRangePrecision(step){
+  const text=String(step);return text.includes(".")?Math.min(6,text.length-text.indexOf(".")-1):0
+}
+function v682GlowRangeProgress(input){
+  const min=Number(input.min)||0,max=Number(input.max)||100,value=Number(input.value);return max>min?clamp((value-min)/(max-min),0,1):0
+}
+function v682SyncGlowRangeVisual(input){
+  if(!input?.matches?.(v682GlowRangeSelector()))return;
+  const progress=v682GlowRangeProgress(input)*100,value=Number(input.value),kind=input.dataset.v61Glow;
+  input.style.setProperty("--v682-glow-range-progress",`${progress.toFixed(3)}%`);
+  if(kind==="brightness"){
+    const percent=Math.round(value);input.setAttribute("aria-valuetext",`${percent} percent`);input.title=`Glow intensity: ${percent}% · drag with mouse, finger, or Pencil`
+  }else{
+    const rate=value.toFixed(2);input.setAttribute("aria-valuetext",`${rate} hertz`);input.title=`Blink rate: ${rate} Hz · drag with mouse, finger, or Pencil`
+  }
+}
+function v682SyncGlowRangeVisuals(root=document){root.querySelectorAll?.(v682GlowRangeSelector()).forEach(v682SyncGlowRangeVisual)}
+function v682GlowRangeValueAtClientX(input,clientX){
+  const rect=input.getBoundingClientRect(),min=Number(input.min)||0,max=Number(input.max)||100,stepRaw=Number(input.step),step=Number.isFinite(stepRaw)&&stepRaw>0?stepRaw:(max-min)/100;
+  const thumbRadius=Math.min(11,Math.max(0,rect.width/4)),left=rect.left+thumbRadius,right=rect.right-thumbRadius,usable=Math.max(1,right-left);let ratio=clamp((clientX-left)/usable,0,1);
+  if(getComputedStyle(input).direction==="rtl")ratio=1-ratio;
+  const steps=Math.round((min+ratio*(max-min)-min)/step),value=clamp(min+steps*step,min,max);return Number(value.toFixed(v682GlowRangePrecision(step)))
+}
+function v682ApplyGlowRangePointer(input,clientX){
+  if(!input?.isConnected)return false;const next=v682GlowRangeValueAtClientX(input,clientX),previous=Number(input.value);input.value=String(next);v682SyncGlowRangeVisual(input);
+  if(Math.abs(next-previous)>1e-9)input.dispatchEvent(new Event("input",{bubbles:true,composed:true}));return true
+}
+function v682StartGlowRangeDrag(event){
+  const input=event.target.closest?.(v682GlowRangeSelector()),root=$("#v60TimelineContext");
+  if(!input||!root?.contains(input)||event.button>0||event.isPrimary===false)return;
+  event.preventDefault();event.stopPropagation();
+  if(!ui.v63ControlHistoryArmed){pushHistory();ui.v63ControlHistoryArmed=true}
+  ui.v682GlowRangeDrag={input,pointerId:event.pointerId,pointerType:event.pointerType||"mouse",lastX:event.clientX,moved:false};
+  document.body.classList.add("v682-glow-range-dragging");input.focus({preventScroll:true});v682ApplyGlowRangePointer(input,event.clientX);
+  try{input.setPointerCapture(event.pointerId)}catch{}
+}
+function v682MoveGlowRangeDrag(event){
+  const drag=ui.v682GlowRangeDrag;if(!drag||event.pointerId!==drag.pointerId)return;
+  event.preventDefault();event.stopPropagation();const samples=event.getCoalescedEvents?event.getCoalescedEvents():[event],last=samples.at(-1)||event;
+  drag.moved=drag.moved||Math.abs(last.clientX-drag.lastX)>.5;drag.lastX=last.clientX;v682ApplyGlowRangePointer(drag.input,last.clientX)
+}
+function v682FinishGlowRangeDrag(event,{cancel=false}={}){
+  const drag=ui.v682GlowRangeDrag;if(!drag||event.pointerId!==drag.pointerId)return;
+  event.preventDefault();event.stopPropagation();
+  if(!cancel){const samples=event.getCoalescedEvents?event.getCoalescedEvents():[event],last=samples.at(-1)||event;v682ApplyGlowRangePointer(drag.input,last.clientX)}
+  const input=drag.input;try{if(input.hasPointerCapture?.(event.pointerId))input.releasePointerCapture(event.pointerId)}catch{}
+  ui.v682GlowRangeDrag=null;document.body.classList.remove("v682-glow-range-dragging");ui.v63ControlHistoryArmed=false;
+  if(input?.isConnected){input.dispatchEvent(new Event("change",{bubbles:true,composed:true}));scheduleSave()}
+}
+function v682SetupGlowRangeEvents(){
+  document.addEventListener("pointerdown",v682StartGlowRangeDrag,{capture:true,passive:false});
+  window.addEventListener("pointermove",v682MoveGlowRangeDrag,{capture:true,passive:false});
+  window.addEventListener("pointerup",event=>v682FinishGlowRangeDrag(event),{capture:true,passive:false});
+  window.addEventListener("pointercancel",event=>v682FinishGlowRangeDrag(event,{cancel:true}),{capture:true,passive:false});
+  document.addEventListener("input",event=>v682SyncGlowRangeVisual(event.target),true);
+  document.addEventListener("keydown",event=>{if(event.target.matches?.(v682GlowRangeSelector()))requestAnimationFrame(()=>v682SyncGlowRangeVisual(event.target))},true);
+  v682SyncGlowRangeVisuals($("#v60TimelineContext"))
+}
+const v61RefreshGlowEditorV682Ranges=v61RefreshGlowEditor;
+v61RefreshGlowEditor=function(editor){const result=v61RefreshGlowEditorV682Ranges(editor);v682SyncGlowRangeVisuals(editor);return result};
+const renderV60TimelineContextV682Ranges=renderV60TimelineContext;
+renderV60TimelineContext=function(){
+  const drag=ui.v682GlowRangeDrag,focused=document.activeElement;
+  if((drag?.input?.isConnected||focused?.matches?.(v682GlowRangeSelector()))&&$("#v60TimelineContext")?.contains(drag?.input||focused)){v682SyncGlowRangeVisuals($("#v60TimelineContext"));return}
+  const result=renderV60TimelineContextV682Ranges();v682SyncGlowRangeVisuals($("#v60TimelineContext"));return result
+};
+Object.assign(window.BOTD_TEST,{
+  underglowCalibration:brightness=>{const value=clamp(Number(brightness)||70,10,100),strength=v682UnderglowStrength(value);return{brightness:value,strength:round(strength,3),geometry:v682UnderglowGeometry(false,null,strength),opacity:{core:round(.14+strength*.72,3),bloom:round(.08+strength*.58,3),haze:round(.025+strength*.34,3)}}},
+  glowRangeControlState:()=>{const root=$("#v60TimelineContext"),intensity=root?.querySelector('[data-v61-glow="brightness"]'),rate=root?.querySelector('[data-v61-glow="rate"]'),drag=ui.v682GlowRangeDrag;return{intensityHeight:intensity?.getBoundingClientRect().height||0,rateHeight:rate?.getBoundingClientRect().height||0,intensityProgress:intensity?.style.getPropertyValue("--v682-glow-range-progress")||"",rateProgress:rate?.style.getPropertyValue("--v682-glow-range-progress")||"",dragging:!!drag,pointerType:drag?.pointerType||""}}
 });
 
 
@@ -4950,6 +5066,7 @@ Object.assign(window.BOTD_TEST,{
 });
 
 init();
+v682SetupGlowRangeEvents();
 v682SyncTelestrationTools();
 v682NotifyShellReady();
 </script>

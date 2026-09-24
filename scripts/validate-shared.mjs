@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'4274bb55052368e53d6969055cbafb645bd5732ae8918583162a8a4c5a9d0c20');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'565f8712080b073883c0c814468a80637f16ae9b363eadf538270cd6bf95dff4');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'8561f2952b4fc2c5b27e6bce98c3076aba0020f9de652ac930e3f1ac6680ce06');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
@@ -114,7 +114,8 @@ for(const marker of [
  'Version 6.8.2 step 3A.4 — centered radial underglow only.',
  '.v682-underglow-layer{stroke:none',
  '.v682-edit-blink .v682-underglow{animation:v682EditGlowBlink',
- 'function v682UnderglowGeometry(isPuck,player,intensity)',
+ 'function v682UnderglowStrength(brightness)',
+ 'function v682UnderglowGeometry(isPuck,player,strength)',
  'function v682GlowBlurFilter(id,stdDeviation)',
  'function v682UnderglowLayer(className,paintId,filterId,rx,ry,cy,opacity)',
  'svgEl("radialGradient"',
@@ -133,6 +134,34 @@ assert.ok(underglow.includes('stroke:"none"'),'Underglow shapes must not draw pe
 assert.ok(!underglow.includes('stroke-width'),'Underglow renderer must not trace the player or puck outline');
 assert.ok(underglow.includes('underglow.style.opacity=".035"'),'Playback Blink must pulse only the underglow layer');
 assert.ok(underglow.includes('node.insertBefore(underglow,node.firstChild)'),'Underglow must render beneath the unchanged player or puck artwork');
+
+
+for(const marker of [
+ 'Version 6.8.2 step 3A.5 — stronger calibrated underglow and direct Pointer Events slider dragging.',
+ 'const normalized=clamp((Number(brightness)-10)/90,0,1);return Math.pow(normalized,.72)',
+ 'const coreOpacity=.14+strength*.72,bloomOpacity=.08+strength*.58,hazeOpacity=.025+strength*.34;',
+ 'const coreScale=.98+strength*.28,bloomScale=1.18+strength*.68,hazeScale=1.5+strength;',
+ 'height:44px!important;',
+ 'margin:-10px 0!important;',
+ 'touch-action:none!important;',
+ 'function v682StartGlowRangeDrag(event)',
+ 'input.setPointerCapture(event.pointerId)',
+ 'event.getCoalescedEvents?event.getCoalescedEvents():[event]',
+ 'window.addEventListener("pointermove",v682MoveGlowRangeDrag,{capture:true,passive:false})',
+ 'window.addEventListener("pointercancel",event=>v682FinishGlowRangeDrag(event,{cancel:true}),{capture:true,passive:false})',
+ 'v682SetupGlowRangeEvents();',
+ 'glowRangeControlState:',
+])assert.ok(app.includes(marker),`Missing Step 3A.5 calibration/slider marker: ${marker}`);
+assert.ok(app.includes('.v63-glow-editor input[type="range"][data-v61-glow="brightness"]'),'Glow intensity must keep a native range input with an enlarged hit surface');
+assert.ok(app.includes('.v63-glow-editor input[type="range"][data-v61-glow="rate"]'),'Blink rate must keep a native range input with an enlarged hit surface');
+assert.ok(app.includes('document.addEventListener("keydown",event=>{if(event.target.matches?.(v682GlowRangeSelector()))'),'Glow and Blink ranges must retain native keyboard interaction and visual synchronization');
+assert.ok(app.includes('input.dispatchEvent(new Event("input",{bubbles:true,composed:true}))'),'Pointer dragging must emit continuous input updates');
+assert.ok(app.includes('input.dispatchEvent(new Event("change",{bubbles:true,composed:true}))'),'Pointer release must commit a change event');
+const strengthAt=value=>Math.pow(Math.max(0,Math.min(1,(value-10)/90)),.72);
+const lowStrength=strengthAt(10),defaultStrength=strengthAt(70),maxStrength=strengthAt(100);
+assert.ok(.14+lowStrength*.72<=.141&&.025+lowStrength*.34<=.026,'Low underglow must remain subtle');
+assert.ok(.14+defaultStrength*.72>.67&&.08+defaultStrength*.58>.5,'Default underglow must be materially stronger than Step 3A.4');
+assert.ok(.14+maxStrength*.72>.859&&.08+maxStrength*.58>.659,'Maximum underglow must retain a stronger top end');
 
 for(const marker of [
  'Version 6.8.2 step 3A.2 — compact conditional Glow/Blink controls and icon cleanup.',
