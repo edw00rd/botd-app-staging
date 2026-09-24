@@ -6,8 +6,8 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'565f8712080b073883c0c814468a80637f16ae9b363eadf538270cd6bf95dff4');
-assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'8561f2952b4fc2c5b27e6bce98c3076aba0020f9de652ac930e3f1ac6680ce06');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'caa0137cdae9047a17be5ea235c220ee9b8f512ac425682b482fec3f15e8aad9');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'439a2449a8a7be02b883101b3aa79cad4694a554af47c07dc3b54970f434ad39');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
@@ -157,6 +157,21 @@ assert.ok(app.includes('.v63-glow-editor input[type="range"][data-v61-glow="rate
 assert.ok(app.includes('document.addEventListener("keydown",event=>{if(event.target.matches?.(v682GlowRangeSelector()))'),'Glow and Blink ranges must retain native keyboard interaction and visual synchronization');
 assert.ok(app.includes('input.dispatchEvent(new Event("input",{bubbles:true,composed:true}))'),'Pointer dragging must emit continuous input updates');
 assert.ok(app.includes('input.dispatchEvent(new Event("change",{bubbles:true,composed:true}))'),'Pointer release must commit a change event');
+for(const marker of [
+ 'Version 6.8.2 step 3A.6 — nested Glow/Blink controls and tablet label restoration.',
+ '@media(min-width:721px) and (max-width:1180px){.command-right .route-toggle span{display:inline!important}}',
+ 'blinkHidden:',
+])assert.ok(app.includes(marker),`Missing Step 3A.6 editor marker: ${marker}`);
+assert.ok(command.includes('<label class="route-toggle"><input id="toolbarRoutes" type="checkbox" checked><span>Routes</span></label>'),'Routes checkbox must retain a visible label');
+assert.ok(!app.includes('.command-right .route-toggle span{display:none}'),'Tablet layout must not hide the Routes label');
+for(const marker of [
+ '@media(max-width:1180px){.header-actions{min-width:0}.header-meta{display:block;',
+ '.header-meta{max-width:96px;flex-basis:96px}',
+ 'const accountLabel = authenticated ? data.user.email : "";',
+ 'elements.headerMeta.title = accountLabel;',
+ 'elements.headerMeta.setAttribute("aria-label", `Signed in as ${accountLabel}`)',
+])assert.ok(shell.includes(marker),`Missing Step 3A.6 shell marker: ${marker}`);
+assert.ok(!shell.includes('@media(max-width:1180px){.header-meta{display:none}}'),'Tablet layout must not hide the signed-in account');
 const strengthAt=value=>Math.pow(Math.max(0,Math.min(1,(value-10)/90)),.72);
 const lowStrength=strengthAt(10),defaultStrength=strengthAt(70),maxStrength=strengthAt(100);
 assert.ok(.14+lowStrength*.72<=.141&&.025+lowStrength*.34<=.026,'Low underglow must remain subtle');
@@ -179,13 +194,14 @@ const finalGlow=app.slice(finalGlowStart,finalGlowEnd);
 assert.ok(!finalGlow.includes('v63-glow-time'),'Glow toolbar must not show scope/timing text');
 assert.ok(!app.includes('function v67GlowStatus(kind,id,clip)'),'Obsolete Glow timing-status function must remain removed');
 assert.ok(finalGlow.includes('class="v682-glow-intensity ${enabled?"":"v61-hidden"}"'),'Glow intensity slider must be conditional on Glow');
-assert.ok(finalGlow.includes('class="v61-glow-rate ${blink?"":"v61-hidden"}"'),'Blink-rate slider must be conditional on Blink');
-assert.ok(finalGlow.includes('class="v61-glow-rate-out ${blink?"":"v61-hidden"}"'),'Blink-rate readout must be conditional on Blink');
-assert.ok(!finalGlow.includes('data-v61-glow-dependent'),'Blink checkbox must remain available while Glow is off');
+assert.ok(finalGlow.includes('class="${enabled?"":"v61-hidden"}" data-v61-glow-dependent="enabled"'),'Blink checkbox must be nested under Glow');
+assert.ok(finalGlow.includes('class="v61-glow-rate ${enabled&&blink?"":"v61-hidden"}"'),'Blink-rate slider must require both Glow and Blink');
+assert.ok(finalGlow.includes('class="v61-glow-rate-out ${enabled&&blink?"":"v61-hidden"}"'),'Blink-rate readout must require both Glow and Blink');
 assert.ok(finalGlow.includes('class="v61-glow-color"'),'Glow color selector must remain compact and available');
 assert.ok(app.includes('brightness.classList.toggle("v61-hidden",!enabled)'));
-assert.ok(app.includes('rate?.classList.toggle("v61-hidden",!blink)'));
-assert.ok(app.includes('out?.classList.toggle("v61-hidden",!blink)'));
+assert.ok(app.includes('blinkLabel?.classList.toggle("v61-hidden",!enabled)'));
+assert.ok(app.includes('rate?.classList.toggle("v61-hidden",!(enabled&&blink))'));
+assert.ok(app.includes('out?.classList.toggle("v61-hidden",!(enabled&&blink))'));
 assert.ok(!app.includes('<span class="branch-label">PUCK ROUTE</span>'),'Visible PUCK ROUTE label must remain removed');
 assert.ok(app.includes('id="timelineTakeSelect" aria-label="Puck route" title="Puck route"'),'Puck-route selector must retain an accessible label');
 const eraserButton=command.match(/<button class="tool-btn" data-tool="erase"[\s\S]*?<\/button>/)?.[0]||'';

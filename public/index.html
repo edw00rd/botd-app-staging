@@ -54,10 +54,10 @@ Proprietary software. No source-code license is granted.
     .loading{display:grid;place-items:center;gap:13px;color:#c2d4df}.spinner{width:42px;height:42px;border:4px solid #274e67;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     dialog{width:min(470px,calc(100% - 26px));border:1px solid #40657c;border-radius:16px;background:#0c263a;color:#fff;padding:0;box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,8,15,.75)}.dialog-body{padding:24px}.dialog-body h2{margin:0 0 7px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #315069}
     .footer{padding:15px;text-align:center;color:#7f9bac;font-size:10px}.footer a{color:#9bcde1}
-    @media(max-width:1180px){.header-meta{display:none}}
-    @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.masthead{height:60px;padding:5px 8px;gap:5px}.mark{width:40px;height:40px;flex-basis:40px}.brand{flex-basis:220px}.brand strong{font-size:11px}.brand-version,.brand-subscription{font-size:9px}.header-editor-actions,.header-actions{gap:4px}.masthead .btn.small{padding:5px 7px;min-height:34px;font-size:10px}.fullscreen-button{width:36px;height:36px;min-height:36px;flex-basis:36px}.app-view{inset:60px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
-    @media(max-width:640px){.mark{display:none}.brand{flex-basis:150px;min-width:88px}.full-label{display:none}.compact-label{display:inline}.masthead .btn.small{padding-left:6px;padding-right:6px}.brand strong{font-size:10px}}
-    @media(max-width:460px){.brand{flex-basis:96px}.brand strong{letter-spacing:.02em}.brand-subscription{max-width:118px}.masthead{gap:3px}.header-editor-actions,.header-actions{gap:3px}.masthead .btn.small{padding-left:5px;padding-right:5px;font-size:9px}.fullscreen-button{width:34px;height:34px;min-height:34px;flex-basis:34px}}
+    @media(max-width:1180px){.header-actions{min-width:0}.header-meta{display:block;min-width:0;max-width:clamp(78px,13vw,148px);flex:0 1 148px;font-size:9px}}
+    @media(max-width:800px){.panel-grid{grid-template-columns:1fr}.pitch{padding:28px}.pitch h1{font-size:39px}.pitch ul{display:none}.pricing{grid-template-columns:1fr}.plans-head{align-items:start;flex-direction:column}.masthead{height:60px;padding:5px 8px;gap:5px}.mark{width:40px;height:40px;flex-basis:40px}.brand{flex-basis:220px}.brand strong{font-size:11px}.brand-version,.brand-subscription{font-size:9px}.header-editor-actions,.header-actions{gap:4px}.header-meta{max-width:96px;flex-basis:96px}.masthead .btn.small{padding:5px 7px;min-height:34px;font-size:10px}.fullscreen-button{width:36px;height:36px;min-height:36px;flex-basis:36px}.app-view{inset:60px 0 0}.content{padding:18px 12px}.auth-side{padding:25px}.price{font-size:37px}}
+    @media(max-width:640px){.mark{display:none}.brand{flex-basis:150px;min-width:88px}.header-meta{max-width:72px;flex-basis:72px}.full-label{display:none}.compact-label{display:inline}.masthead .btn.small{padding-left:6px;padding-right:6px}.brand strong{font-size:10px}}
+    @media(max-width:460px){.brand{flex-basis:96px}.brand strong{letter-spacing:.02em}.brand-subscription{max-width:118px}.header-meta{max-width:52px;flex-basis:52px}.masthead{gap:3px}.header-editor-actions,.header-actions{gap:3px}.masthead .btn.small{padding-left:5px;padding-right:5px;font-size:9px}.fullscreen-button{width:34px;height:34px;min-height:34px;flex-basis:34px}}
   </style>
 </head>
 <body>
@@ -469,7 +469,11 @@ Proprietary software. No source-code license is granted.
       setHeaderSubscription();
       const authenticated = Boolean(data?.authenticated);
       elements.headerActions.classList.toggle("hidden", !authenticated);
-      elements.headerMeta.textContent = authenticated ? data.user.email : "";
+      const accountLabel = authenticated ? data.user.email : "";
+      elements.headerMeta.textContent = accountLabel;
+      elements.headerMeta.title = accountLabel;
+      if (accountLabel) elements.headerMeta.setAttribute("aria-label", `Signed in as ${accountLabel}`);
+      else elements.headerMeta.removeAttribute("aria-label");
 
       if (!authenticated) {
         unloadProtectedApp();
