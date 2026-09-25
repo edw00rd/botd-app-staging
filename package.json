@@ -1,12 +1,12 @@
 {
   "name": "botd-app",
-  "version": "6.8.1",
+  "version": "6.8.2",
   "private": true,
   "type": "module",
-  "description": "B.O.T.D. Hockey Playbook Studio 6.8.1 shared staging/production release candidate",
+  "description": "B.O.T.D. Hockey Playbook Studio 6.8.2 shared staging/production release candidate",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node --check src/worker.js && node scripts/validate-shared.mjs && node scripts/smoke-worker.mjs && node scripts/smoke-billing-state.mjs && node scripts/smoke-worker-staging.mjs && node scripts/smoke-billing-state-staging.mjs && node scripts/smoke-environments.mjs",
+    "check": "node --check src/worker.js && node --check scripts/deploy-gate.mjs && node scripts/validate-shared.mjs && node scripts/smoke-worker.mjs && node scripts/smoke-billing-state.mjs && node scripts/smoke-worker-staging.mjs && node scripts/smoke-billing-state-staging.mjs && node scripts/smoke-environments.mjs",
     "dev": "wrangler dev",
     "deploy": "node scripts/deploy-gate.mjs",
     "deploy:staging": "node scripts/deploy-gate.mjs staging",

@@ -6,10 +6,10 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'caa0137cdae9047a17be5ea235c220ee9b8f512ac425682b482fec3f15e8aad9');
-assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'439a2449a8a7be02b883101b3aa79cad4694a554af47c07dc3b54970f434ad39');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'663990061e69202a6c777d744be1e322f03f846b7c584539af56e48e9bf4f728');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'01f707b402749962b1d4540620d3d100a164b2da2d0c49f38bd2180d8d85783a');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
-for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.1'])assert.ok(app.includes(marker));
+for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
 assert.equal((app.match(/en-CA/g)||[]).length,1);
 const select=app.match(/<select id="languageSelect">([\s\S]*?)<\/select>/)[1];
@@ -36,7 +36,7 @@ const headerOrder=['id="headerSubscription"','id="editorActions"','id="headerAct
 let previous=-1;
 for(const marker of headerOrder){const position=masthead.indexOf(marker);assert.ok(position>previous,`Incorrect masthead order: ${marker}`);previous=position;}
 assert.match(masthead,/id="fullscreenButton"[\s\S]*?<\/button>\s*$/);
-assert.ok(masthead.indexOf('Version 6.8.1')<masthead.indexOf('id="headerSubscription"'));
+assert.ok(masthead.indexOf('Version 6.8.2')<masthead.indexOf('id="headerSubscription"'));
 assert.ok(shell.includes('id="headerSubscription" class="brand-subscription hidden" aria-live="polite"'));
 assert.ok(shell.includes('id="headerSubscriptionText" class="brand-subscription-text"'));
 assert.ok(shell.includes('id="headerSecureLock" class="header-secure-lock hidden" role="img" aria-label="Secure access" title="Secure access"'));
@@ -213,7 +213,35 @@ for(const [mode,url,ref] of [['staging','https://staging.botdhockey.com','dolbsn
  assert.equal(c.name,'botd-app-'+mode);assert.equal(c.main,'src/worker.js');assert.equal(c.workers_dev,false);assert.equal(c.preview_urls,false);assert.equal(c.keep_vars,true);
  assert.deepEqual(c.vars,{ENVIRONMENT:mode,APP_URL:url,SUPABASE_URL:`https://${ref}.supabase.co`});
 }
-assert.equal(JSON.parse(read('package.json')).version,'6.8.1');
+assert.equal(JSON.parse(read('package.json')).version,'6.8.2');
+
+const packageJson=JSON.parse(read('package.json'));
+const packageLock=JSON.parse(read('package-lock.json'));
+const worker=read('src/worker.js');
+const productionSmoke=read('scripts/smoke-worker.mjs');
+const stagingSmoke=read('scripts/smoke-worker-staging.mjs');
+const deployGate=read('scripts/deploy-gate.mjs');
+const releaseNotes=read('RELEASE_NOTES.md');
+assert.equal(packageJson.version,'6.8.2');
+assert.equal(packageLock.version,'6.8.2');
+assert.equal(packageLock.packages[''].version,'6.8.2');
+assert.ok(app.includes('const APP_VERSION="6.8.2";'));
+assert.ok(app.includes('BOTD Playbook v6\\.8\\.1'),'The v6.8.2 release must retain migration of the former default v6.8.1 playbook name');
+assert.ok(app.includes('Version 6.8.2: expanded workspace and presentation controls are ready.'));
+assert.ok(shell.includes('Version 6.8.2'));
+assert.ok(!shell.includes('Version 6.8.1'));
+assert.ok(worker.includes('const RELEASE_VERSION = "6.8.2";'));
+assert.ok(worker.includes('version: `${RELEASE_VERSION}-${env.ENVIRONMENT}-v1`'));
+assert.ok(productionSmoke.includes('6.8.2-production-v1'));
+assert.ok(stagingSmoke.includes('6.8.2-staging-v1'));
+assert.ok(deployGate.includes("const sourceTree=git('rev-parse','HEAD^{tree}')"));
+assert.ok(deployGate.includes('`${approvedStagingCommit}^{tree}`'));
+assert.ok(deployGate.includes('Production source tree does not exactly match BOTD_APPROVED_STAGING_COMMIT.'));
+assert.ok(!deployGate.includes('BOTD_APPROVED_STAGING_COMMIT!==commit'));
+assert.ok(releaseNotes.includes('663990061e69202a6c777d744be1e322f03f846b7c584539af56e48e9bf4f728'));
+assert.ok(read('LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
+assert.ok(read('public/LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
+
 assert.ok(read('supabase/01_production_schema.sql').includes('check (livemode = true)'));
 assert.ok(read('supabase/staging/02_staging_safety.sql').includes('check (livemode = false)'));
 for(const p of ['package-lock.json','RELEASE_PROCEDURE.md','scripts/deploy-gate.mjs','scripts/install-staging.py'])assert.ok(fs.existsSync(path.join(root,p)));

@@ -180,7 +180,7 @@ try {
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8.1-staging-v3");
+  assert.equal(healthPayload.version, "6.8.2-staging-v1");
   assert.equal(healthPayload.service, "botd-app-staging");
   assert.equal(healthPayload.mode, "staging-test-only");
   assert.equal(healthPayload.checks.stripeModeSecretKey, true);
