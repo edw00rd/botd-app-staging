@@ -1075,8 +1075,63 @@ function isEntitlementCurrentlyActive(entitlement) {
 
 async function getOrCreateStripeCustomer(user, env) {
   const existing = await findBillingCustomerByUser(user.id, env);
-  if (existing?.stripe_customer_id) return existing.stripe_customer_id;
+  if (existing?.stripe_customer_id) {
+    const customer = await retrieveStripeCustomerIfActive(
+      existing.stripe_customer_id,
+      env,
+    );
+    if (customer) return customer.id;
+  }
 
+  return createStripeCustomer(user, env);
+}
+
+async function retrieveStripeCustomerIfActive(customerId, env) {
+  if (!/^cus_[A-Za-z0-9_]+$/.test(String(customerId || ""))) return null;
+
+  assertStripeConfig(env);
+  const response = await fetch(
+    `https://api.stripe.com/v1/customers/${encodeURIComponent(customerId)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        Accept: JSON_TYPE,
+      },
+    },
+  );
+  const data = await readResponseData(response);
+
+  if (response.status === 404 || data?.deleted === true) return null;
+
+  if (!response.ok) {
+    console.error("Stripe customer lookup failed", {
+      customerId,
+      status: response.status,
+      type: data?.error?.type,
+      code: data?.error?.code,
+    });
+    throw new AppError(
+      response.status >= 500 ? 502 : 400,
+      "stripe_request_failed",
+      "Stripe could not complete the billing request.",
+      true,
+    );
+  }
+
+  if (data.livemode !== isLive(env)) {
+    throw new AppError(
+      500,
+      "stripe_mode_mismatch",
+      "Stripe object mode does not match the selected environment.",
+      false,
+    );
+  }
+
+  return data;
+}
+
+async function createStripeCustomer(user, env) {
   const form = new URLSearchParams();
   form.set("email", user.email);
   form.set("metadata[supabase_user_id]", user.id);
