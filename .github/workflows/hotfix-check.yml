@@ -25,3 +25,11 @@ jobs:
         run: npm ci
       - name: Run validation suite
         run: npm run check
+      - name: Report hotfix source hashes
+        if: always()
+        run: |
+          sha256sum src/worker.js
+          sha256sum scripts/smoke-worker.mjs
+          sha256sum scripts/smoke-worker-staging.mjs
+      - name: Verify reviewed source manifest
+        run: sha256sum -c SHA256SUMS.txt
