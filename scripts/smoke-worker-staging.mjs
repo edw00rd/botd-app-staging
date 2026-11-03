@@ -33,6 +33,8 @@ const originalFetch = globalThis.fetch;
 let capturedRecoveryRedirect = null;
 let entitlementActive = true;
 let capturedCheckoutForm = null;
+let capturedBillingCustomerUpsert = null;
+let stripeCustomerCreateCount = 0;
 
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === "string" ? input : input.url);
@@ -72,6 +74,30 @@ globalThis.fetch = async (input, init = {}) => {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  if (url.hostname === "api.stripe.com" && url.pathname === "/v1/customers/cus_test_deleted_smoke_001") {
+    assert.equal((init.method || "GET").toUpperCase(), "GET");
+    return new Response(JSON.stringify({
+      id: "cus_test_deleted_smoke_001",
+      object: "customer",
+      deleted: true,
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
+  if (url.hostname === "api.stripe.com" && url.pathname === "/v1/customers") {
+    assert.equal((init.method || "GET").toUpperCase(), "POST");
+    stripeCustomerCreateCount += 1;
+    const form = new URLSearchParams(String(init.body || ""));
+    assert.equal(form.get("email"), userA.email);
+    assert.equal(form.get("metadata[supabase_user_id]"), userA.id);
+    assert.equal(form.get("metadata[environment]"), "staging");
+    return new Response(JSON.stringify({
+      id: "cus_test_replacement_smoke_001",
+      object: "customer",
+      livemode: false,
+      deleted: false,
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
   if (url.hostname === "api.stripe.com" && url.pathname === "/v1/checkout/sessions") {
@@ -135,8 +161,13 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/billing_customers" && (init.method || "GET").toUpperCase() === "GET") {
     return new Response(JSON.stringify([{
       user_id: userA.id,
-      stripe_customer_id: "cus_live_production_smoke_001",
+      stripe_customer_id: "cus_test_deleted_smoke_001",
     }]), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
+  if (url.pathname === "/rest/v1/billing_customers" && (init.method || "GET").toUpperCase() === "POST") {
+    capturedBillingCustomerUpsert = JSON.parse(String(init.body || "[]"));
+    return new Response("", { status: 201, headers: { "Content-Type": "application/json" } });
   }
 
   throw new Error(`Unexpected smoke-test fetch: ${url.toString()}`);
@@ -367,7 +398,12 @@ try {
   assert.ok(capturedCheckoutForm);
   assert.equal(capturedCheckoutForm.get("mode"), "subscription");
   assert.equal(capturedCheckoutForm.get("allow_promotion_codes"), "true");
-  assert.equal(capturedCheckoutForm.get("customer"), "cus_live_production_smoke_001");
+  assert.equal(capturedCheckoutForm.get("customer"), "cus_test_replacement_smoke_001");
+  assert.equal(stripeCustomerCreateCount, 1);
+  assert.deepEqual(capturedBillingCustomerUpsert, [{
+    user_id: userA.id,
+    stripe_customer_id: "cus_test_replacement_smoke_001",
+  }]);
   assert.equal(capturedCheckoutForm.get("line_items[0][price]"), env.STRIPE_PRICE_MONTHLY);
   assert.equal(capturedCheckoutForm.get("subscription_data[metadata][environment]"), "staging");
   assert.equal(capturedCheckoutForm.get("metadata[environment]"), "staging");
@@ -449,6 +485,7 @@ try {
 
   console.log("Worker smoke tests passed.");
   console.log("Staging Checkout Session safety and metadata checks passed.");
+  console.log("Deleted Stripe customer mappings self-heal before Checkout.");
   console.log("Account-scoped protected application responses passed for two distinct users.");
   console.log("Short opaque refresh-token adoption and recovery-session controls passed.");
 } finally {
