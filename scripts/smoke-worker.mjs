@@ -74,6 +74,16 @@ globalThis.fetch = async (input, init = {}) => {
     });
   }
 
+  if (url.hostname === "api.stripe.com" && url.pathname === "/v1/customers/cus_live_production_smoke_001") {
+    assert.equal((init.method || "GET").toUpperCase(), "GET");
+    return new Response(JSON.stringify({
+      id: "cus_live_production_smoke_001",
+      object: "customer",
+      livemode: true,
+      deleted: false,
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
   if (url.hostname === "api.stripe.com" && url.pathname === "/v1/checkout/sessions") {
     assert.equal((init.method || "GET").toUpperCase(), "POST");
     capturedCheckoutForm = new URLSearchParams(String(init.body || ""));
