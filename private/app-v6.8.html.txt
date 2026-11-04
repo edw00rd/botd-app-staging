@@ -5783,6 +5783,138 @@ function v7SetupInspectorEvents(){
   })
 }
 
+
+/* Shot collision options are attached to the existing v6.1 power card after
+   that card has been built. Keep choices on individual saved shot events. */
+function v7SyncShotCollisionUI(){
+  const panel=$("#v60ShotPanel"),mode=ui.v60Mode;
+  if(!panel||mode?.type!=="shot")return;
+  const defense=panel.querySelector("#v7ShotIgnoreDefense");
+  const objects=panel.querySelector("#v7ShotIgnoreObjects");
+  if(defense)defense.checked=mode.ignoreDefense!==false;
+  if(objects)objects.checked=!!mode.ignoreObjects
+}
+function v7PrepareShotCollisionUI(){
+  const panel=$("#v60ShotPanel");
+  if(!panel||panel.querySelector("#v7ShotIgnoreDefense"))return;
+  const actions=panel.querySelector(".v60-shot-actions");
+  if(!actions)return;
+  const options=document.createElement("div");
+  options.className="v7-shot-collision-options";
+  options.setAttribute("role","group");
+  options.setAttribute("aria-label","Shot collision options");
+  options.innerHTML='<span class="v7-shot-collision-heading">Puck interactions</span>'
+    +'<label class="v7-shot-collision-choice"><input id="v7ShotIgnoreDefense" type="checkbox" checked><span>Ignore defense</span></label>'
+    +'<label class="v7-shot-collision-choice"><input id="v7ShotIgnoreObjects" type="checkbox"><span>Ignore objects</span></label>'
+    +'<small>Defenders are bypassed on ice. Clearing objects adds a puck flip.</small>';
+  actions.before(options);
+  options.addEventListener("change",event=>{
+    if(ui.v60Mode?.type!=="shot")return;
+    if(event.target.id==="v7ShotIgnoreDefense")ui.v60Mode.ignoreDefense=!!event.target.checked;
+    else if(event.target.id==="v7ShotIgnoreObjects")ui.v60Mode.ignoreObjects=!!event.target.checked;
+    else return;
+    renderV60SpatialUI(ui.playhead)
+  });
+  if(!document.querySelector("#v7ShotCollisionStyle")){
+    const style=document.createElement("style");
+    style.id="v7ShotCollisionStyle";
+    style.textContent='.v7-shot-collision-options{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;margin:6px 0 9px;padding:8px 0;border-top:1px solid rgba(190,215,231,.22);border-bottom:1px solid rgba(190,215,231,.18)}'
+      +'.v7-shot-collision-heading{grid-column:1/-1;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#c4daea}'
+      +'.v7-shot-collision-choice{display:flex;align-items:center;gap:7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}'
+      +'.v7-shot-collision-choice input{width:16px;height:16px;margin:0;accent-color:#e93649;cursor:pointer;flex:none}'
+      +'.v7-shot-collision-options small{grid-column:1/-1;color:#a4c0d2;font-size:9px;line-height:1.4}';
+    document.head.append(style)
+  }
+}
+const v60StartShotV682ForV7=v60StartShot;
+v60StartShot=function(options={}){
+  v60StartShotV682ForV7(options);
+  const mode=ui.v60Mode;
+  if(mode?.type!=="shot")return;
+  const existing=mode.editingEventId?activeTake().events.find(event=>event.id===mode.editingEventId):null;
+  mode.ignoreDefense=existing?existing.ignoreDefense!==false:true;
+  mode.ignoreObjects=existing?!!existing.ignoreObjects:false;
+  v7SyncShotCollisionUI()
+};
+const v60RenderShotPanelV682ForV7=v60RenderShotPanel;
+v60RenderShotPanel=function(){
+  v60RenderShotPanelV682ForV7();
+  v7SyncShotCollisionUI()
+};
+v60CommitShot=function(){
+  const mode=ui.v60Mode;
+  if(mode?.type!=="shot"||mode.stage!=="power")return;
+  const origin=v60ModeOrigin(),built=v60BuildShotPath(origin,mode.aim,mode.power);
+  const payload={
+    type:"shot",target:deepClone(built.path.at(-1)),
+    aimVector:deepClone(built.direction),power:mode.power,
+    ignoreDefense:mode.ignoreDefense!==false,
+    ignoreObjects:!!mode.ignoreObjects,
+    boardFollow:built.boardFollow
+  };
+  if(Number.isFinite(Number(mode.travelDuration)))payload.travelDuration=Number(mode.travelDuration);
+  if(mode.editingEventId){
+    const event=activeTake().events.find(item=>item.id===mode.editingEventId);
+    if(!event)return;
+    pushHistory();Object.assign(event,payload);delete event.targetId;
+    syncActiveVariation();v60FinishPuckAction();return
+  }
+  const event=addPuckEvent(payload,{select:false});
+  if(event){syncActiveVariation();v60FinishPuckAction()}
+};
+
+/* Lift the puck only while it visually crosses a bypassed object; the puck
+   retains its original horizontal position and original shot route. */
+function v7PuckLiftAt(interval,time){
+  if(!interval?.clearances?.length||interval.kind!=="travel")return null;
+  const raw=clamp((time-interval.start)/Math.max(.001,interval.end-interval.start),0,1);
+  const progress=interval.motion==="shot"
+    ?1-Math.pow(1-raw,interval.boardFollow?1.58:1.35)
+    :interval.motion==="pass"?clamp(raw+.055*Math.sin(Math.PI*raw),0,1):raw;
+  let best=null;
+  for(const item of interval.clearances){
+    const begin=clamp(item.startProgress-.045,0,1),end=clamp(item.endProgress+.045,0,1);
+    if(progress<begin||progress>end||end-begin<.0001)continue;
+    const phase=clamp((progress-begin)/(end-begin),0,1);
+    const lift=25*Math.sin(Math.PI*phase);
+    if(!best||lift>best.lift)best={lift,phase,objectId:item.objectId}
+  }
+  return best
+}
+const renderPuckLayerV682ForV7=renderPuckLayer;
+renderPuckLayer=function(time,timeline){
+  const result=renderPuckLayerV682ForV7(time,timeline);
+  const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
+  const flight=v7PuckLiftAt(interval,time),outer=$("#puckLayer [data-puck]");
+  if(!flight||flight.lift<.4||!outer)return result;
+  const shadow=svgEl("ellipse",{cx:3,cy:6,rx:12+flight.lift*.19,ry:5+flight.lift*.09,fill:"#111820",opacity:round(.27-flight.lift*.004,3),"pointer-events":"none"});
+  const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
+    transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
+  while(outer.firstChild)raised.append(outer.firstChild);
+  outer.append(shadow,raised);
+  return result
+};
+
+/* Vibration API is optional (typically Android); never make editor behavior
+   depend on it. Trigger only when playback crosses a hard collision once. */
+const renderFrameV682ForV7=renderFrame;
+renderFrame=function(time=ui.playhead){
+  const output=renderFrameV682ForV7(time);
+  const now=Number(time),previous=Number(ui.v7PreviousHapticFrame);
+  if(ui.playing&&Number.isFinite(previous)&&now>=previous){
+    for(const travel of output?.pt?.intervals||[]){
+      const hit=travel.collision;
+      if(!hit||!Number.isFinite(Number(hit.time))||!(previous<hit.time&&now>=hit.time))continue;
+      const hard=hit.response==="bounce"||hit.response==="stop"||Number(travel.power)>=7;
+      if(!hard)continue;
+      try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(hit.response==="bounce"?[22,18,28]:20)}catch{}
+      break
+    }
+  }
+  ui.v7PreviousHapticFrame=now;
+  return output
+};
+
 const initV682ForV7=init;
 init=function(){
   initV682ForV7();
@@ -5790,6 +5922,7 @@ init=function(){
   if(!Array.isArray(state.equipment))state.equipment=[];
   syncActiveVariation();
   v7PrepareEquipmentUI();
+  v7PrepareShotCollisionUI();
   v7SetupEquipmentEvents();
   v7SetupInspectorEvents();
   renderAll()
