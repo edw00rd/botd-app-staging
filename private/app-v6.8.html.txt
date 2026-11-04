@@ -5421,14 +5421,36 @@ buildPuckTimeline=function(){
       intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id});cursor=arrival;mode="attached";holder=event.targetId;results.set(event.id,{valid:true,source,target:event.targetId,arrival,path,bank:path.length>2});continue
     }
     if(event.type==="shot"){
-      const source=mode==="attached"?holder:null,start=currentPos,target=clampRinkPoint(event.target||currentPos),speed=shotSpeedUnits(event.power||6);
-      let goal=goalResultForShot(start,target),path=goal.goal?[start,goal.entry,goal.end]:[start,target],length=polylineLength(path),arrival=at+length/speed;
+      const source=mode==="attached"?holder:null;
+      const start=source?stickPosition(source,at):currentPos;
+      const power=clamp(Number(event.power)||7,1,10);
+      // V6.1's aim-vector model is authoritative: event.target is only the
+      // final point and cannot reconstruct a board-following shot trajectory.
+      const aim=event.aimVector;
+      const hasAim=aim&&Number.isFinite(Number(aim.x))&&Number.isFinite(Number(aim.y));
+      const built=hasAim?v60BuildShotPath(start,{x:start.x+Number(aim.x)*240,y:start.y+Number(aim.y)*240},power):null;
+      const target=clampRinkPoint(event.target||currentPos);
+      const legacyGoal=built?{goal:built.goal}:goalResultForShot(start,target);
+      let path=built?built.path:(legacyGoal.goal?[start,legacyGoal.entry,legacyGoal.end]:[start,target]);
+      const naturalDuration=polylineLength(path)/shotSpeedUnits(power);
+      const duration=requestedDuration(event,naturalDuration);
+      let arrival=at+duration,goal=!!(built?.goal||legacyGoal.goal);
       const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:true});
       if(collision){
-        const response=v7CollisionPath(start,path.at(-1),collision);
-        path=response.path;arrival=collision.time+response.extraTime;goal={goal:false}
+        // Keep the whole original trajectory up to the collision, including
+        // any board-following bends; never replace it with a straight chord.
+        const progress=clamp((collision.time-at)/Math.max(.001,duration),0,1);
+        const before=slicePolylineByProgress(path,0,progress);
+        if(dist(before.at(-1),collision.point)>1)before.push(collision.point);
+        const tangent=before.length>1?before.at(-2):start;
+        const response=v7CollisionPath(tangent,path.at(-1),collision);
+        path=[...before,...response.path.slice(2)];
+        arrival=collision.time+response.extraTime;
+        goal=false
       }
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal:goal.goal,collision});cursor=arrival;mode="loose";holder=null;loose=path.at(-1);results.set(event.id,{valid:true,source,target:null,arrival,path,goal:goal.goal,collision});continue
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,boardFollow:!!built?.boardFollow,motion:"shot",power});
+      cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
+      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,collision,boardFollow:!!built?.boardFollow,power});continue
     }
   }
   addSteady(state.timeline.duration+5);return{intervals,results,events}
