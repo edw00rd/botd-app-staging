@@ -38,3 +38,5 @@ jobs:
         run: |
           sha256sum private/app-v6.8.html.txt
           sha256sum scripts/validate-v7-foundation.mjs
+          sha256sum scripts/validate-shared.mjs
+          sha256sum RELEASE_NOTES.md
