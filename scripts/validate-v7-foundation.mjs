@@ -33,7 +33,7 @@ for(const legacyMarker of [
 ]) assert.ok(app.includes(legacyMarker),`Legacy clipboard capability missing: ${legacyMarker}`);
 
 const types=["cone","tire","bumper","divider","pad","puck","puckPile","stick","rebounder","net"];
-for(const type of types)assert.ok(app.includes(type+':{label:')||app.includes(type+':{label:'),`Missing equipment type: ${type}`);
+for(const type of types)assert.ok(new RegExp(`\\b${type}:\\\\s*\\\\{`).test(app),`Missing equipment type: ${type}`);
 
 for(const marker of [
   "function v7EquipmentCollisionAt",
