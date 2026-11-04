@@ -5041,22 +5041,65 @@ fitRink=function(){
 Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
 
 
-/* Version 7 platform foundation — preserves the fast animated clipboard while
-   adding forward-compatible semantic drill/practice primitives.  This block is
-   intentionally additive: existing v6.8.2 plays remain valid and render exactly
-   as before unless a coach uses the new equipment tool. */
-const V7_PLATFORM_SCHEMA_VERSION=1;
-const V7_EQUIPMENT_TYPES=Object.freeze({
-  cone:{label:"Cone",short:"CONE"},
-  tire:{label:"Tire",short:"TIRE"},
-  divider:{label:"Divider pad",short:"DIV"},
-  pad:{label:"Training pad",short:"PAD"},
-  puck:{label:"Extra puck",short:"PUCK"},
-  puckPile:{label:"Puck pile",short:"PUCKS"},
-  stick:{label:"Stick",short:"STICK"},
-  rebounder:{label:"Rebounder",short:"REB"},
-  net:{label:"Extra net",short:"NET"}
+/* Version 7 platform foundation — interactive rink objects.
+   Product invariant: preserve the fast animated clipboard. Advanced drill tools
+   appear only when requested and use the same deterministic timeline engine. */
+const V7_PLATFORM_SCHEMA_VERSION=2;
+const V7_CREASE_RADIUS_UNITS=48;
+const V7_PUCK_RADIUS=2.8;
+const V7_RINK_OBJECT_TYPES=Object.freeze({
+  cone:{
+    label:"Cone",short:"CONE",shape:"circle",
+    geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},
+    capabilities:{rotatable:false,resize:"uniform",puckSource:false}
+  },
+  tire:{
+    label:"Tire",short:"TIRE",shape:"ring",
+    geometry:{radius:9},physics:{collidable:true,response:"bounce",restitution:.68},
+    capabilities:{rotatable:false,resize:"uniform",puckSource:false}
+  },
+  bumper:{
+    label:"Bumper",short:"BUMP",shape:"capsule",
+    geometry:{length:34,width:10},physics:{collidable:true,response:"bounce",restitution:.78},
+    capabilities:{rotatable:true,resize:"length",puckSource:false}
+  },
+  divider:{
+    label:"Divider pad",short:"DIV",shape:"capsule",
+    geometry:{length:58,width:11},physics:{collidable:true,response:"soft_block",restitution:.10},
+    capabilities:{rotatable:true,resize:"length",puckSource:false}
+  },
+  pad:{
+    label:"Training pad",short:"PAD",shape:"capsule",
+    geometry:{length:32,width:12},physics:{collidable:true,response:"soft_block",restitution:.22},
+    capabilities:{rotatable:true,resize:"length",puckSource:false}
+  },
+  puck:{
+    label:"Extra puck",short:"PUCK",shape:"puck",
+    geometry:{radius:V7_PUCK_RADIUS},physics:{collidable:false,response:"none",restitution:0},
+    capabilities:{rotatable:false,resize:"none",puckSource:"single"}
+  },
+  puckPile:{
+    label:"Puck pile",short:"PUCKS",shape:"puck_pile",
+    geometry:{radius:10},physics:{collidable:false,response:"none",restitution:0},
+    capabilities:{rotatable:false,resize:"uniform",puckSource:"pile"},quantity:12
+  },
+  stick:{
+    label:"Stick",short:"STICK",shape:"stick",
+    geometry:{length:42,width:3.5},physics:{collidable:true,response:"soft_block",restitution:.18},
+    capabilities:{rotatable:true,resize:"length",puckSource:false}
+  },
+  rebounder:{
+    label:"Rebounder",short:"REB",shape:"rebounder",
+    geometry:{length:42,width:9},physics:{collidable:true,response:"bounce",restitution:.92},
+    capabilities:{rotatable:true,resize:"length",puckSource:false}
+  },
+  net:{
+    label:"Extra net",short:"NET",shape:"net",
+    geometry:{length:42,width:22},physics:{collidable:true,response:"stop",restitution:0},
+    capabilities:{rotatable:true,resize:"uniform",puckSource:false}
+  }
 });
+const V7_EQUIPMENT_TYPES=V7_RINK_OBJECT_TYPES;
 const V7_SEMANTIC_MOVEMENT=Object.freeze({
   forward:"skate.forward",
   backward:"skate.backward",
@@ -5088,17 +5131,42 @@ function v7NormalizePlatformMeta(value){
     tags:Array.isArray(source.tags)?source.tags.map(x=>String(x)).filter(Boolean):[]
   }
 }
+function v7CloneObjectDefaults(type){
+  const def=V7_RINK_OBJECT_TYPES[type];
+  return def?{
+    geometry:deepClone(def.geometry),
+    physics:deepClone(def.physics),
+    capabilities:deepClone(def.capabilities)
+  }:null
+}
 function v7NormalizeEquipmentItem(item){
-  if(!item||typeof item!=="object"||!V7_EQUIPMENT_TYPES[item.type])return null;
+  if(!item||typeof item!=="object"||!V7_RINK_OBJECT_TYPES[item.type])return null;
+  const def=V7_RINK_OBJECT_TYPES[item.type],defaults=v7CloneObjectDefaults(item.type);
   const p=v59ValidPoint?.(item)?v59CopyPoint(item):{x:Number(item.x)||500,y:Number(item.y)||300};
+  const geometry={...defaults.geometry,...(item.geometry&&typeof item.geometry==="object"?item.geometry:{})};
+  const physics={...defaults.physics,...(item.physics&&typeof item.physics==="object"?item.physics:{})};
+  const capabilities={...defaults.capabilities,...(item.capabilities&&typeof item.capabilities==="object"?item.capabilities:{})};
+  const resize=capabilities.resize;
+  let scale=clamp(Number(item.scale)||1,.45,2.75);
+  if(resize==="none")scale=1;
+  const minLength=item.type==="divider"?28:item.type==="stick"?24:18;
+  const maxLength=item.type==="divider"?190:item.type==="stick"?70:120;
+  if(Number.isFinite(Number(item.length)))geometry.length=clamp(Number(item.length),minLength,maxLength);
+  if(Number.isFinite(Number(geometry.radius)))geometry.radius=clamp(Number(geometry.radius),2.5,28);
+  if(Number.isFinite(Number(geometry.width)))geometry.width=clamp(Number(geometry.width),2,48);
+  if(Number.isFinite(Number(geometry.length)))geometry.length=clamp(Number(geometry.length),minLength,maxLength);
   return{
     id:String(item.id||uid("eq")),
     type:item.type,
     x:round(Number(p.x)||500,2),
     y:round(Number(p.y)||300,2),
-    rotation:round(Number(item.rotation)||0,1),
-    scale:clamp(Number(item.scale)||1,.4,3),
-    label:String(item.label||"")
+    rotation:capabilities.rotatable?round(Number(item.rotation)||0,1):0,
+    scale,
+    label:String(item.label||""),
+    geometry,
+    physics,
+    capabilities,
+    quantity:item.type==="puckPile"?clamp(Math.round(Number(item.quantity ?? def.quantity ?? 12)),0,99):null
   }
 }
 function v7NormalizeEquipmentList(items){
@@ -5107,7 +5175,7 @@ function v7NormalizeEquipmentList(items){
 function v7EnsureSemanticTimeline(timeline){
   if(!timeline||typeof timeline!=="object")return timeline;
   for(const clip of timeline.movements||[]){
-    const type=normalizeActionType?.(clip.actionType||clip.action||"forward")||"forward";
+    const type=normalizeActionType(clip.actionType||clip.action||"forward")||"forward";
     clip.actionType=type;
     clip.semanticAction=V7_SEMANTIC_MOVEMENT[type]||"skate.forward"
   }
@@ -5190,44 +5258,224 @@ newBoard=function(){
 };
 
 function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id)||null}
+function v7Deg(rad){return rad*180/Math.PI}
+function v7Rad(deg){return deg*Math.PI/180}
+function v7RotatePoint(p,deg){
+  const r=v7Rad(deg),c=Math.cos(r),si=Math.sin(r);
+  return{x:p.x*c-p.y*si,y:p.x*si+p.y*c}
+}
+function v7WorldToLocal(item,p){
+  const q={x:p.x-item.x,y:p.y-item.y},rot=v7RotatePoint(q,-item.rotation),scale=Math.max(.001,item.scale||1);
+  return{x:rot.x/scale,y:rot.y/scale}
+}
+function v7LocalToWorld(item,p){
+  const scale=item.scale||1,q=v7RotatePoint({x:p.x*scale,y:p.y*scale},item.rotation);
+  return{x:item.x+q.x,y:item.y+q.y}
+}
+function v7CollisionGeometry(item){
+  const g=item.geometry||{};
+  return{
+    radius:(Number(g.radius)||6)*(item.scale||1),
+    length:(Number(g.length)||30)*(item.scale||1),
+    width:(Number(g.width)||10)*(item.scale||1)
+  }
+}
+function v7ClosestPointSegment(p,a,b){
+  const ab={x:b.x-a.x,y:b.y-a.y},den=ab.x*ab.x+ab.y*ab.y||1;
+  const t=clamp(((p.x-a.x)*ab.x+(p.y-a.y)*ab.y)/den,0,1);
+  return{x:a.x+ab.x*t,y:a.y+ab.y*t,t}
+}
+function v7EquipmentCollisionAt(item,worldPoint){
+  if(!item?.physics?.collidable)return null;
+  const local=v7WorldToLocal(item,worldPoint),g=item.geometry||{},shape=V7_RINK_OBJECT_TYPES[item.type]?.shape;
+  let normalLocal=null,inside=false;
+  if(shape==="circle"||shape==="ring"){
+    const r=(Number(g.radius)||6)+V7_PUCK_RADIUS/Math.max(.45,item.scale||1),d=Math.hypot(local.x,local.y);
+    inside=d<=r;
+    if(inside)normalLocal=d>.001?{x:local.x/d,y:local.y/d}:{x:1,y:0}
+  }else if(shape==="capsule"||shape==="stick"||shape==="rebounder"){
+    const length=Number(g.length)||30,width=Number(g.width)||8,half=Math.max(0,length/2-width/2);
+    const closest=v7ClosestPointSegment(local,{x:-half,y:0},{x:half,y:0});
+    const dx=local.x-closest.x,dy=local.y-closest.y,d=Math.hypot(dx,dy),r=width/2+V7_PUCK_RADIUS/Math.max(.45,item.scale||1);
+    inside=d<=r;
+    if(inside)normalLocal=d>.001?{x:dx/d,y:dy/d}:{x:0,y:local.y>=0?1:-1}
+  }else if(shape==="net"){
+    const length=Number(g.length)||42,width=Number(g.width)||22;
+    const hx=length/2+V7_PUCK_RADIUS,hy=width/2+V7_PUCK_RADIUS;
+    inside=Math.abs(local.x)<=hx&&Math.abs(local.y)<=hy;
+    if(inside){
+      const dx=hx-Math.abs(local.x),dy=hy-Math.abs(local.y);
+      normalLocal=dx<dy?{x:local.x>=0?1:-1,y:0}:{x:0,y:local.y>=0?1:-1}
+    }
+  }
+  if(!inside)return null;
+  const normal=v7RotatePoint(normalLocal||{x:1,y:0},item.rotation);
+  const mag=Math.hypot(normal.x,normal.y)||1;
+  return{
+    kind:"object",objectId:item.id,type:item.type,point:{...worldPoint},
+    normal:{x:normal.x/mag,y:normal.y/mag},
+    response:item.physics.response||"soft_block",
+    restitution:clamp(Number(item.physics.restitution)||0,0,1)
+  }
+}
+function v7FirstEquipmentCollisionOnPath(points,startTime,endTime){
+  let best=null,total=polylineLength(points);if(total<.001)return null;
+  let walked=0;
+  for(let s=1;s<points.length;s++){
+    const a=points[s-1],b=points[s],seg=dist(a,b),steps=Math.max(18,Math.ceil(seg/3));
+    for(let i=0;i<=steps;i++){
+      const u=i/steps,along=(walked+seg*u)/total,p=pointLerp(a,b,u);
+      for(const item of state.equipment||[]){
+        const hit=v7EquipmentCollisionAt(item,p);
+        if(hit&&(!best||along<best.progress)){
+          best={...hit,time:lerp(startTime,endTime,along),progress:along};
+        }
+      }
+      if(best&&best.progress<=along+.0001)break
+    }
+    if(best)return best;
+    walked+=seg
+  }
+  return best
+}
+const firstCollisionOnPathV682ForV7=firstCollisionOnPath;
+firstCollisionOnPath=function(points,startTime,endTime,ignoreIds=[],options={}){
+  const includePlayers=options.includePlayers!==false,includeObjects=options.includeObjects!==false;
+  const playerHit=includePlayers?firstCollisionOnPathV682ForV7(points,startTime,endTime,ignoreIds):null;
+  const objectHit=includeObjects?v7FirstEquipmentCollisionOnPath(points,startTime,endTime):null;
+  if(!playerHit)return objectHit;
+  if(!objectHit)return{...playerHit,kind:"player",response:"player",restitution:.18};
+  return objectHit.progress<playerHit.progress?objectHit:{...playerHit,kind:"player",response:"player",restitution:.18}
+}
+function v7ReflectVector(v,n){
+  const dot=v.x*n.x+v.y*n.y;
+  return{x:v.x-2*dot*n.x,y:v.y-2*dot*n.y}
+}
+function v7CollisionPath(start,target,collision){
+  if(!collision)return{path:[start,target],end:target,extraTime:0};
+  const point=collision.point;
+  if(collision.kind==="player"){
+    const v={x:point.x-start.x,y:point.y-start.y},mag=Math.hypot(v.x,v.y)||1;
+    const end=clampRinkPoint({x:point.x-v.x/mag*18,y:point.y-v.y/mag*18});
+    return{path:[start,point,end],end,extraTime:.16}
+  }
+  if(collision.response==="stop")return{path:[start,point],end:point,extraTime:0};
+  const incoming={x:target.x-start.x,y:target.y-start.y},inMag=Math.hypot(incoming.x,incoming.y)||1;
+  const unit={x:incoming.x/inMag,y:incoming.y/inMag},reflected=v7ReflectVector(unit,collision.normal||{x:-unit.x,y:-unit.y});
+  const amount=collision.response==="bounce"
+    ?clamp(inMag*(collision.restitution||.65),18,130)
+    :clamp(inMag*Math.max(.06,collision.restitution||.12),7,32);
+  const end=clampRinkPoint({x:point.x+reflected.x*amount,y:point.y+reflected.y*amount});
+  return{path:[start,point,end],end,extraTime:collision.response==="bounce"?.22:.12}
+}
+buildPuckTimeline=function(){
+  const take=activeTake(),events=[...take.events].sort((a,b)=>a.time-b.time||(a.order||0)-(b.order||0)),intervals=[],results=new Map();let cursor=0,mode="loose",holder=null,loose={...state.puckStart};
+  const addSteady=end=>{if(end>cursor+.0001){intervals.push({start:cursor,end,kind:mode,holder,pos:loose});cursor=end}};
+  for(const event of events){
+    event.time=clamp(Number(event.time)||0,0,state.timeline.duration);let overridePos=null;
+    if(event.time<cursor-.015){
+      if(!event.replace){results.set(event.id,{valid:false,reason:"Overlaps an earlier puck flight",arrival:cursor});continue}
+      const last=intervals.at(-1);if(last&&event.time>=last.start-.001&&event.time<last.end){
+        if(last.kind==="travel"){const progress=(event.time-last.start)/Math.max(.001,last.end-last.start);last.path=slicePolylineByProgress(last.path,0,progress);overridePos={...last.path.at(-1)};last.end=event.time;const prior=results.get(last.eventId);if(prior)results.set(last.eventId,{...prior,arrival:event.time,path:deepClone(last.path),overridden:true})}
+        else{last.end=event.time;overridePos=last.kind==="attached"&&last.holder?stickPosition(last.holder,event.time):deepClone(last.pos||loose)}
+      }
+      cursor=event.time
+    }
+    addSteady(event.time);const at=event.time,currentPos=event.from?deepClone(event.from):overridePos||(mode==="attached"&&holder?stickPosition(holder,at):{...loose});
+    if(event.type==="place"){
+      mode="loose";holder=null;loose=clampRinkPoint(event.target||currentPos);cursor=at;results.set(event.id,{valid:true,arrival:at,path:[currentPos,loose],replace:!!event.replace});continue
+    }
+    if(event.type==="possess"){
+      if(!state.onIce[event.targetId]){results.set(event.id,{valid:false,reason:"Target is not on the ice"});continue}
+      mode="attached";holder=event.targetId;cursor=at;results.set(event.id,{valid:true,arrival:at,source:null,target:event.targetId,path:[currentPos,stickPosition(event.targetId,at)],replace:!!event.replace});continue
+    }
+    if(event.type==="drop"){
+      mode="loose";holder=null;loose=currentPos;cursor=at;results.set(event.id,{valid:true,arrival:at,path:[currentPos]});continue
+    }
+    if(event.type==="pass"){
+      if(mode!=="attached"||!holder){results.set(event.id,{valid:false,reason:"The puck is not possessed at this time"});continue}
+      if(!state.onIce[event.targetId]||event.targetId===holder){results.set(event.id,{valid:false,reason:"Choose another on-ice receiver"});continue}
+      const source=holder,start=stickPosition(source,at),speed=passSpeedUnits(event.speed||6),prediction=predictReceiverTarget(event.targetId,at,start,speed);
+      let path=[start,prediction.point],length=polylineLength(path),arrival=at+length/speed;
+      let collision=firstCollisionOnPath(path,at,arrival,[source,event.targetId],{includePlayers:!event.ignoreDefense,includeObjects:true});
+      if(collision?.kind==="player"&&!event.ignoreDefense){
+        const bank=boardBankPath(start,prediction.point);
+        if(bank){
+          const bankArrival=at+bank.length/speed,bankHit=firstCollisionOnPath(bank.points,at,bankArrival,[source,event.targetId],{includePlayers:true,includeObjects:true});
+          if(!bankHit){path=bank.points;length=bank.length;arrival=bankArrival;collision=null}
+        }
+      }
+      if(collision){
+        const response=v7CollisionPath(start,prediction.point,collision),travelEnd=collision.time+response.extraTime;
+        intervals.push({start:at,end:travelEnd,kind:"travel",path:response.path,spin:true,sauce:!!event.sauce,eventId:event.id,collision});
+        cursor=travelEnd;mode="loose";holder=null;loose=response.end;
+        results.set(event.id,{valid:true,blocked:true,source,target:event.targetId,arrival:travelEnd,path:response.path,collision});continue
+      }
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id});cursor=arrival;mode="attached";holder=event.targetId;results.set(event.id,{valid:true,source,target:event.targetId,arrival,path,bank:path.length>2});continue
+    }
+    if(event.type==="shot"){
+      const source=mode==="attached"?holder:null,start=currentPos,target=clampRinkPoint(event.target||currentPos),speed=shotSpeedUnits(event.power||6);
+      let goal=goalResultForShot(start,target),path=goal.goal?[start,goal.entry,goal.end]:[start,target],length=polylineLength(path),arrival=at+length/speed;
+      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:true});
+      if(collision){
+        const response=v7CollisionPath(start,path.at(-1),collision);
+        path=response.path;arrival=collision.time+response.extraTime;goal={goal:false}
+      }
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal:goal.goal,collision});cursor=arrival;mode="loose";holder=null;loose=path.at(-1);results.set(event.id,{valid:true,source,target:null,arrival,path,goal:goal.goal,collision});continue
+    }
+  }
+  addSteady(state.timeline.duration+5);return{intervals,results,events}
+};
+
 function v7EquipmentSvg(item){
-  const meta=V7_EQUIPMENT_TYPES[item.type],g=svgEl("g",{
+  const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
     "data-equipment-id":item.id,
-    role:"button",
-    tabindex:"0",
-    "aria-label":meta?.label||"Practice equipment",
+    role:"button",tabindex:"0","aria-label":def?.label||"Rink object",
     transform:"translate("+round(item.x,2)+" "+round(item.y,2)+") rotate("+item.rotation+") scale("+item.scale+")",
     style:"cursor:grab"
   });
-  const stroke="#233947",light="#f7fbfd",dark="#111315",accent="#f59e0b",blue="#246b9b";
+  const geo=item.geometry||{},stroke="#263944",light="#f7fbfd",dark="#111315",orange="#f59e0b",blue="#377aa6",red="#c43d3d";
   if(item.type==="cone"){
-    g.append(svgEl("path",{d:"M-15 16 L0 -17 L15 16 Z",fill:accent,stroke:stroke,"stroke-width":3}));
-    g.append(svgEl("rect",{x:-19,y:14,width:38,height:6,rx:2,fill:accent,stroke:stroke,"stroke-width":2}))
+    const r=Number(geo.radius)||6;
+    g.append(svgEl("circle",{r,fill:orange,stroke,"stroke-width":1.6}));
+    g.append(svgEl("circle",{r:r*.42,fill:"#ffd38b",stroke:"none"}))
   }else if(item.type==="tire"){
-    g.append(svgEl("circle",{r:18,fill:"none",stroke:dark,"stroke-width":8}));
-    g.append(svgEl("circle",{r:7,fill:"none",stroke:"#68737a","stroke-width":2}))
-  }else if(item.type==="divider"){
-    g.append(svgEl("rect",{x:-34,y:-9,width:68,height:18,rx:7,fill:blue,stroke:stroke,"stroke-width":3}));
-    g.append(svgEl("path",{d:"M-24 0 H24",stroke:light,"stroke-width":2,opacity:.8}))
-  }else if(item.type==="pad"){
-    g.append(svgEl("rect",{x:-26,y:-13,width:52,height:26,rx:9,fill:"#707b83",stroke:stroke,"stroke-width":3}))
+    const r=Number(geo.radius)||9;
+    g.append(svgEl("circle",{r,fill:"#17191b",stroke:"#050607","stroke-width":2}));
+    g.append(svgEl("circle",{r:r*.48,fill:"#dfeff4",stroke:"#60686d","stroke-width":1.2}))
+  }else if(item.type==="bumper"||item.type==="divider"||item.type==="pad"){
+    const L=Number(geo.length)||34,W=Number(geo.width)||10,fill=item.type==="divider"?blue:item.type==="bumper"?"#e08d27":"#6f7b82";
+    g.append(svgEl("rect",{x:-L/2,y:-W/2,width:L,height:W,rx:W/2,fill,stroke,"stroke-width":1.7}));
+    if(item.type==="divider")g.append(svgEl("path",{d:"M"+(-L*.34)+" 0 H"+(L*.34),stroke:light,"stroke-width":1.1,opacity:.75}))
   }else if(item.type==="puck"){
-    g.append(svgEl("ellipse",{cx:0,cy:1,rx:11,ry:6,fill:dark,stroke:"#68737a","stroke-width":2}))
+    const r=Number(geo.radius)||V7_PUCK_RADIUS;
+    g.append(svgEl("circle",{r,fill:dark,stroke:"#667178","stroke-width":.8}))
   }else if(item.type==="puckPile"){
-    for(const p of [[-9,5],[8,5],[0,-5]])g.append(svgEl("ellipse",{cx:p[0],cy:p[1],rx:9,ry:5,fill:dark,stroke:"#68737a","stroke-width":1.6}))
+    const r=Math.max(1.8,(Number(geo.radius)||10)*.24),pts=[[-5,4],[4,5],[-1,-3],[7,-3],[-7,-3]];
+    for(const p of pts)g.append(svgEl("circle",{cx:p[0],cy:p[1],r,fill:dark,stroke:"#667178","stroke-width":.7}));
+    const qty=svgEl("text",{x:0,y:17,"text-anchor":"middle",class:"token-label","font-size":"8"});qty.textContent=String(item.quantity??0);g.append(qty)
   }else if(item.type==="stick"){
-    g.append(svgEl("path",{d:"M-27 -17 L20 16 L31 14",fill:"none",stroke:"#7b532d","stroke-width":5,"stroke-linecap":"round","stroke-linejoin":"round"}))
+    const L=Number(geo.length)||42,W=Number(geo.width)||3.5;
+    g.append(svgEl("path",{d:"M"+(-L/2)+" 0 H"+(L/2-7)+" L"+(L/2)+" "+(W*1.7),fill:"none",stroke:"#75502c","stroke-width":W,"stroke-linecap":"round","stroke-linejoin":"round"}))
   }else if(item.type==="rebounder"){
-    g.append(svgEl("rect",{x:-25,y:-12,width:50,height:24,rx:3,fill:"none",stroke:stroke,"stroke-width":4}));
-    g.append(svgEl("path",{d:"M-20 7 L-12 -7 L-4 7 L4 -7 L12 7 L20 -7",fill:"none",stroke:"#dce7ed","stroke-width":3}))
+    const L=Number(geo.length)||42,W=Number(geo.width)||9;
+    g.append(svgEl("rect",{x:-L/2,y:-W/2,width:L,height:W,rx:2,fill:"#d7e4e9",stroke,"stroke-width":1.7}));
+    let d="";for(let x=-L*.38,i=0;x<=L*.38;x+=L*.19,i++)d+=(i?" L":"M")+round(x,1)+" "+(i%2?-W*.28:W*.28);
+    g.append(svgEl("path",{d,fill:"none",stroke:red,"stroke-width":1.4}))
   }else if(item.type==="net"){
-    g.append(svgEl("path",{d:"M-25 15 V-11 Q0 -24 25 -11 V15 Z",fill:"none",stroke:"#c43d3d","stroke-width":4}));
-    g.append(svgEl("path",{d:"M-18 12 L-18 -8 M-6 14 L-6 -14 M6 14 L6 -14 M18 12 L18 -8 M-22 4 H22",fill:"none",stroke:"#87949d","stroke-width":1.5,opacity:.85}))
+    const L=Number(geo.length)||42,D=Number(geo.width)||22;
+    g.append(svgEl("path",{d:"M"+(-L/2)+" "+(-D/2)+" V"+(D/2)+" H"+(L/2)+" V"+(-D/2),fill:"rgba(215,228,233,.16)",stroke:red,"stroke-width":2.4,"stroke-linecap":"round","stroke-linejoin":"round"}));
+    for(let x=-L*.34;x<L*.35;x+=L*.17)g.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.65,opacity:.7}));
+    for(let y=-D*.2;y<D*.3;y+=D*.25)g.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.65,opacity:.7}))
   }
   if(item.label){
-    const label=svgEl("text",{x:0,y:32,"text-anchor":"middle",class:"token-label"});label.textContent=item.label;g.append(label)
+    const label=svgEl("text",{x:0,y:Math.max(16,(Number(geo.width)||12)*.9+9),"text-anchor":"middle",class:"token-label","font-size":"8"});label.textContent=item.label;g.append(label)
   }
-  if(ui.selectedType==="equipment"&&ui.selectedId===item.id)g.append(svgEl("circle",{class:"selection-ring",r:31}));
+  if(ui.selectedType==="equipment"&&ui.selectedId===item.id){
+    const cg=v7CollisionGeometry(item),rx=Math.max(10,cg.length/2||cg.radius+6),ry=Math.max(10,cg.width/2||cg.radius+6);
+    g.append(svgEl("rect",{class:"selection-ring",x:-rx-5,y:-ry-5,width:(rx+5)*2,height:(ry+5)*2,rx:6,fill:"none"}));
+    if(item.capabilities?.rotatable)g.append(svgEl("line",{x1:0,y1:-ry-5,x2:0,y2:-ry-16,stroke:"#2ba6d6","stroke-width":2}))
+  }
   return g
 }
 function v7RenderEquipment(){
@@ -5242,20 +5490,20 @@ const renderObjectLayerV682ForV7=renderObjectLayer;
 renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment()};
 
 function v7SetEquipmentPlacement(type){
-  if(!V7_EQUIPMENT_TYPES[type])return;
+  if(!V7_RINK_OBJECT_TYPES[type])return;
   ui.v7EquipmentPlacement=type;
-  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.add("active");btn.title="Place "+V7_EQUIPMENT_TYPES[type].label+" · Esc to finish"}
-  toast("Tap the rink to place "+V7_EQUIPMENT_TYPES[type].label+". Tap repeatedly to add more; press Esc when finished.",4200)
+  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.add("active");btn.title="Place "+V7_RINK_OBJECT_TYPES[type].label+" · Esc to finish"}
+  toast("Tap the rink to place "+V7_RINK_OBJECT_TYPES[type].label+". Tap repeatedly to add more; press Esc when finished.",4200)
 }
 function v7CancelEquipmentPlacement(){
   ui.v7EquipmentPlacement=null;
-  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.remove("active");btn.title="Practice equipment"}
+  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.remove("active");btn.title="Rink objects"}
 }
-function v7AddEquipment(type,point){
-  if(!V7_EQUIPMENT_TYPES[type])return null;
+function v7AddEquipment(type,point,overrides={}){
+  if(!V7_RINK_OBJECT_TYPES[type])return null;
   pushHistory();
   const p=v59ClampVisiblePoint?v59ClampVisiblePoint(point):clampRinkPoint(point);
-  const item=v7NormalizeEquipmentItem({id:uid("eq"),type,x:p.x,y:p.y});
+  const item=v7NormalizeEquipmentItem({id:uid("eq"),type,x:p.x,y:p.y,...overrides});
   state.equipment.push(item);
   ui.selectedType="equipment";ui.selectedId=item.id;
   syncActiveVariation();renderAll();return item
@@ -5266,27 +5514,68 @@ function v7DeleteEquipment(id){
   if(ui.selectedType==="equipment"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null}
   syncActiveVariation();renderAll();return true
 }
+function v7TakePuckFromPile(item){
+  if(!item||item.type!=="puckPile"||(item.quantity??0)<=0)return toast("That puck pile is empty.");
+  pushHistory();item.quantity=Math.max(0,(item.quantity??0)-1);
+  const offset=v7RotatePoint({x:16,y:0},item.rotation||0);
+  const puck=v7NormalizeEquipmentItem({id:uid("eq"),type:"puck",x:item.x+offset.x,y:item.y+offset.y});
+  state.equipment.push(puck);ui.selectedType="equipment";ui.selectedId=puck.id;syncActiveVariation();renderAll();toast("Extra puck ready to use.")
+}
+function v7UseSparePuck(item){
+  if(!item||item.type!=="puck")return;
+  pushHistory();
+  const take={id:uid("take"),name:"Puck Route "+String.fromCharCode(65+state.timeline.puckTakes.length),events:[]};
+  state.timeline.puckTakes.push(take);state.timeline.activeTakeId=take.id;state.puckStart=clampRinkPoint({x:item.x,y:item.y});
+  state.equipment=state.equipment.filter(x=>x.id!==item.id);ui.selectedType="puck";ui.selectedId="puck";ui.playhead=0;syncActiveVariation();renderAll();toast("This extra puck is now the active puck on a new route.")
+}
+function v7NudgeEquipment(item,dx,dy){if(!item)return;item.x=round(clamp(item.x+dx,rinkBounds().minX,rinkBounds().maxX),2);item.y=round(clamp(item.y+dy,rinkBounds().minY,rinkBounds().maxY),2)}
+function v7RenderEquipmentInspector(){
+  const root=$("#inspectorContent"),title=$("#inspectorTitle"),sub=$("#inspectorSubtitle"),item=v7EquipmentById(ui.selectedId);
+  if(!root||!item){ui.selectedType=null;return renderInspector()}
+  const def=V7_RINK_OBJECT_TYPES[item.type],g=item.geometry||{},cap=item.capabilities||{},phys=item.physics||{};
+  title.textContent=def.label;sub.textContent="Rink object · physical properties";
+  const resize=cap.resize,hasLength=resize==="length",isPile=item.type==="puckPile",isPuck=item.type==="puck";
+  const collisionLabel=phys.response==="bounce"?"Bounces puck":phys.response==="stop"?"Stops puck":phys.response==="soft_block"?"Soft blocker":"No puck collision";
+  root.innerHTML=
+    '<div class="identity-card"><div class="identity-token puck" style="border-radius:8px"><span style="font-size:9px">'+escapeHtml(def.short)+'</span></div><div><strong>'+escapeHtml(def.label)+'</strong><small>'+escapeHtml(collisionLabel)+' · top-down rink object</small></div></div>'+
+    '<section class="inspector-section"><h3>Position</h3>'+
+    '<div class="range-label"><span>X axis</span><output id="v7ObjectXOut">'+Math.round(item.x)+'</output></div><input id="v7ObjectX" type="range" min="'+rinkBounds().minX+'" max="'+rinkBounds().maxX+'" step="1" value="'+item.x+'" style="width:100%">'+
+    '<div class="range-label"><span>Y axis</span><output id="v7ObjectYOut">'+Math.round(item.y)+'</output></div><input id="v7ObjectY" type="range" min="'+rinkBounds().minY+'" max="'+rinkBounds().maxY+'" step="1" value="'+item.y+'" style="width:100%">'+
+    '<div class="v7-nudge-grid"><button class="btn small" data-v7-nudge="0,-4">↑</button><button class="btn small" data-v7-nudge="-4,0">←</button><button class="btn small" data-v7-nudge="4,0">→</button><button class="btn small" data-v7-nudge="0,4">↓</button></div></section>'+
+    (cap.rotatable?'<section class="inspector-section"><h3>Rotation</h3><div class="range-label"><span>Angle</span><output id="v7ObjectRotationOut">'+Math.round(item.rotation)+'°</output></div><input id="v7ObjectRotation" type="range" min="-180" max="180" step="1" value="'+item.rotation+'" style="width:100%"><div class="button-row"><button class="btn small" data-v7-rotate="-15">−15°</button><button class="btn small" data-v7-rotate="15">+15°</button><button class="btn small" data-v7-rotate="90">+90°</button></div></section>':'')+
+    (resize!=="none"?'<section class="inspector-section"><h3>Size</h3>'+
+      (hasLength?'<div class="range-label"><span>Length</span><output id="v7ObjectLengthOut">'+Math.round(Number(g.length)||30)+'</output></div><input id="v7ObjectLength" type="range" min="'+(item.type==="divider"?28:item.type==="stick"?24:18)+'" max="'+(item.type==="divider"?190:item.type==="stick"?70:120)+'" step="1" value="'+(Number(g.length)||30)+'" style="width:100%">':
+      '<div class="range-label"><span>Scale</span><output id="v7ObjectScaleOut">'+Number(item.scale||1).toFixed(2)+'×</output></div><input id="v7ObjectScale" type="range" min=".45" max="2.75" step=".05" value="'+item.scale+'" style="width:100%">')+
+      '<p style="margin-top:8px">Crease radius = '+V7_CREASE_RADIUS_UNITS+' board units. Object sizes are calibrated against that rink scale and remain slightly exaggerated for touch use.</p></section>':'')+
+    (isPile?'<section class="inspector-section"><h3>Puck source</h3><div class="range-label"><span>Pucks remaining</span><output id="v7ObjectQuantityOut">'+item.quantity+'</output></div><input id="v7ObjectQuantity" type="range" min="0" max="40" step="1" value="'+item.quantity+'" style="width:100%"><button class="btn primary" id="v7TakePuckBtn">Take a usable puck</button></section>':'')+
+    (isPuck?'<section class="inspector-section"><h3>Extra puck</h3><p>This is a real spare puck object. Make it active to start a new independent puck route from this exact location.</p><button class="btn primary" id="v7UsePuckBtn">Use as active puck</button></section>':'')+
+    '<section class="inspector-section"><h3>Physics</h3><p>'+escapeHtml(collisionLabel)+(phys.response==="bounce"?' · '+Math.round((phys.restitution||0)*100)+'% rebound response.':'')+'</p></section>'+
+    '<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>';
+}
+const renderInspectorV682ForV7=renderInspector;
+renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();return renderInspectorV682ForV7()};
+
 function v7PrepareEquipmentUI(){
   if($("#v7EquipmentBtn"))return;
   const commandLeft=$(".command-left"),separator=commandLeft?.querySelector(".separator");
   if(commandLeft){
-    const btn=document.createElement("button");btn.type="button";btn.id="v7EquipmentBtn";btn.className="tool-btn";btn.title="Practice equipment";btn.setAttribute("aria-label","Practice equipment");btn.textContent="◇";
+    const btn=document.createElement("button");btn.type="button";btn.id="v7EquipmentBtn";btn.className="tool-btn";btn.title="Rink objects";btn.setAttribute("aria-label","Rink objects");btn.textContent="◇";
     commandLeft.insertBefore(btn,separator||null);
     btn.addEventListener("click",()=>$("#v7EquipmentDialog")?.showModal())
   }
   const dialog=document.createElement("dialog");dialog.id="v7EquipmentDialog";
-  dialog.innerHTML='<div class="dialog-head"><h2>Practice Equipment</h2><p>Add drill equipment only when you need it. The basic animated clipboard stays unchanged.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_EQUIPMENT_TYPES).map(function(entry){return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Choose an item, then tap the rink repeatedly to place it. Drag placed equipment with Select. Press Delete to remove a selected item, or Esc to stop placing.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
+  dialog.innerHTML='<div class="dialog-head"><h2>Rink Objects</h2><p>Place physical drill objects without changing the basic clipboard workflow.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_RINK_OBJECT_TYPES).map(function(entry){return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Objects are top-down, rink-relative, draggable, and individually configurable. Collidable objects affect puck travel.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
   document.body.append(dialog);
   dialog.addEventListener("click",event=>{
     const choice=event.target.closest("[data-v7-equipment]");
     if(choice){const type=choice.dataset.v7Equipment;dialog.close();v7SetEquipmentPlacement(type)}
     if(event.target.closest("[data-v7-equipment-close]"))dialog.close()
   });
-  const style=document.createElement("style");style.id="v7PlatformStyles";style.textContent='.v7-equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.v7-equipment-choice{min-height:68px;border:1px solid #36556d;background:#10283e;color:#edf6fb;border-radius:10px;padding:9px;display:grid;gap:4px;place-items:center;cursor:pointer}.v7-equipment-choice:hover{background:#1a405d}.v7-equipment-choice strong{font-size:12px}.v7-equipment-choice span{font-size:9px;color:#9bb2c3;letter-spacing:.08em}.v7-equipment-help{font-size:11px;color:#9bb2c3;line-height:1.45;margin:12px 0 0}#v7EquipmentBtn.active{background:#1b6e9d;border-color:#57c4ef}@media(max-width:520px){.v7-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
+  const style=document.createElement("style");style.id="v7PlatformStyles";style.textContent='.v7-equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.v7-equipment-choice{min-height:64px;border:1px solid #36556d;background:#10283e;color:#edf6fb;border-radius:10px;padding:8px;display:grid;gap:3px;place-items:center;cursor:pointer}.v7-equipment-choice:hover{background:#1a405d}.v7-equipment-choice strong{font-size:12px}.v7-equipment-choice span{font-size:9px;color:#9bb2c3;letter-spacing:.08em}.v7-equipment-help{font-size:11px;color:#9bb2c3;line-height:1.45;margin:12px 0 0}#v7EquipmentBtn.active{background:#1b6e9d;border-color:#57c4ef}.v7-nudge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}@media(max-width:520px){.v7-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
   document.head.append(style)
 }
 function v7SetupEquipmentEvents(){
-  const svg=$("#rinkSvg");if(!svg||svg.dataset.v7EquipmentEvents==="1")return;svg.dataset.v7EquipmentEvents="1";
+  const svg=$("#rinkSvg");if(!svg||svg.dataset.v7EquipmentEvents==="2")return;svg.dataset.v7EquipmentEvents="2";
   svg.addEventListener("pointerdown",event=>{
     if(event.button!==undefined&&event.button!==0)return;
     const equipmentNode=event.target.closest?.("[data-equipment-id]");
@@ -5298,6 +5587,7 @@ function v7SetupEquipmentEvents(){
     event.preventDefault();event.stopImmediatePropagation();
     const id=equipmentNode.dataset.equipmentId,item=v7EquipmentById(id);if(!item)return;
     pushHistory();ui.selectedType="equipment";ui.selectedId=id;ui.v7EquipmentDrag={id,pointerId:event.pointerId};
+    openRight();renderInspector();
     try{svg.setPointerCapture(event.pointerId)}catch{}
     renderFrame(ui.playhead)
   },true);
@@ -5309,13 +5599,48 @@ function v7SetupEquipmentEvents(){
   },true);
   const finish=event=>{
     const drag=ui.v7EquipmentDrag;if(!drag||drag.pointerId!==event.pointerId)return;
-    event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentDrag=null;syncActiveVariation();scheduleSave();renderAll()
+    event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentDrag=null;syncActiveVariation();scheduleSave();renderInspector();renderAll()
   };
   svg.addEventListener("pointerup",finish,true);svg.addEventListener("pointercancel",finish,true);
   window.addEventListener("keydown",event=>{
     const tag=document.activeElement?.tagName?.toLowerCase();if(tag==="input"||tag==="textarea"||tag==="select")return;
     if(event.key==="Escape"){v7CancelEquipmentPlacement();$("#v7EquipmentDialog")?.close();return}
-    if((event.key==="Delete"||event.key==="Backspace")&&ui.selectedType==="equipment"&&ui.selectedId){event.preventDefault();v7DeleteEquipment(ui.selectedId)}
+    if((event.key==="Delete"||event.key==="Backspace")&&ui.selectedType==="equipment"&&ui.selectedId){event.preventDefault();v7DeleteEquipment(ui.selectedId);closeRight({clearSelection:true})}
+    const item=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;if(!item)return;
+    const step=event.shiftKey?10:2;
+    if(event.key==="ArrowLeft"){event.preventDefault();v7NudgeEquipment(item,-step,0)}
+    else if(event.key==="ArrowRight"){event.preventDefault();v7NudgeEquipment(item,step,0)}
+    else if(event.key==="ArrowUp"){event.preventDefault();v7NudgeEquipment(item,0,-step)}
+    else if(event.key==="ArrowDown"){event.preventDefault();v7NudgeEquipment(item,0,step)}
+    else return;
+    syncActiveVariation();renderAll();renderInspector()
+  })
+}
+function v7SetupInspectorEvents(){
+  const root=$("#inspectorContent");if(!root||root.dataset.v7ObjectEvents==="2")return;root.dataset.v7ObjectEvents="2";
+  root.addEventListener("pointerdown",event=>{
+    if(ui.selectedType==="equipment"&&event.target.matches('input[type="range"]'))pushHistory()
+  });
+  root.addEventListener("click",event=>{
+    if(ui.selectedType!=="equipment")return;
+    const item=v7EquipmentById(ui.selectedId);if(!item)return;
+    const nudge=event.target.closest("[data-v7-nudge]");if(nudge){const [dx,dy]=nudge.dataset.v7Nudge.split(",").map(Number);pushHistory();v7NudgeEquipment(item,dx,dy);syncActiveVariation();renderAll();renderInspector();return}
+    const rotate=event.target.closest("[data-v7-rotate]");if(rotate){pushHistory();item.rotation=round(((item.rotation+Number(rotate.dataset.v7Rotate)+180)%360)-180,1);syncActiveVariation();renderAll();renderInspector();return}
+    if(event.target.id==="v7DeleteObjectBtn"){const id=item.id;v7DeleteEquipment(id);closeRight({clearSelection:true});return}
+    if(event.target.id==="v7TakePuckBtn"){v7TakePuckFromPile(item);return}
+    if(event.target.id==="v7UsePuckBtn"){v7UseSparePuck(item);return}
+  });
+  root.addEventListener("input",event=>{
+    if(ui.selectedType!=="equipment")return;const item=v7EquipmentById(ui.selectedId);if(!item)return;
+    const id=event.target.id;
+    if(id==="v7ObjectX"){item.x=Number(event.target.value);$("#v7ObjectXOut").textContent=Math.round(item.x)}
+    else if(id==="v7ObjectY"){item.y=Number(event.target.value);$("#v7ObjectYOut").textContent=Math.round(item.y)}
+    else if(id==="v7ObjectRotation"){item.rotation=Number(event.target.value);$("#v7ObjectRotationOut").textContent=Math.round(item.rotation)+"°"}
+    else if(id==="v7ObjectScale"){item.scale=Number(event.target.value);$("#v7ObjectScaleOut").textContent=Number(item.scale).toFixed(2)+"×"}
+    else if(id==="v7ObjectLength"){item.geometry.length=Number(event.target.value);$("#v7ObjectLengthOut").textContent=Math.round(item.geometry.length)}
+    else if(id==="v7ObjectQuantity"){item.quantity=Number(event.target.value);$("#v7ObjectQuantityOut").textContent=item.quantity}
+    else return;
+    syncActiveVariation();renderFrame(ui.playhead);scheduleSave()
   })
 }
 
@@ -5327,16 +5652,20 @@ init=function(){
   syncActiveVariation();
   v7PrepareEquipmentUI();
   v7SetupEquipmentEvents();
+  v7SetupInspectorEvents();
   renderAll()
 };
 Object.assign(window.BOTD_TEST,{
   platformSchemaVersion:()=>V7_PLATFORM_SCHEMA_VERSION,
   platformMeta:()=>deepClone(state.platform),
-  equipmentTypes:()=>deepClone(V7_EQUIPMENT_TYPES),
+  equipmentTypes:()=>deepClone(V7_RINK_OBJECT_TYPES),
   equipment:()=>deepClone(state.equipment||[]),
-  addEquipment:(type,point)=>deepClone(v7AddEquipment(type,point||{x:500,y:300})),
+  addEquipment:(type,point,overrides)=>deepClone(v7AddEquipment(type,point||{x:500,y:300},overrides||{})),
   deleteEquipment:id=>v7DeleteEquipment(id),
-  semanticMovements:()=>deepClone(V7_SEMANTIC_MOVEMENT)
+  semanticMovements:()=>deepClone(V7_SEMANTIC_MOVEMENT),
+  equipmentCollision:(id,point)=>{const item=v7EquipmentById(id);return item?deepClone(v7EquipmentCollisionAt(item,point)):null},
+  takePuckFromPile:id=>{const item=v7EquipmentById(id);v7TakePuckFromPile(item);return deepClone(state.equipment||[])},
+  creaseRadiusUnits:()=>V7_CREASE_RADIUS_UNITS
 });
 
 
