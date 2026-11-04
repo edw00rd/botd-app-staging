@@ -5345,6 +5345,34 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime){
   }
   return best
 }
+
+/* Detect physical objects crossed by an intentionally elevated puck.
+   Progress is arc length (rather than segment index), so board-following
+   trajectories display the lift at the actual obstacle crossing. */
+function v7ObjectClearancesOnPath(points){
+  const total=polylineLength(points),items=(state.equipment||[]).filter(item=>item.physics?.collidable);
+  if(total<.001||!items.length)return[];
+  const clearances=[],byId=new Map();
+  let walked=0;
+  for(let seg=1;seg<points.length;seg++){
+    const a=points[seg-1],b=points[seg],length=dist(a,b),steps=Math.max(20,Math.ceil(length/2.5));
+    for(let i=0;i<=steps;i++){
+      const progress=clamp((walked+length*i/steps)/total,0,1);
+      const point=pointLerp(a,b,i/steps);
+      for(const item of items){
+        if(!v7EquipmentCollisionAt(item,point))continue;
+        let clearance=byId.get(item.id);
+        if(!clearance||progress-clearance.endProgress>.065){
+          clearance={objectId:item.id,type:item.type,startProgress:progress,endProgress:progress};
+          clearances.push(clearance);byId.set(item.id,clearance)
+        }else clearance.endProgress=progress
+      }
+    }
+    walked+=length
+  }
+  return clearances
+}
+
 const firstCollisionOnPathV682ForV7=firstCollisionOnPath;
 firstCollisionOnPath=function(points,startTime,endTime,ignoreIds=[],options={}){
   const includePlayers=options.includePlayers!==false,includeObjects=options.includeObjects!==false;
@@ -5466,7 +5494,7 @@ buildPuckTimeline=function(){
       const naturalDuration=polylineLength(path)/shotSpeedUnits(power);
       const duration=requestedDuration(event,naturalDuration);
       let arrival=at+duration,goal=!!(built?.goal||legacyGoal.goal);
-      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:true});
+      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:!event.ignoreObjects});
       if(collision){
         // Keep the whole original trajectory up to the collision, including
         // any board-following bends; never replace it with a straight chord.
@@ -5479,9 +5507,10 @@ buildPuckTimeline=function(){
         arrival=collision.time+response.extraTime;
         goal=false
       }
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,boardFollow:!!built?.boardFollow,motion:"shot",power});
+      const clearances=event.ignoreObjects?v7ObjectClearancesOnPath(path):[];
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,clearances,boardFollow:!!built?.boardFollow,motion:"shot",power});
       cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
-      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,collision,boardFollow:!!built?.boardFollow,power});continue
+      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,collision,clearances,boardFollow:!!built?.boardFollow,power});continue
     }
   }
   addSteady(state.timeline.duration+5);return{intervals,results,events}
