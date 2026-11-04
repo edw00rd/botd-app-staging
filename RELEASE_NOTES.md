@@ -45,3 +45,13 @@ Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e
 - Adds v7 platform/data-model documentation and isolated branch validation.
 - Editor SHA-256: `551d5d14a79081a3463f3c90e7290c97c5331142844cb44ad09903d2fa2b2acf`.
 - This is staging-only feature work and is not a production release.
+
+
+## V7 first-class goal objects — candidate, awaiting staging acceptance
+
+- Replaced legacy grey net art with two permanent, editable top-down net objects in rink equipment state; retained separate movable extra nets.
+- Moved goal line, goal-mouth detection, shot preview, back/cage and post collisions to the net objects, including rotation and scaling.
+- Fixed goal normalization for saved/imported legacy plays, variations, New/Undo and goal-net reset; prevents deleting the two regulation goals.
+- Preserved the default Ignore Defense / Ignore Objects shot choices, puck-over-obstacle animation, and added board/net contact haptics where browser-supported.
+- Added isolated regression coverage for goals and physical net surfaces; this change is not production-approved.
+- Candidate editor SHA-256: `79d4a93879048dd37f28d310ccaf44aed14a4e3ce33a804b754672572d623fff`.
