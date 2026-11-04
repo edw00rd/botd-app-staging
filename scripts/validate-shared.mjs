@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'0e25281a5884bd8c8e3972f9f4ac9f4769d8690740e1c0a62100f7fb2dac096f');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'9401965addac2d3167ca450df37473d6edd80b2dc046908a96d5a1aaf6b1b9f1');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'01f707b402749962b1d4540620d3d100a164b2da2d0c49f38bd2180d8d85783a');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
