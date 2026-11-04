@@ -5040,6 +5040,306 @@ fitRink=function(){
 };
 Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
 
+
+/* Version 7 platform foundation — preserves the fast animated clipboard while
+   adding forward-compatible semantic drill/practice primitives.  This block is
+   intentionally additive: existing v6.8.2 plays remain valid and render exactly
+   as before unless a coach uses the new equipment tool. */
+const V7_PLATFORM_SCHEMA_VERSION=1;
+const V7_EQUIPMENT_TYPES=Object.freeze({
+  cone:{label:"Cone",short:"CONE"},
+  tire:{label:"Tire",short:"TIRE"},
+  divider:{label:"Divider pad",short:"DIV"},
+  pad:{label:"Training pad",short:"PAD"},
+  puck:{label:"Extra puck",short:"PUCK"},
+  puckPile:{label:"Puck pile",short:"PUCKS"},
+  stick:{label:"Stick",short:"STICK"},
+  rebounder:{label:"Rebounder",short:"REB"},
+  net:{label:"Extra net",short:"NET"}
+});
+const V7_SEMANTIC_MOVEMENT=Object.freeze({
+  forward:"skate.forward",
+  backward:"skate.backward",
+  lateral:"skate.lateral",
+  glide:"skate.glide",
+  hold:"skate.stop_hold"
+});
+const V7_CONTENT_KINDS=new Set(["play","concept","drill"]);
+const V7_NOTATION_PROFILES=new Set(["botd","usa_hockey","hockey_canada"]);
+const V7_GOVERNING_BODIES=new Set(["none","usa_hockey","hockey_canada"]);
+
+function v7NormalizePlatformMeta(value){
+  const source=value&&typeof value==="object"?value:{};
+  const kind=V7_CONTENT_KINDS.has(source.kind)?source.kind:"play";
+  const notation=V7_NOTATION_PROFILES.has(source.notationProfile)?source.notationProfile:"botd";
+  const governingBody=V7_GOVERNING_BODIES.has(source.governingBody)?source.governingBody:"none";
+  return{
+    schemaVersion:V7_PLATFORM_SCHEMA_VERSION,
+    kind,
+    governingBody,
+    division:String(source.division||""),
+    notationProfile:notation,
+    objective:String(source.objective||""),
+    teachingPoints:Array.isArray(source.teachingPoints)?source.teachingPoints.map(x=>String(x)).filter(Boolean):[],
+    station:String(source.station||""),
+    assignedCoach:String(source.assignedCoach||""),
+    goaliePurpose:String(source.goaliePurpose||""),
+    workRestRatio:String(source.workRestRatio||""),
+    tags:Array.isArray(source.tags)?source.tags.map(x=>String(x)).filter(Boolean):[]
+  }
+}
+function v7NormalizeEquipmentItem(item){
+  if(!item||typeof item!=="object"||!V7_EQUIPMENT_TYPES[item.type])return null;
+  const p=v59ValidPoint?.(item)?v59CopyPoint(item):{x:Number(item.x)||500,y:Number(item.y)||300};
+  return{
+    id:String(item.id||uid("eq")),
+    type:item.type,
+    x:round(Number(p.x)||500,2),
+    y:round(Number(p.y)||300,2),
+    rotation:round(Number(item.rotation)||0,1),
+    scale:clamp(Number(item.scale)||1,.4,3),
+    label:String(item.label||"")
+  }
+}
+function v7NormalizeEquipmentList(items){
+  return(Array.isArray(items)?items:[]).map(v7NormalizeEquipmentItem).filter(Boolean)
+}
+function v7EnsureSemanticTimeline(timeline){
+  if(!timeline||typeof timeline!=="object")return timeline;
+  for(const clip of timeline.movements||[]){
+    const type=normalizeActionType?.(clip.actionType||clip.action||"forward")||"forward";
+    clip.actionType=type;
+    clip.semanticAction=V7_SEMANTIC_MOVEMENT[type]||"skate.forward"
+  }
+  for(const take of timeline.puckTakes||[]){
+    for(const event of take.events||[]){
+      if(event?.type==="pass")event.semanticAction="puck.pass";
+      else if(event?.type==="shot")event.semanticAction="puck.shot";
+      else if(event?.type==="possess")event.semanticAction="puck.possess";
+      else if(event?.type==="drop")event.semanticAction="puck.drop";
+      else if(event?.type==="place")event.semanticAction="puck.place"
+    }
+  }
+  return timeline
+}
+function v7EnsurePlatformState(output){
+  if(!output||typeof output!=="object")return output;
+  output.platform=v7NormalizePlatformMeta(output.platform);
+  output.equipment=v7NormalizeEquipmentList(output.equipment);
+  v7EnsureSemanticTimeline(output.timeline);
+  if(Array.isArray(output.variations)){
+    for(const option of output.variations){
+      option.equipment=v7NormalizeEquipmentList(option.equipment);
+      v7EnsureSemanticTimeline(option.timeline)
+    }
+  }
+  return output
+}
+
+const makeDefaultStateV682ForV7=makeDefaultState;
+makeDefaultState=function(){return v7EnsurePlatformState(makeDefaultStateV682ForV7())};
+const normalizeStateV682ForV7=normalizeState;
+normalizeState=function(raw){return v7EnsurePlatformState(normalizeStateV682ForV7(raw))};
+
+const captureVariationV682ForV7=captureVariationFromStateLike;
+captureVariationFromStateLike=function(source,id,name,sourceRange=null){
+  const option=captureVariationV682ForV7(source,id,name,sourceRange);
+  option.equipment=v7NormalizeEquipmentList(source?.equipment);
+  v7EnsureSemanticTimeline(option.timeline);
+  return option
+};
+const applyVariationV682ForV7=applyVariation;
+applyVariation=function(option){
+  applyVariationV682ForV7(option);
+  state.equipment=v7NormalizeEquipmentList(option?.equipment);
+  v7EnsureSemanticTimeline(state.timeline)
+};
+
+const snapshotV682ForV7=snapshot;
+snapshot=function(){
+  const data=JSON.parse(snapshotV682ForV7());
+  data.platform=v7NormalizePlatformMeta(state.platform);
+  data.equipment=v7NormalizeEquipmentList(state.equipment);
+  if(Array.isArray(data.variations))for(const option of data.variations)option.equipment=v7NormalizeEquipmentList(option.equipment);
+  return JSON.stringify(data)
+};
+const snapshotPlayV682ForV7=snapshotPlay;
+snapshotPlay=function(name){
+  const play=snapshotPlayV682ForV7(name);
+  play.platform=v7NormalizePlatformMeta(state.platform);
+  play.equipment=v7NormalizeEquipmentList(state.equipment);
+  if(Array.isArray(play.variations))for(const option of play.variations)option.equipment=v7NormalizeEquipmentList(option.equipment);
+  v7EnsureSemanticTimeline(play.timeline);
+  return play
+};
+const loadPlayV682ForV7=loadPlay;
+loadPlay=function(play){
+  loadPlayV682ForV7(play);
+  state.platform=v7NormalizePlatformMeta(play?.platform||state.platform);
+  state.equipment=v7NormalizeEquipmentList(play?.equipment||state.equipment);
+  v7EnsurePlatformState(state);
+  syncActiveVariation();
+  renderAll()
+};
+const newBoardV682ForV7=newBoard;
+newBoard=function(){
+  newBoardV682ForV7();
+  state=v7EnsurePlatformState(state);
+  syncActiveVariation();
+  renderAll()
+};
+
+function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id)||null}
+function v7EquipmentSvg(item){
+  const meta=V7_EQUIPMENT_TYPES[item.type],g=svgEl("g",{
+    "data-equipment-id":item.id,
+    role:"button",
+    tabindex:"0",
+    "aria-label":meta?.label||"Practice equipment",
+    transform:"translate("+round(item.x,2)+" "+round(item.y,2)+") rotate("+item.rotation+") scale("+item.scale+")",
+    style:"cursor:grab"
+  });
+  const stroke="#233947",light="#f7fbfd",dark="#111315",accent="#f59e0b",blue="#246b9b";
+  if(item.type==="cone"){
+    g.append(svgEl("path",{d:"M-15 16 L0 -17 L15 16 Z",fill:accent,stroke:stroke,"stroke-width":3}));
+    g.append(svgEl("rect",{x:-19,y:14,width:38,height:6,rx:2,fill:accent,stroke:stroke,"stroke-width":2}))
+  }else if(item.type==="tire"){
+    g.append(svgEl("circle",{r:18,fill:"none",stroke:dark,"stroke-width":8}));
+    g.append(svgEl("circle",{r:7,fill:"none",stroke:"#68737a","stroke-width":2}))
+  }else if(item.type==="divider"){
+    g.append(svgEl("rect",{x:-34,y:-9,width:68,height:18,rx:7,fill:blue,stroke:stroke,"stroke-width":3}));
+    g.append(svgEl("path",{d:"M-24 0 H24",stroke:light,"stroke-width":2,opacity:.8}))
+  }else if(item.type==="pad"){
+    g.append(svgEl("rect",{x:-26,y:-13,width:52,height:26,rx:9,fill:"#707b83",stroke:stroke,"stroke-width":3}))
+  }else if(item.type==="puck"){
+    g.append(svgEl("ellipse",{cx:0,cy:1,rx:11,ry:6,fill:dark,stroke:"#68737a","stroke-width":2}))
+  }else if(item.type==="puckPile"){
+    for(const p of [[-9,5],[8,5],[0,-5]])g.append(svgEl("ellipse",{cx:p[0],cy:p[1],rx:9,ry:5,fill:dark,stroke:"#68737a","stroke-width":1.6}))
+  }else if(item.type==="stick"){
+    g.append(svgEl("path",{d:"M-27 -17 L20 16 L31 14",fill:"none",stroke:"#7b532d","stroke-width":5,"stroke-linecap":"round","stroke-linejoin":"round"}))
+  }else if(item.type==="rebounder"){
+    g.append(svgEl("rect",{x:-25,y:-12,width:50,height:24,rx:3,fill:"none",stroke:stroke,"stroke-width":4}));
+    g.append(svgEl("path",{d:"M-20 7 L-12 -7 L-4 7 L4 -7 L12 7 L20 -7",fill:"none",stroke:"#dce7ed","stroke-width":3}))
+  }else if(item.type==="net"){
+    g.append(svgEl("path",{d:"M-25 15 V-11 Q0 -24 25 -11 V15 Z",fill:"none",stroke:"#c43d3d","stroke-width":4}));
+    g.append(svgEl("path",{d:"M-18 12 L-18 -8 M-6 14 L-6 -14 M6 14 L6 -14 M18 12 L18 -8 M-22 4 H22",fill:"none",stroke:"#87949d","stroke-width":1.5,opacity:.85}))
+  }
+  if(item.label){
+    const label=svgEl("text",{x:0,y:32,"text-anchor":"middle",class:"token-label"});label.textContent=item.label;g.append(label)
+  }
+  if(ui.selectedType==="equipment"&&ui.selectedId===item.id)g.append(svgEl("circle",{class:"selection-ring",r:31}));
+  return g
+}
+function v7RenderEquipment(){
+  const layer=$("#objectLayer");if(!layer)return;
+  const first=layer.firstChild;
+  for(const item of state.equipment||[]){
+    const node=v7EquipmentSvg(item);
+    if(first)layer.insertBefore(node,first);else layer.append(node)
+  }
+}
+const renderObjectLayerV682ForV7=renderObjectLayer;
+renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment()};
+
+function v7SetEquipmentPlacement(type){
+  if(!V7_EQUIPMENT_TYPES[type])return;
+  ui.v7EquipmentPlacement=type;
+  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.add("active");btn.title="Place "+V7_EQUIPMENT_TYPES[type].label+" · Esc to finish"}
+  toast("Tap the rink to place "+V7_EQUIPMENT_TYPES[type].label+". Tap repeatedly to add more; press Esc when finished.",4200)
+}
+function v7CancelEquipmentPlacement(){
+  ui.v7EquipmentPlacement=null;
+  const btn=$("#v7EquipmentBtn");if(btn){btn.classList.remove("active");btn.title="Practice equipment"}
+}
+function v7AddEquipment(type,point){
+  if(!V7_EQUIPMENT_TYPES[type])return null;
+  pushHistory();
+  const p=v59ClampVisiblePoint?v59ClampVisiblePoint(point):clampRinkPoint(point);
+  const item=v7NormalizeEquipmentItem({id:uid("eq"),type,x:p.x,y:p.y});
+  state.equipment.push(item);
+  ui.selectedType="equipment";ui.selectedId=item.id;
+  syncActiveVariation();renderAll();return item
+}
+function v7DeleteEquipment(id){
+  if(!v7EquipmentById(id))return false;
+  pushHistory();state.equipment=state.equipment.filter(item=>item.id!==id);
+  if(ui.selectedType==="equipment"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null}
+  syncActiveVariation();renderAll();return true
+}
+function v7PrepareEquipmentUI(){
+  if($("#v7EquipmentBtn"))return;
+  const commandLeft=$(".command-left"),separator=commandLeft?.querySelector(".separator");
+  if(commandLeft){
+    const btn=document.createElement("button");btn.type="button";btn.id="v7EquipmentBtn";btn.className="tool-btn";btn.title="Practice equipment";btn.setAttribute("aria-label","Practice equipment");btn.textContent="◇";
+    commandLeft.insertBefore(btn,separator||null);
+    btn.addEventListener("click",()=>$("#v7EquipmentDialog")?.showModal())
+  }
+  const dialog=document.createElement("dialog");dialog.id="v7EquipmentDialog";
+  dialog.innerHTML='<div class="dialog-head"><h2>Practice Equipment</h2><p>Add drill equipment only when you need it. The basic animated clipboard stays unchanged.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_EQUIPMENT_TYPES).map(function(entry){return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Choose an item, then tap the rink repeatedly to place it. Drag placed equipment with Select. Press Delete to remove a selected item, or Esc to stop placing.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
+  document.body.append(dialog);
+  dialog.addEventListener("click",event=>{
+    const choice=event.target.closest("[data-v7-equipment]");
+    if(choice){const type=choice.dataset.v7Equipment;dialog.close();v7SetEquipmentPlacement(type)}
+    if(event.target.closest("[data-v7-equipment-close]"))dialog.close()
+  });
+  const style=document.createElement("style");style.id="v7PlatformStyles";style.textContent='.v7-equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.v7-equipment-choice{min-height:68px;border:1px solid #36556d;background:#10283e;color:#edf6fb;border-radius:10px;padding:9px;display:grid;gap:4px;place-items:center;cursor:pointer}.v7-equipment-choice:hover{background:#1a405d}.v7-equipment-choice strong{font-size:12px}.v7-equipment-choice span{font-size:9px;color:#9bb2c3;letter-spacing:.08em}.v7-equipment-help{font-size:11px;color:#9bb2c3;line-height:1.45;margin:12px 0 0}#v7EquipmentBtn.active{background:#1b6e9d;border-color:#57c4ef}@media(max-width:520px){.v7-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
+  document.head.append(style)
+}
+function v7SetupEquipmentEvents(){
+  const svg=$("#rinkSvg");if(!svg||svg.dataset.v7EquipmentEvents==="1")return;svg.dataset.v7EquipmentEvents="1";
+  svg.addEventListener("pointerdown",event=>{
+    if(event.button!==undefined&&event.button!==0)return;
+    const equipmentNode=event.target.closest?.("[data-equipment-id]");
+    if(ui.v7EquipmentPlacement){
+      event.preventDefault();event.stopImmediatePropagation();
+      v7AddEquipment(ui.v7EquipmentPlacement,svgPoint(event));return
+    }
+    if(!equipmentNode||ui.tool!=="select")return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const id=equipmentNode.dataset.equipmentId,item=v7EquipmentById(id);if(!item)return;
+    pushHistory();ui.selectedType="equipment";ui.selectedId=id;ui.v7EquipmentDrag={id,pointerId:event.pointerId};
+    try{svg.setPointerCapture(event.pointerId)}catch{}
+    renderFrame(ui.playhead)
+  },true);
+  svg.addEventListener("pointermove",event=>{
+    const drag=ui.v7EquipmentDrag;if(!drag||drag.pointerId!==event.pointerId)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const item=v7EquipmentById(drag.id);if(!item)return;
+    const p=v59ClampVisiblePoint?v59ClampVisiblePoint(svgPoint(event)):clampRinkPoint(svgPoint(event));item.x=round(p.x,2);item.y=round(p.y,2);renderFrame(ui.playhead)
+  },true);
+  const finish=event=>{
+    const drag=ui.v7EquipmentDrag;if(!drag||drag.pointerId!==event.pointerId)return;
+    event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentDrag=null;syncActiveVariation();scheduleSave();renderAll()
+  };
+  svg.addEventListener("pointerup",finish,true);svg.addEventListener("pointercancel",finish,true);
+  window.addEventListener("keydown",event=>{
+    const tag=document.activeElement?.tagName?.toLowerCase();if(tag==="input"||tag==="textarea"||tag==="select")return;
+    if(event.key==="Escape"){v7CancelEquipmentPlacement();$("#v7EquipmentDialog")?.close();return}
+    if((event.key==="Delete"||event.key==="Backspace")&&ui.selectedType==="equipment"&&ui.selectedId){event.preventDefault();v7DeleteEquipment(ui.selectedId)}
+  })
+}
+
+const initV682ForV7=init;
+init=function(){
+  initV682ForV7();
+  state=v7EnsurePlatformState(state);
+  if(!Array.isArray(state.equipment))state.equipment=[];
+  syncActiveVariation();
+  v7PrepareEquipmentUI();
+  v7SetupEquipmentEvents();
+  renderAll()
+};
+Object.assign(window.BOTD_TEST,{
+  platformSchemaVersion:()=>V7_PLATFORM_SCHEMA_VERSION,
+  platformMeta:()=>deepClone(state.platform),
+  equipmentTypes:()=>deepClone(V7_EQUIPMENT_TYPES),
+  equipment:()=>deepClone(state.equipment||[]),
+  addEquipment:(type,point)=>deepClone(v7AddEquipment(type,point||{x:500,y:300})),
+  deleteEquipment:id=>v7DeleteEquipment(id),
+  semanticMovements:()=>deepClone(V7_SEMANTIC_MOVEMENT)
+});
+
+
 const BOTD_SHELL_MESSAGE_SOURCE="botd-shell";
 function v682ApplyShellFocusMode(active){
   document.body.classList.toggle("focus-mode",Boolean(active));
