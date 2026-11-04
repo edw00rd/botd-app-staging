@@ -37,8 +37,11 @@ Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e
 
 - Preserves the v6.8.2 animated clipboard as the default workflow.
 - Adds compatibility-safe semantic movement metadata for player skating and puck actions.
-- Adds persistent practice-equipment primitives: cone, tire, divider pad, training pad, extra puck, puck pile, stick, rebounder, and extra net.
-- Adds a progressive-disclosure Practice Equipment picker; placed equipment can be dragged and deleted without changing normal play authoring.
+- Adds first-class interactive rink objects: cone, tire, bumper, divider pad, training pad, extra puck, puck pile, stick, rebounder, and extra net.
+- Reworks rink objects as self-contained geometry/physics entities with top-down rink-relative sizing, drag/axis positioning, rotation, resizing, and puck-response behavior.
+- Cones/dividers/pads soft-block pucks; tires/bumpers/rebounders deflect them; nets stop them.
+- Puck piles now dispense usable spare puck objects; a spare puck can become the active puck on a new route.
+- Uses the rendered crease radius (48 board units) as the initial rink-relative calibration reference while retaining slight touch-friendly exaggeration.
 - Adds v7 platform/data-model documentation and isolated branch validation.
-- Editor SHA-256: `9e896dd7be36102f64efe32fa4eccf32faba51c95c52c71f67cc1c3f8f942022`.
+- Editor SHA-256: `551d5d14a79081a3463f3c90e7290c97c5331142844cb44ad09903d2fa2b2acf`.
 - This is staging-only feature work and is not a production release.
