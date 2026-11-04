@@ -56,7 +56,7 @@ for(const required of [
   "v60BuildShotPath(start",
   "requestedDuration(event,naturalDuration)",
   "slicePolylineByProgress(path,0,progress)",
-  "includeObjects:true",
+  "includeObjects:!event.ignoreObjects",
   "boardFollow:!!built?.boardFollow"
 ]) assert.ok(v7Shot.includes(required),`V7 shot path regression: missing ${required}`);
 
