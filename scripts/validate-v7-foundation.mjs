@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
+import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 
@@ -58,5 +59,39 @@ for(const required of [
   "includeObjects:true",
   "boardFollow:!!built?.boardFollow"
 ]) assert.ok(v7Shot.includes(required),`V7 shot path regression: missing ${required}`);
+
+// Execute the v7 shot engine, not just its syntax. Missing closure helpers
+// previously caused renderFrame() to throw and disabled the entire editor.
+{
+  const engineStart=app.lastIndexOf("buildPuckTimeline=function(){");
+  const engineEnd=app.indexOf("\nfunction v7EquipmentSvg",engineStart);
+  assert.ok(engineStart>0&&engineEnd>engineStart,"v7 timeline engine not found");
+  const evt={id:"shot-test",type:"shot",time:0,target:{x:800,y:400},aimVector:{x:1,y:0},power:7,travelDuration:3};
+  const intended=[{x:100,y:100},{x:200,y:100},{x:200,y:200}];
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const context={
+    state:{puckStart:{x:100,y:100},timeline:{duration:12},equipment:[]},
+    activeTake:()=>({events:[evt]}),
+    clamp:(n,lo,hi)=>Math.max(lo,Math.min(hi,n)),
+    clampRinkPoint:p=>p,
+    shotSpeedUnits:()=>100,
+    polylineLength:points=>points.slice(1).reduce((sum,p,i)=>sum+dist(p,points[i]),0),
+    v60BuildShotPath:()=>({path:intended,direction:{x:1,y:0},goal:false,boardFollow:true}),
+    goalResultForShot:()=>({goal:false}),
+    firstCollisionOnPath:()=>null,
+    stickPosition:()=>({x:100,y:100}),
+    v7CollisionPath:()=>{throw Error("No collision expected")},
+    slicePolylineByProgress:()=>{throw Error("No collision expected")},
+  };
+  vm.runInNewContext("var buildPuckTimeline;\n"+app.slice(engineStart,engineEnd),context,{timeout:2000});
+  const result=context.buildPuckTimeline();
+  const flight=result.intervals.find(item=>item.eventId==="shot-test");
+  assert.ok(flight,"shot travel interval missing");
+  assert.equal(flight.path.length,3,"aim-based curved shot geometry was discarded");
+  assert.equal(flight.path[1].x,200);
+  assert.equal(flight.path[1].y,100);
+  assert.equal(flight.end,3,"shot travelDuration was not preserved");
+  assert.equal(flight.boardFollow,true,"board-follow indicator was lost");
+}
 
 console.log("V7 foundation validation passed: legacy clipboard preserved, semantic metadata present, interactive rink-object engine compiled.");
