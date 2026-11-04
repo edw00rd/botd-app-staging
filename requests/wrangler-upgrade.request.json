@@ -1,6 +1,0 @@
-{
-  "requested_by": "chatgpt",
-  "wrangler": "4.157.0",
-  "reason": "replace vulnerable Wrangler toolchain after isolated probe passed with zero npm vulnerabilities",
-  "probe_run": 41753491230
-}
