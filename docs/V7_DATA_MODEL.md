@@ -15,7 +15,7 @@ A board represents a play, concept, or drill.
 ```json
 {
   "platform": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "kind": "play",
     "governingBody": "none",
     "division": "",
@@ -81,36 +81,77 @@ Puck events map directly:
 
 Future semantic actions may include edgework, deke, jump, pressure, screen, retrieval, and other coaching-specific concepts. They must not overload visual line styles.
 
-## Equipment
+## Interactive rink objects
 
-Equipment is static practice geometry in the first foundation release.
+Practice equipment is not decorative artwork. Every placed item is a self-contained rink object with its own transform, geometry, physical puck response, capabilities, and—where applicable—inventory.
+
+The rendered full-ice crease radius (48 board units) is the initial universal calibration reference. Objects are sized relative to the rink and kept only slightly exaggerated for touch usability.
 
 ```json
 {
   "id": "eq_...",
-  "type": "cone",
+  "type": "divider",
   "x": 500,
   "y": 300,
-  "rotation": 0,
+  "rotation": 35,
   "scale": 1,
-  "label": ""
+  "label": "",
+  "geometry": {
+    "length": 58,
+    "width": 11
+  },
+  "physics": {
+    "collidable": true,
+    "response": "soft_block",
+    "restitution": 0.10
+  },
+  "capabilities": {
+    "rotatable": true,
+    "resize": "length",
+    "puckSource": false
+  },
+  "quantity": null
 }
 ```
 
-Current equipment types:
-- `cone`
-- `tire`
-- `divider`
-- `pad`
-- `puck`
-- `puckPile`
-- `stick`
-- `rebounder`
-- `net`
+Current object types:
+- `cone` — small circular soft blocker;
+- `tire` — scalable circular puck bumper;
+- `bumper` — rotatable/resizable high-rebound obstacle;
+- `divider` — rotatable length-resizable soft blocker;
+- `pad` — rotatable length-resizable training obstacle;
+- `puck` — usable spare puck object;
+- `puckPile` — puck source with quantity/inventory;
+- `stick` — rotatable length-resizable low-rebound obstacle;
+- `rebounder` — rotatable length-resizable high-rebound obstacle;
+- `net` — rotatable scalable stop/catch object.
+
+### Puck response
+
+Object collision behavior is deterministic and part of the animation timeline:
+
+- `bounce` reflects the puck using the object's collision normal and restitution;
+- `soft_block` produces a short low-energy deflection;
+- `stop` terminates puck travel at the object;
+- `none` does not participate in collision detection.
+
+The existing "Ignore defense" event option only suppresses player/defender collisions. It does **not** make a puck pass through physical rink objects.
+
+### Object transforms
+
+Objects support type-specific transform controls:
+- X/Y rink-axis positioning;
+- direct drag;
+- rotation where meaningful;
+- uniform scaling for circular/net objects;
+- length resizing for divider/pad/bumper/stick/rebounder objects;
+- keyboard/nudge positioning.
+
+### Puck sources
+
+A puck pile can dispense a `puck` object and decrement its quantity. A spare puck can be promoted to the active animated puck, which starts a new independent puck route from the spare puck's exact rink location.
 
 Equipment is captured inside play variations because station geometry may differ between variations.
-
-Future equipment attributes may include dimensions, color, quantity, ownership, animation state, collision semantics, and station membership.
 
 ## Practice model — target
 
