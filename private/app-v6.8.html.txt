@@ -5378,6 +5378,7 @@ function v7CollisionPath(start,target,collision){
 buildPuckTimeline=function(){
   const take=activeTake(),events=[...take.events].sort((a,b)=>a.time-b.time||(a.order||0)-(b.order||0)),intervals=[],results=new Map();let cursor=0,mode="loose",holder=null,loose={...state.puckStart};
   const addSteady=end=>{if(end>cursor+.0001){intervals.push({start:cursor,end,kind:mode,holder,pos:loose});cursor=end}};
+  const requestedDuration=(event,natural)=>{const n=Number(event.travelDuration);return Number.isFinite(n)&&n>.01?clamp(n,.05,30):natural};
   for(const event of events){
     event.time=clamp(Number(event.time)||0,0,state.timeline.duration);let overridePos=null;
     if(event.time<cursor-.015){
