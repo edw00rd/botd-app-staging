@@ -5251,10 +5251,17 @@ loadPlay=function(play){
 };
 const newBoardV682ForV7=newBoard;
 newBoard=function(){
+  // Let the legacy New operation capture undo history before clearing v7 data.
   newBoardV682ForV7();
   state=v7EnsurePlatformState(state);
+  state.equipment=[];
+  ui.v7EquipmentDrag=null;
+  ui.v7EquipmentTransform=null;
+  v7CancelEquipmentPlacement();
+  if(ui.selectedType==="equipment"){ui.selectedType=null;ui.selectedId=null}
   syncActiveVariation();
-  renderAll()
+  renderAll();
+  scheduleSave()
 };
 
 function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id)||null}
