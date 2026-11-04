@@ -238,7 +238,7 @@ assert.ok(deployGate.includes("const sourceTree=git('rev-parse','HEAD^{tree}')")
 assert.ok(deployGate.includes('`${approvedStagingCommit}^{tree}`'));
 assert.ok(deployGate.includes('Production source tree does not exactly match BOTD_APPROVED_STAGING_COMMIT.'));
 assert.ok(!deployGate.includes('BOTD_APPROVED_STAGING_COMMIT!==commit'));
-assert.ok(releaseNotes.includes('9e896dd7be36102f64efe32fa4eccf32faba51c95c52c71f67cc1c3f8f942022'));
+assert.ok(releaseNotes.includes('551d5d14a79081a3463f3c90e7290c97c5331142844cb44ad09903d2fa2b2acf'));
 assert.ok(read('LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
 assert.ok(read('public/LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
 
