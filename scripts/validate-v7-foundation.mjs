@@ -8,14 +8,14 @@ assert.equal(scripts.length,1,"Expected exactly one editor script");
 new Function(scripts[0][1]);
 
 for(const marker of [
-  "V7_PLATFORM_SCHEMA_VERSION=1",
-  "V7_EQUIPMENT_TYPES",
+  "V7_PLATFORM_SCHEMA_VERSION=2",
+  "V7_RINK_OBJECT_TYPES",
   "V7_SEMANTIC_MOVEMENT",
   "function v7EnsurePlatformState",
   "function v7RenderEquipment",
   "function v7PrepareEquipmentUI",
   "function v7SetupEquipmentEvents",
-  "Practice Equipment",
+  "Rink Objects",
   "data-equipment-id",
   "skate.forward",
   "skate.backward",
@@ -32,7 +32,20 @@ for(const legacyMarker of [
   'id="toolbarPlayback"',
 ]) assert.ok(app.includes(legacyMarker),`Legacy clipboard capability missing: ${legacyMarker}`);
 
-const types=["cone","tire","divider","pad","puck","puckPile","stick","rebounder","net"];
+const types=["cone","tire","bumper","divider","pad","puck","puckPile","stick","rebounder","net"];
 for(const type of types)assert.ok(app.includes(type+':{label:')||app.includes(type+':{label:'),`Missing equipment type: ${type}`);
 
-console.log("V7 foundation validation passed: legacy clipboard markers preserved, semantic metadata present, equipment authoring compiled.");
+for(const marker of [
+  "function v7EquipmentCollisionAt",
+  "function v7CollisionPath",
+  'response:"bounce"',
+  'response:"stop"',
+  'response:"soft_block"',
+  "Take a usable puck",
+  "Use as active puck",
+  "Crease radius =",
+  "v7ObjectRotation",
+  "v7ObjectLength",
+]) assert.ok(app.includes(marker),`Missing interactive object marker: ${marker}`);
+
+console.log("V7 foundation validation passed: legacy clipboard preserved, semantic metadata present, interactive rink-object engine compiled.");
