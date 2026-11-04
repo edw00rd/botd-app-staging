@@ -94,4 +94,73 @@ for(const required of [
   assert.equal(flight.boardFollow,true,"board-follow indicator was lost");
 }
 
+
+// Exercise both Pass interactions. v7 previously rejected loose-puck passes
+// and silently dropped the "passSpace" action, leaving the puck stationary.
+{
+  const engineStart=app.lastIndexOf("buildPuckTimeline=function(){");
+  const engineEnd=app.indexOf("\nfunction v7EquipmentSvg",engineStart);
+  const engine="var buildPuckTimeline;\n"+app.slice(engineStart,engineEnd);
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const run=(events,collision=null)=>{
+    const collisionCalls=[];
+    const context={
+      state:{puckStart:{x:100,y:100},timeline:{duration:12},onIce:{A:{},B:{}},equipment:[]},
+      activeTake:()=>({events:structuredClone(events)}),
+      clamp:(n,lo,hi)=>Math.max(lo,Math.min(hi,n)),
+      clampRinkPoint:p=>p,
+      deepClone:p=>structuredClone(p),
+      dist,
+      polylineLength:points=>points.slice(1).reduce((sum,p,i)=>sum+dist(p,points[i]),0),
+      passSpeedUnits:()=>100,shotSpeedUnits:()=>100,
+      stickPosition:id=>id==="A"?{x:130,y:100}:{x:320,y:100},
+      predictReceiverTarget:()=>({point:{x:320,y:100}}),
+      firstCollisionOnPath:(...args)=>{collisionCalls.push(args[4]);return collision},
+      boardBankPath:()=>null,
+      v7CollisionPath:(start,end,hit)=>({path:[start,hit.point,{x:hit.point.x-10,y:hit.point.y}],end:{x:hit.point.x-10,y:hit.point.y},extraTime:.12}),
+      v60BuildShotPath:()=>({path:[{x:100,y:100},{x:200,y:100},{x:200,y:200}],goal:false,boardFollow:true}),
+      goalResultForShot:()=>({goal:false}),
+      slicePolylineByProgress:()=>{throw Error("Unexpected collision during shot")},
+    };
+    vm.runInNewContext(engine,context,{timeout:2000});
+    return{timeline:context.buildPuckTimeline(),collisionCalls};
+  };
+  const loose=run([{id:"loose-pass",type:"pass",time:0,targetId:"B",speed:6}]);
+  assert.equal(loose.timeline.results.get("loose-pass").valid,true,"Loose-puck pass must remain available");
+  assert.equal(loose.timeline.results.get("loose-pass").source,null);
+  assert.equal(loose.timeline.results.get("loose-pass").target,"B");
+  assert.ok(loose.timeline.intervals.some(i=>i.eventId==="loose-pass"&&i.motion==="pass"));
+  assert.ok(loose.timeline.intervals.some(i=>i.kind==="attached"&&i.holder==="B"));
+  assert.ok(loose.collisionCalls.some(c=>c?.includeObjects===true),"Passing must check rink objects");
+
+  const attached=run([
+    {id:"take",type:"possess",time:0,targetId:"A"},
+    {id:"team-pass",type:"pass",time:.2,targetId:"B",speed:6,travelDuration:2}
+  ]);
+  assert.equal(attached.timeline.results.get("team-pass").valid,true);
+  assert.equal(attached.timeline.results.get("team-pass").source,"A");
+  assert.equal(attached.timeline.results.get("team-pass").duration,2,"Pass travel timing lost");
+
+  const space=run([{id:"space-pass",type:"passSpace",time:0,target:{x:400,y:280},speed:6}]);
+  const spaceFlight=space.timeline.intervals.find(i=>i.eventId==="space-pass");
+  assert.ok(spaceFlight,"Pass to open ice must produce puck movement");
+  assert.equal(space.timeline.results.get("space-pass").passToSpace,true);
+  assert.equal(spaceFlight.path.at(-1).x,400);
+  assert.equal(spaceFlight.path.at(-1).y,280);
+  assert.ok(!space.timeline.intervals.some(i=>i.kind==="attached"),"Open-ice pass cannot attach to a player");
+  assert.ok(space.collisionCalls.some(c=>c?.includeObjects===true),"Open-ice pass must check rink objects");
+
+  const fromHolder=run([{id:"take",type:"possess",time:0,targetId:"A"},
+    {id:"space-held",type:"passSpace",time:.2,target:{x:450,y:220},travelDuration:1.5}]);
+  assert.equal(fromHolder.timeline.results.get("space-held").valid,true);
+  assert.equal(fromHolder.timeline.results.get("space-held").duration,1.5);
+  assert.equal(fromHolder.timeline.results.get("space-held").source,"A");
+
+  const hit={kind:"object",point:{x:200,y:180},time:.5,response:"bounce"};
+  const obstructed=run([{id:"blocked-space",type:"passSpace",time:0,target:{x:400,y:280}}],hit);
+  assert.equal(obstructed.timeline.results.get("blocked-space").collision.kind,"object");
+  assert.equal(obstructed.timeline.intervals.find(i=>i.eventId==="blocked-space").path.length,3);
+}
+assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction missing");
+
 console.log("V7 foundation validation passed: legacy clipboard preserved, semantic metadata present, interactive rink-object engine compiled.");
