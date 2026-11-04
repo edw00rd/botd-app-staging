@@ -15,6 +15,6 @@
     "build:production": "wrangler deploy --config wrangler.production.jsonc --dry-run"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.157.0"
   }
 }
