@@ -1576,7 +1576,7 @@ function renderObjectLayer(time){
   const addBadge=(group,label,x,y)=>{const badge=svgEl("g",{class:"token-role-badge"});badge.append(svgEl("circle",{cx:x,cy:y,r:11,fill:"#f8fbfd",stroke:"#7890a2","stroke-width":2}));const text=svgEl("text",{x,y,"text-anchor":"middle","dominant-baseline":"central",class:"token-role-text"});text.textContent=label;badge.append(text);group.append(badge)};
   for(const id of Object.keys(state.onIce)){
     const p=playerById(id);if(!p)continue;const pos=playerPositionAt(id,time),colors=playerColors(p),g=svgEl("g",{"data-player-id":id,role:"button","aria-label":p.name,tabindex:"0",transform:`translate(${round(pos.x,2)} ${round(pos.y,2)})`,style:"cursor:pointer"});setGlowStyle(g,p.glow,colors.primary);
-    const token=svgEl("g",{class:`ice-token ice-token-${p.role}`});
+    const token=svgEl("g",{class:`ice-token ice-token-${p.role}`,transform:"scale(0.92)"});
     if(p.role==="goalie"){
       token.append(svgEl("rect",{x:-24,y:-30,width:48,height:60,rx:8,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
       token.append(svgEl("path",{d:"M-13 -22V22M0 -22V22M13 -22V22",fill:"none",stroke:colors.trim,"stroke-width":3.5,"stroke-linecap":"round"}));
@@ -5401,25 +5401,55 @@ buildPuckTimeline=function(){
       mode="loose";holder=null;loose=currentPos;cursor=at;results.set(event.id,{valid:true,arrival:at,path:[currentPos]});continue
     }
     if(event.type==="pass"){
-      if(mode!=="attached"||!holder){results.set(event.id,{valid:false,reason:"The puck is not possessed at this time"});continue}
-      if(!state.onIce[event.targetId]||event.targetId===holder){results.set(event.id,{valid:false,reason:"Choose another on-ice receiver"});continue}
-      const source=holder,start=stickPosition(source,at),speed=passSpeedUnits(event.speed||6),prediction=predictReceiverTarget(event.targetId,at,start,speed);
-      let path=[start,prediction.point],length=polylineLength(path),arrival=at+length/speed;
-      let collision=firstCollisionOnPath(path,at,arrival,[source,event.targetId],{includePlayers:!event.ignoreDefense,includeObjects:true});
+      // Preserve v6.1: a pass can start from a loose puck or from a holder.
+      if(!state.onIce[event.targetId]||(mode==="attached"&&event.targetId===holder)){
+        results.set(event.id,{valid:false,reason:"Choose another on-ice receiver"});continue
+      }
+      const source=mode==="attached"?holder:null;
+      const start=source?stickPosition(source,at):currentPos;
+      const speed=passSpeedUnits(event.speed||6);
+      const prediction=predictReceiverTarget(event.targetId,at,start,speed);
+      const naturalDuration=dist(start,prediction.point)/speed;
+      const duration=requestedDuration(event,naturalDuration),arrival=at+duration;
+      const explicit=Number(event.travelDuration);
+      const target=Number.isFinite(explicit)&&explicit>.01?stickPosition(event.targetId,arrival):prediction.point;
+      let path=[start,target];
+      let collision=firstCollisionOnPath(path,at,arrival,[source,event.targetId].filter(Boolean),{includePlayers:!event.ignoreDefense,includeObjects:true});
       if(collision?.kind==="player"&&!event.ignoreDefense){
-        const bank=boardBankPath(start,prediction.point);
+        const bank=boardBankPath(start,target);
         if(bank){
-          const bankArrival=at+bank.length/speed,bankHit=firstCollisionOnPath(bank.points,at,bankArrival,[source,event.targetId],{includePlayers:true,includeObjects:true});
-          if(!bankHit){path=bank.points;length=bank.length;arrival=bankArrival;collision=null}
+          const bankHit=firstCollisionOnPath(bank.points,at,arrival,[source,event.targetId].filter(Boolean),{includePlayers:true,includeObjects:true});
+          if(!bankHit){path=bank.points;collision=null}
         }
       }
       if(collision){
-        const response=v7CollisionPath(start,prediction.point,collision),travelEnd=collision.time+response.extraTime;
-        intervals.push({start:at,end:travelEnd,kind:"travel",path:response.path,spin:true,sauce:!!event.sauce,eventId:event.id,collision});
+        const response=v7CollisionPath(start,target,collision);
+        const travelEnd=collision.time+response.extraTime;
+        intervals.push({start:at,end:travelEnd,kind:"travel",path:response.path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass",collision});
         cursor=travelEnd;mode="loose";holder=null;loose=response.end;
-        results.set(event.id,{valid:true,blocked:true,source,target:event.targetId,arrival:travelEnd,path:response.path,collision});continue
+        results.set(event.id,{valid:true,blocked:true,source,target:event.targetId,arrival:travelEnd,duration:travelEnd-at,path:response.path,collision});continue
       }
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id});cursor=arrival;mode="attached";holder=event.targetId;results.set(event.id,{valid:true,source,target:event.targetId,arrival,path,bank:path.length>2});continue
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass"});
+      cursor=arrival;mode="attached";holder=event.targetId;
+      results.set(event.id,{valid:true,source,target:event.targetId,arrival,duration,path,bank:path.length>2});continue
+    }
+    if(event.type==="passSpace"){
+      // Preserve the open-ice pass action, regardless of current possession.
+      const source=mode==="attached"?holder:null;
+      const start=source?stickPosition(source,at):currentPos;
+      const target=clampRinkPoint(event.target||currentPos);
+      const speed=passSpeedUnits(event.speed||6);
+      const naturalDuration=polylineLength([start,target])/speed;
+      const duration=requestedDuration(event,naturalDuration);
+      let path=[start,target],arrival=at+duration;
+      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:true});
+      if(collision){
+        const response=v7CollisionPath(start,target,collision);
+        path=response.path;arrival=collision.time+response.extraTime
+      }
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass",collision});
+      cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
+      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,collision,passToSpace:true});continue
     }
     if(event.type==="shot"){
       const source=mode==="attached"?holder:null;
