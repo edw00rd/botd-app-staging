@@ -937,13 +937,13 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
             <g fill="none" stroke="#d74641" stroke-width="3"><circle cx="180" cy="170" r="66"/><circle cx="180" cy="430" r="66"/><circle cx="820" cy="170" r="66"/><circle cx="820" cy="430" r="66"/></g>
             <g fill="#d74641"><circle cx="180" cy="170" r="6"/><circle cx="180" cy="430" r="6"/><circle cx="820" cy="170" r="6"/><circle cx="820" cy="430" r="6"/><circle cx="410" cy="170" r="6"/><circle cx="410" cy="430" r="6"/><circle cx="590" cy="170" r="6"/><circle cx="590" cy="430" r="6"/></g>
             <path d="M75 252A48 48 0 0 1 75 348L75 300Z" fill="#b8e1f1" fill-opacity=".7" stroke="#d74641" stroke-width="3"/><path d="M925 252A48 48 0 0 0 925 348L925 300Z" fill="#b8e1f1" fill-opacity=".7" stroke="#d74641" stroke-width="3"/>
-            <path d="M49 257h26v86H49q-16-43 0-86z" fill="none" stroke="#49687a" stroke-width="4"/><path d="M951 257h-26v86h26q16-43 0-86z" fill="none" stroke="#49687a" stroke-width="4"/>
+            
           </g><rect x="10" y="10" width="980" height="580" rx="82" fill="none" stroke="#456171" stroke-width="4"/>
           <image id="centerLogoFull" href="" x="404" y="204" width="192" height="192" preserveAspectRatio="xMidYMid meet" opacity=".32" clip-path="url(#fullClip)"/>
         </g>
         <g id="halfRink" display="none">
           <rect x="10" y="10" width="580" height="680" rx="72" fill="url(#iceGrad)" stroke="#607f91" stroke-width="4"/><rect x="10" y="10" width="580" height="680" rx="72" fill="url(#iceTex)" clip-path="url(#halfClip)"/>
-          <g clip-path="url(#halfClip)"><line x1="10" y1="105" x2="590" y2="105" stroke="#d74945" stroke-width="5"/><path d="M205 10L225 105M395 10L375 105" fill="none" stroke="#d74945" stroke-width="2.5"/><line x1="10" y1="430" x2="590" y2="430" stroke="#1265b0" stroke-width="11"/><line x1="10" y1="688" x2="590" y2="688" stroke="#d74641" stroke-width="5"/><circle cx="300" cy="688" r="78" fill="none" stroke="#d74641" stroke-width="3"/><circle cx="300" cy="688" r="6" fill="#1265b0"/><g fill="none" stroke="#d74641" stroke-width="3"><circle cx="175" cy="285" r="66"/><circle cx="425" cy="285" r="66"/></g><g fill="#d74641"><circle cx="175" cy="285" r="6"/><circle cx="425" cy="285" r="6"/><circle cx="175" cy="555" r="6"/><circle cx="425" cy="555" r="6"/></g><path d="M245 105A55 55 0 0 1 355 105L300 105Z" fill="#b8e1f1" fill-opacity=".72" stroke="#d74641" stroke-width="3"/><path d="M258 105V65Q300 43 342 65V105" fill="none" stroke="#49687a" stroke-width="4"/></g>
+          <g clip-path="url(#halfClip)"><line x1="10" y1="105" x2="590" y2="105" stroke="#d74945" stroke-width="5"/><path d="M205 10L225 105M395 10L375 105" fill="none" stroke="#d74945" stroke-width="2.5"/><line x1="10" y1="430" x2="590" y2="430" stroke="#1265b0" stroke-width="11"/><line x1="10" y1="688" x2="590" y2="688" stroke="#d74641" stroke-width="5"/><circle cx="300" cy="688" r="78" fill="none" stroke="#d74641" stroke-width="3"/><circle cx="300" cy="688" r="6" fill="#1265b0"/><g fill="none" stroke="#d74641" stroke-width="3"><circle cx="175" cy="285" r="66"/><circle cx="425" cy="285" r="66"/></g><g fill="#d74641"><circle cx="175" cy="285" r="6"/><circle cx="425" cy="285" r="6"/><circle cx="175" cy="555" r="6"/><circle cx="425" cy="555" r="6"/></g><path d="M245 105A55 55 0 0 1 355 105L300 105Z" fill="#b8e1f1" fill-opacity=".72" stroke="#d74641" stroke-width="3"/></g>
           <rect x="10" y="10" width="580" height="680" rx="72" fill="none" stroke="#456171" stroke-width="4"/>
           <g clip-path="url(#halfLogoClip)" opacity=".32" id="centerLogoHalfGroup"><image id="centerLogoHalf" href="" x="204" y="594" width="192" height="192" preserveAspectRatio="xMidYMid meet" transform="rotate(90 300 690)"/></g>
         </g>
@@ -5153,11 +5153,12 @@ function v7NormalizeEquipmentItem(item){
   const maxLength=item.type==="divider"?190:item.type==="stick"?70:120;
   if(Number.isFinite(Number(item.length)))geometry.length=clamp(Number(item.length),minLength,maxLength);
   if(Number.isFinite(Number(geometry.radius)))geometry.radius=clamp(Number(geometry.radius),2.5,28);
-  if(Number.isFinite(Number(geometry.width)))geometry.width=clamp(Number(geometry.width),2,48);
+  if(Number.isFinite(Number(geometry.width)))geometry.width=clamp(Number(geometry.width),2,item.goalSide?130:48);
   if(Number.isFinite(Number(geometry.length)))geometry.length=clamp(Number(geometry.length),minLength,maxLength);
   return{
     id:String(item.id||uid("eq")),
     type:item.type,
+    goalSide:item.type==="net"&&(item.goalSide==="left"||item.goalSide==="right")?item.goalSide:null,
     x:round(Number(p.x)||500,2),
     y:round(Number(p.y)||300,2),
     rotation:capabilities.rotatable?round(Number(item.rotation)||0,1):0,
@@ -5172,6 +5173,27 @@ function v7NormalizeEquipmentItem(item){
 function v7NormalizeEquipmentList(items){
   return(Array.isArray(items)?items:[]).map(v7NormalizeEquipmentItem).filter(Boolean)
 }
+/* Regulation goals are persistent rink objects. Added during legacy play
+   migration and variation restores; normal extra nets stay separate. */
+function v7DefaultGoalNet(side){
+  const left=side==="left";
+  return v7NormalizeEquipmentItem({
+    id:"v7-goal-"+side,type:"net",goalSide:side,
+    x:left?62:938,y:300,rotation:left?0:180,scale:1,
+    geometry:{length:26,width:86},
+    physics:{collidable:true,response:"stop",restitution:0}
+  })
+}
+const v7NormalizeEquipmentListBeforeGoals=v7NormalizeEquipmentList;
+v7NormalizeEquipmentList=function(items){
+  const normalized=v7NormalizeEquipmentListBeforeGoals(items),found=new Set(),result=[];
+  for(const item of normalized){
+    if(item.goalSide){if(found.has(item.goalSide))continue;found.add(item.goalSide)}
+    result.push(item)
+  }
+  for(const side of ["left","right"])if(!found.has(side))result.push(v7DefaultGoalNet(side));
+  return result
+};
 function v7EnsureSemanticTimeline(timeline){
   if(!timeline||typeof timeline!=="object")return timeline;
   for(const clip of timeline.movements||[]){
@@ -5254,7 +5276,7 @@ newBoard=function(){
   // Let the legacy New operation capture undo history before clearing v7 data.
   newBoardV682ForV7();
   state=v7EnsurePlatformState(state);
-  state.equipment=[];
+  state.equipment=v7NormalizeEquipmentList([]);
   ui.v7EquipmentDrag=null;
   ui.v7EquipmentTransform=null;
   v7CancelEquipmentPlacement();
@@ -5325,7 +5347,7 @@ function v7EquipmentCollisionAt(item,worldPoint){
     restitution:clamp(Number(item.physics.restitution)||0,0,1)
   }
 }
-function v7FirstEquipmentCollisionOnPath(points,startTime,endTime){
+function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNets=true){
   let best=null,total=polylineLength(points);if(total<.001)return null;
   let walked=0;
   for(let s=1;s<points.length;s++){
@@ -5333,6 +5355,7 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime){
     for(let i=0;i<=steps;i++){
       const u=i/steps,along=(walked+seg*u)/total,p=pointLerp(a,b,u);
       for(const item of state.equipment||[]){
+        if(item.goalSide&&!includeGoalNets)continue;
         const hit=v7EquipmentCollisionAt(item,p);
         if(hit&&(!best||along<best.progress)){
           best={...hit,time:lerp(startTime,endTime,along),progress:along};
@@ -5350,7 +5373,7 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime){
    Progress is arc length (rather than segment index), so board-following
    trajectories display the lift at the actual obstacle crossing. */
 function v7ObjectClearancesOnPath(points){
-  const total=polylineLength(points),items=(state.equipment||[]).filter(item=>item.physics?.collidable);
+  const total=polylineLength(points),items=(state.equipment||[]).filter(item=>item.physics?.collidable&&!item.goalSide);
   if(total<.001||!items.length)return[];
   const clearances=[],byId=new Map();
   let walked=0;
@@ -5373,11 +5396,91 @@ function v7ObjectClearancesOnPath(points){
   return clearances
 }
 
+
+/* First-class regulation goals: +local X faces the ice; scoring is only
+   front-to-back through the actual mouth, never through mesh or posts. */
+function v7GoalNets(){return(state.equipment||[]).filter(item=>item.type==="net"&&!!item.goalSide)}
+function v7GoalNetPoints(item){
+  const halfL=(Number(item.geometry?.length)||26)/2,halfW=(Number(item.geometry?.width)||86)/2;
+  return{
+    frontTop:v7LocalToWorld(item,{x:halfL,y:-halfW}),
+    frontBottom:v7LocalToWorld(item,{x:halfL,y:halfW}),
+    backTop:v7LocalToWorld(item,{x:-halfL,y:-halfW}),
+    backBottom:v7LocalToWorld(item,{x:-halfL,y:halfW}),halfL,halfW
+  }
+}
+function v7NetGoalCandidate(start,direction,maxDistance){
+  let best=null;
+  for(const net of v7GoalNets()){
+    const p=v7GoalNetPoints(net),origin=v7WorldToLocal(net,start),facing=v7RotatePoint({x:1,y:0},net.rotation);
+    if(direction.x*facing.x+direction.y*facing.y>=-.0001||origin.x<p.halfL-.02)continue;
+    const hit=v64RaySegmentHit(start,direction,maxDistance,p.frontTop,p.frontBottom);
+    if(!hit)continue;
+    const local=v7WorldToLocal(net,hit.point),margin=Math.min(4.5,p.halfW*.13);
+    if(Math.abs(local.y)>=p.halfW-margin)continue;
+    const end=v7LocalToWorld(net,{x:-p.halfL+1,y:local.y});
+    const candidate={goal:true,distance:hit.distance,entry:hit.point,end,side:net.goalSide,netId:net.id};
+    if(!best||candidate.distance<best.distance)best=candidate
+  }
+  return best
+}
+v64GoalCandidate=function(start,direction,maxDistance){return v7NetGoalCandidate(start,direction,maxDistance)};
+goalResultForShot=function(start,target){
+  const dx=target.x-start.x,dy=target.y-start.y,length=Math.hypot(dx,dy);
+  if(length<.01)return{goal:false};
+  return v7NetGoalCandidate(start,{x:dx/length,y:dy/length},length)||{goal:false}
+};
+v64NearestShotSurface=function(start,direction,maxDistance){
+  let best=null;
+  const consider=(a,b,attrs)=>{
+    const hit=v64RaySegmentHit(start,direction,maxDistance,a,b);
+    if(!hit)return;
+    const candidate={...attrs,...hit,a,b};
+    if(!best||candidate.distance<best.distance)best=candidate
+  };
+  const perimeter=v60RoundedRinkPerimeter();
+  for(let i=0;i<perimeter.length-1;i++)
+    consider(perimeter[i],perimeter[i+1],{kind:"board",index:i});
+  for(const net of v7GoalNets()){
+    const p=v7GoalNetPoints(net),attrs={kind:"net",net:net.goalSide,netId:net.id};
+    consider(p.frontTop,p.backTop,{...attrs,surface:"top"});
+    consider(p.backTop,p.backBottom,{...attrs,surface:"back"});
+    consider(p.backBottom,p.frontBottom,{...attrs,surface:"bottom"});
+    for(const center of [p.frontTop,p.frontBottom]){
+      const radius=3.6*(net.scale||1),ox=start.x-center.x,oy=start.y-center.y;
+      const projection=ox*direction.x+oy*direction.y;
+      const delta=projection*projection-(ox*ox+oy*oy-radius*radius);
+      if(delta<0)continue;
+      const t=-projection-Math.sqrt(delta);
+      if(t<=.01||t>maxDistance)continue;
+      const point={x:start.x+direction.x*t,y:start.y+direction.y*t};
+      const normal=v64Unit({x:point.x-center.x,y:point.y-center.y}),tangent={x:-normal.y,y:normal.x};
+      const candidate={...attrs,surface:"post",point,distance:t,
+        a:{x:point.x-tangent.x*5,y:point.y-tangent.y*5},
+        b:{x:point.x+tangent.x*5,y:point.y+tangent.y*5}};
+      if(!best||candidate.distance<best.distance)best=candidate
+    }
+  }
+  return best
+};
+/* Board/net contact timing for haptics, independent of device support. */
+function v7ContactProgress(points,point){
+  const total=polylineLength(points);if(!total)return null;
+  let walked=0,best=null;
+  for(let i=1;i<points.length;i++){
+    const a=points[i-1],b=points[i],length=dist(a,b),near=v7ClosestPointSegment(point,a,b);
+    const delta=dist(point,near);
+    if(!best||delta<best.delta)best={delta,progress:(walked+near.t*length)/total};
+    walked+=length
+  }
+  return best&&best.delta<=3?best.progress:null
+}
+
 const firstCollisionOnPathV682ForV7=firstCollisionOnPath;
 firstCollisionOnPath=function(points,startTime,endTime,ignoreIds=[],options={}){
   const includePlayers=options.includePlayers!==false,includeObjects=options.includeObjects!==false;
   const playerHit=includePlayers?firstCollisionOnPathV682ForV7(points,startTime,endTime,ignoreIds):null;
-  const objectHit=includeObjects?v7FirstEquipmentCollisionOnPath(points,startTime,endTime):null;
+  const objectHit=includeObjects?v7FirstEquipmentCollisionOnPath(points,startTime,endTime,options.includeGoalNets!==false):null;
   if(!playerHit)return objectHit;
   if(!objectHit)return{...playerHit,kind:"player",response:"player",restitution:.18};
   return objectHit.progress<playerHit.progress?objectHit:{...playerHit,kind:"player",response:"player",restitution:.18}
@@ -5494,7 +5597,7 @@ buildPuckTimeline=function(){
       const naturalDuration=polylineLength(path)/shotSpeedUnits(power);
       const duration=requestedDuration(event,naturalDuration);
       let arrival=at+duration,goal=!!(built?.goal||legacyGoal.goal);
-      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:!event.ignoreObjects});
+      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:!event.ignoreObjects,includeGoalNets:false});
       if(collision){
         // Keep the whole original trajectory up to the collision, including
         // any board-following bends; never replace it with a straight chord.
@@ -5508,7 +5611,8 @@ buildPuckTimeline=function(){
         goal=false
       }
       const clearances=event.ignoreObjects?v7ObjectClearancesOnPath(path):[];
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,clearances,boardFollow:!!built?.boardFollow,motion:"shot",power});
+      const impacts=(built?.contacts||[]).map(contact=>({...contact,progress:v7ContactProgress(path,contact.point)})).filter(contact=>Number.isFinite(contact.progress));
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,clearances,impacts,boardFollow:!!built?.boardFollow,motion:"shot",power});
       cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
       results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,collision,clearances,boardFollow:!!built?.boardFollow,power});continue
     }
@@ -5555,9 +5659,12 @@ function v7EquipmentSvg(item){
     g.append(svgEl("path",{d,fill:"none",stroke:red,"stroke-width":1.4}))
   }else if(item.type==="net"){
     const L=Number(geo.length)||42,D=Number(geo.width)||22;
-    g.append(svgEl("path",{d:"M"+(-L/2)+" "+(-D/2)+" V"+(D/2)+" H"+(L/2)+" V"+(-D/2),fill:"rgba(215,228,233,.16)",stroke:red,"stroke-width":2.4,"stroke-linecap":"round","stroke-linejoin":"round"}));
-    for(let x=-L*.34;x<L*.35;x+=L*.17)g.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.65,opacity:.7}));
-    for(let y=-D*.2;y<D*.3;y+=D*.25)g.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.65,opacity:.7}))
+    g.append(svgEl("rect",{x:-L/2,y:-D/2,width:L,height:D,fill:"rgba(215,228,233,.22)",stroke:"none"}));
+    g.append(svgEl("path",{d:"M"+(L/2)+" "+(-D/2)+" H"+(-L/2)+" V"+(D/2)+" H"+(L/2),fill:"none",stroke:red,"stroke-width":item.goalSide?3.1:2.4,"stroke-linejoin":"round"}));
+    for(let x=-L*.34;x<L*.35;x+=Math.max(4,L*.17))g.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
+    for(let y=-D*.45;y<D*.49;y+=Math.max(5,D*.15))g.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
+    g.append(svgEl("line",{x1:L/2,y1:-D/2,x2:L/2,y2:D/2,stroke:"#ee6b6b","stroke-width":1.5,"stroke-dasharray":"3 5",opacity:.58}));
+    for(const y of [-D/2,D/2])g.append(svgEl("circle",{cx:L/2,cy:y,r:item.goalSide?3.6:2.5,fill:"#e33b42",stroke:"#fff","stroke-width":1.1}))
   }
   if(item.label){
     const label=svgEl("text",{x:0,y:Math.max(16,(Number(geo.width)||12)*.9+9),"text-anchor":"middle",class:"token-label","font-size":"8"});label.textContent=item.label;g.append(label)
@@ -5610,7 +5717,7 @@ function v7AddEquipment(type,point,overrides={}){
   syncActiveVariation();renderAll();return item
 }
 function v7DeleteEquipment(id){
-  if(!v7EquipmentById(id))return false;
+  if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide)return false;
   pushHistory();state.equipment=state.equipment.filter(item=>item.id!==id);
   if(ui.selectedType==="equipment"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null}
   syncActiveVariation();renderAll();return true
@@ -5634,7 +5741,7 @@ function v7RenderEquipmentInspector(){
   const root=$("#inspectorContent"),title=$("#inspectorTitle"),sub=$("#inspectorSubtitle"),item=v7EquipmentById(ui.selectedId);
   if(!root||!item){ui.selectedType=null;return renderInspector()}
   const def=V7_RINK_OBJECT_TYPES[item.type],g=item.geometry||{},cap=item.capabilities||{},phys=item.physics||{};
-  title.textContent=def.label;sub.textContent="Rink object · physical properties";
+  title.textContent=item.goalSide?"Goal net":def.label;sub.textContent=item.goalSide?"Regulation goal · editable scoring geometry":"Rink object · physical properties";
   const resize=cap.resize,hasLength=resize==="length",isPile=item.type==="puckPile",isPuck=item.type==="puck";
   const collisionLabel=phys.response==="bounce"?"Bounces puck":phys.response==="stop"?"Stops puck":phys.response==="soft_block"?"Soft blocker":"No puck collision";
   root.innerHTML=
@@ -5651,7 +5758,7 @@ function v7RenderEquipmentInspector(){
     (isPile?'<section class="inspector-section"><h3>Puck source</h3><div class="range-label"><span>Pucks remaining</span><output id="v7ObjectQuantityOut">'+item.quantity+'</output></div><input id="v7ObjectQuantity" type="range" min="0" max="40" step="1" value="'+item.quantity+'" style="width:100%"><button class="btn primary" id="v7TakePuckBtn">Take a usable puck</button></section>':'')+
     (isPuck?'<section class="inspector-section"><h3>Extra puck</h3><p>This is a real spare puck object. Make it active to start a new independent puck route from this exact location.</p><button class="btn primary" id="v7UsePuckBtn">Use as active puck</button></section>':'')+
     '<section class="inspector-section"><h3>Physics</h3><p>'+escapeHtml(collisionLabel)+(phys.response==="bounce"?' · '+Math.round((phys.restitution||0)*100)+'% rebound response.':'')+'</p></section>'+
-    '<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>';
+    (item.goalSide?'<section class="inspector-section"><p>Permanent goal net. Moving or rotating it updates the scoring mouth, goalposts, and cage physics.</p><button class="btn small" data-v7-reset-goal>Reset net position</button></section>':'<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>');
 }
 const renderInspectorV682ForV7=renderInspector;
 renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();return renderInspectorV682ForV7()};
@@ -5766,6 +5873,7 @@ function v7SetupInspectorEvents(){
     const nudge=event.target.closest("[data-v7-nudge]");if(nudge){const [dx,dy]=nudge.dataset.v7Nudge.split(",").map(Number);pushHistory();v7NudgeEquipment(item,dx,dy);syncActiveVariation();renderAll();renderInspector();return}
     const rotate=event.target.closest("[data-v7-rotate]");if(rotate){pushHistory();item.rotation=round(((item.rotation+Number(rotate.dataset.v7Rotate)+180)%360)-180,1);syncActiveVariation();renderAll();renderInspector();return}
     if(event.target.id==="v7DeleteObjectBtn"){const id=item.id;v7DeleteEquipment(id);closeRight({clearSelection:true});return}
+    if(event.target.closest("[data-v7-reset-goal]")&&item.goalSide){pushHistory();Object.assign(item,v7DefaultGoalNet(item.goalSide));syncActiveVariation();renderAll();renderInspector();return}
     if(event.target.id==="v7TakePuckBtn"){v7TakePuckFromPile(item);return}
     if(event.target.id==="v7UsePuckBtn"){v7UseSparePuck(item);return}
   });
@@ -5904,11 +6012,15 @@ renderFrame=function(time=ui.playhead){
   if(ui.playing&&Number.isFinite(previous)&&now>=previous){
     for(const travel of output?.pt?.intervals||[]){
       const hit=travel.collision;
-      if(!hit||!Number.isFinite(Number(hit.time))||!(previous<hit.time&&now>=hit.time))continue;
-      const hard=hit.response==="bounce"||hit.response==="stop"||Number(travel.power)>=7;
-      if(!hard)continue;
-      try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(hit.response==="bounce"?[22,18,28]:20)}catch{}
-      break
+      const impacts=[...(hit?[{time:hit.time,response:hit.response}]:[]),
+        ...(travel.impacts||[]).map(contact=>({time:travel.start+(travel.end-travel.start)*contact.progress,response:"bounce"}))];
+      for(const impact of impacts){
+        if(!Number.isFinite(Number(impact.time))||!(previous<impact.time&&now>=impact.time))continue;
+        const hard=impact.response==="bounce"||impact.response==="stop"||Number(travel.power)>=7;
+        if(!hard)continue;
+        try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(impact.response==="bounce"?[22,18,28]:20)}catch{}
+        break
+      }
     }
   }
   ui.v7PreviousHapticFrame=now;

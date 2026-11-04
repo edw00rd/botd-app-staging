@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/v7-hockey-platform-foundation
+      - feature/v7-interactive-goals
   workflow_dispatch:
 
 permissions:
@@ -27,6 +28,8 @@ jobs:
         run: node --check src/worker.js
       - name: Validate v7 editor foundation
         run: node scripts/validate-v7-foundation.mjs
+      - name: Validate first-class goal geometry
+        run: node scripts/validate-v7-goals.mjs
       - name: Full shared release validation
         run: npm run check
       - name: Verify reviewed source manifest

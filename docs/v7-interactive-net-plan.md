@@ -1,6 +1,6 @@
 # v7 next feature: interactive nets as first-class rink objects
 
-Status: design plan only — **not implemented**. Keep current static goal drawing and existing scoring behavior until the replacement passes acceptance testing.
+Status: **implemented on the `feature/v7-interactive-goals` branch; pending automated CI and staging browser acceptance, not production-approved.** The two fixed grey SVG goal outlines are removed in this branch. A fresh or legacy play receives two permanent goal-net objects; extra training nets remain independent.
 
 ## Objective
 Replace the grey line-art goals baked into the rink SVG with editable, persistent **Net** objects. Net location, orientation, geometry and puck contact must become one coherent source of truth for rendering, puck trajectories, and goal detection.
@@ -27,3 +27,11 @@ Replace the grey line-art goals baked into the rink SVG with editable, persisten
 7. Staging browser acceptance before any production consideration.
 
 Implementation recommendation: finish the current shot-collision option fix and functional acceptance first, then put net replacement on a separate feature branch or tightly scoped commit series.
+
+## Implementation notes (Nov 4, 2026)
+
+- Defaults: left net centered at (62,300), 0°; right at (938,300), 180°. Mouth width 86 and cage depth 26 in rink world units.
+- `goalSide` survives normalize/save/import/variation; legacy state without net objects receives both defaults automatically. New restores them; Undo uses existing state history.
+- Regulation nets cannot be deleted, but can be dragged, rotated, scaled and reset from the inspector. This differs from deletable "Extra net" training objects.
+- Ray scoring requires a front-side mouth crossing between posts. Post, side mesh, and back mesh use net-specific geometry and preserve normal shot bounce physics. Ignoring training objects never makes regulation goals intangible.
+- CI: `node scripts/validate-v7-goals.mjs`, `node scripts/validate-v7-foundation.mjs`, `npm run check`, manifest check and staging build. Browser acceptance remains mandatory before deployment or merge into a release.
