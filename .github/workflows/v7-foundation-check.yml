@@ -1,0 +1,36 @@
+name: V7 foundation check
+
+on:
+  push:
+    branches:
+      - feature/v7-hockey-platform-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Worker syntax
+        run: node --check src/worker.js
+      - name: Validate v7 editor foundation
+        run: node scripts/validate-v7-foundation.mjs
+      - name: Dry-run staging build
+        run: npm run build:staging
+      - name: Record feature source hashes
+        if: always()
+        run: |
+          sha256sum private/app-v6.8.html.txt
+          sha256sum scripts/validate-v7-foundation.mjs
