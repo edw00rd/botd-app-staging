@@ -163,4 +163,94 @@ for(const required of [
 }
 assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction missing");
 
+
+// Runtime gates: independent shot collision policies, clearance geometry,
+// visual lift and commit persistence. These run against the actual v7 engine.
+{
+  const a=app.lastIndexOf("buildPuckTimeline=function(){"),b=app.indexOf("\nfunction v7EquipmentSvg",a);
+  assert.ok(a>0&&b>a);
+  const path=[{x:100,y:100},{x:200,y:100},{x:300,y:100}];
+  const run=(defense,objects)=>{
+    const observed=[];
+    const ctx={
+      state:{puckStart:{x:100,y:100},timeline:{duration:12},equipment:[]},
+      activeTake:()=>({events:[{id:"shot-policy",type:"shot",time:0,target:{x:300,y:100},aimVector:{x:1,y:0},power:7,ignoreDefense:defense,ignoreObjects:objects}]}),
+      clamp:(n,lo,hi)=>Math.max(lo,Math.min(hi,n)),
+      clampRinkPoint:p=>p,shotSpeedUnits:()=>100,
+      polylineLength:pts=>pts.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-pts[i].x,p.y-pts[i].y),0),
+      v60BuildShotPath:()=>({path,goal:false,boardFollow:false}),
+      goalResultForShot:()=>({goal:false}),
+      firstCollisionOnPath:(...args)=>{observed.push(args.at(-1));return null},
+      v7ObjectClearancesOnPath:()=>[{objectId:"ob1",startProgress:.44,endProgress:.56}],
+    };
+    vm.runInNewContext("var buildPuckTimeline;\n"+app.slice(a,b),ctx,{timeout:2000});
+    return{timeline:ctx.buildPuckTimeline(),options:observed[0]}
+  };
+  const bypass=run(true,true);
+  assert.equal(bypass.options.includePlayers,false,"Ignore Defense did not bypass defender collision");
+  assert.equal(bypass.options.includeObjects,false,"Ignore Objects did not bypass object collision");
+  const shot=bypass.timeline.intervals.find(i=>i.eventId==="shot-policy");
+  assert.equal(shot.path.length,3,"Ignore Objects must preserve the complete shot path");
+  assert.equal(shot.clearances[0].objectId,"ob1","Ignored-object clearance metadata missing");
+  const normal=run(false,false);
+  assert.equal(normal.options.includePlayers,true);
+  assert.equal(normal.options.includeObjects,true);
+  assert.equal(normal.timeline.intervals.find(i=>i.eventId==="shot-policy").clearances.length,0);
+}
+{
+  const a=app.indexOf("function v7ObjectClearancesOnPath(");
+  const b=app.indexOf("const firstCollisionOnPathV682ForV7",a);
+  assert.ok(a>0&&b>a,"Object-clearance geometry helper missing");
+  const ctx={
+    state:{equipment:[{id:"divider",physics:{collidable:true}}]},
+    dist:(x,y)=>Math.hypot(x.x-y.x,x.y-y.y),
+    pointLerp:(a,b,u)=>({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u}),
+    clamp:(n,l,h)=>Math.max(l,Math.min(h,n)),
+    polylineLength:pts=>pts.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-pts[i].x,p.y-pts[i].y),0),
+    v7EquipmentCollisionAt:(_item,p)=>p.x>=190&&p.x<=210?{point:p}:null
+  };
+  vm.runInNewContext(app.slice(a,b)+"\nthis.detect=v7ObjectClearancesOnPath;",ctx,{timeout:2000});
+  const events=ctx.detect([{x:100,y:100},{x:300,y:100}]);
+  assert.equal(events.length,1);
+  assert.ok(events[0].startProgress>.4&&events[0].startProgress<.5);
+  assert.ok(events[0].endProgress>.5&&events[0].endProgress<.6);
+}
+{
+  const a=app.indexOf("function v7PuckLiftAt(");
+  const b=app.indexOf("const renderPuckLayerV682ForV7=renderPuckLayer",a);
+  assert.ok(a>0&&b>a,"Puck clearance visual helper missing");
+  const ctx={clamp:(n,l,h)=>Math.max(l,Math.min(h,n))};
+  vm.runInNewContext(app.slice(a,b)+"\nthis.liftAt=v7PuckLiftAt;",ctx,{timeout:2000});
+  const interval={start:0,end:10,kind:"travel",motion:"pass",clearances:[{startProgress:.43,endProgress:.57,objectId:"divider"}]};
+  assert.ok(ctx.liftAt(interval,5)?.lift>15,"Elevated puck must visually clear object");
+  assert.equal(ctx.liftAt(interval,0),null,"Puck must stay flat before object");
+  assert.equal(ctx.liftAt(interval,9),null,"Puck must return to ice after object");
+}
+{
+  const a=app.lastIndexOf("v60CommitShot=function(){");
+  const b=app.indexOf("/* Lift the puck only while",a);
+  assert.ok(a>0&&b>a,"V7 shot commit handler missing");
+  let stored=null,finished=false;
+  const ctx={
+    ui:{v60Mode:{type:"shot",stage:"power",power:8,aim:{x:300,y:100},ignoreDefense:true,ignoreObjects:true}},
+    v60ModeOrigin:()=>({x:100,y:100}),
+    v60BuildShotPath:()=>({path:[{x:100,y:100},{x:300,y:100}],direction:{x:1,y:0},boardFollow:false}),
+    deepClone:p=>structuredClone(p),
+    addPuckEvent:payload=>{stored=payload;return payload},
+    syncActiveVariation:()=>{},
+    v60FinishPuckAction:()=>{finished=true},
+  };
+  vm.runInNewContext("var v60CommitShot;\n"+app.slice(a,b),ctx,{timeout:2000});
+  ctx.v60CommitShot();
+  assert.equal(stored?.ignoreDefense,true,"Shot did not persist Ignore Defense");
+  assert.equal(stored?.ignoreObjects,true,"Shot did not persist Ignore Objects");
+  assert.ok(finished,"Shot didn't finish the popup action");
+}
+for(const marker of [
+  "v7ShotIgnoreDefense","v7ShotIgnoreObjects",
+  "mode.ignoreDefense=existing?existing.ignoreDefense!==false:true",
+  "mode.ignoreObjects=existing?!!existing.ignoreObjects:false",
+  'typeof navigator.vibrate==="function"',
+]) assert.ok(app.includes(marker),"Missing shot behavior: "+marker);
+
 console.log("V7 foundation validation passed: legacy clipboard preserved, semantic metadata present, interactive rink-object engine compiled.");
