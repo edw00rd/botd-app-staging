@@ -1,0 +1,45 @@
+name: V7 foundation check
+
+on:
+  push:
+    branches:
+      - feature/v7-hockey-platform-foundation
+      - feature/v7-interactive-goals
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Worker syntax
+        run: node --check src/worker.js
+      - name: Validate v7 editor foundation
+        run: node scripts/validate-v7-foundation.mjs
+      - name: Validate first-class goal geometry
+        run: node scripts/validate-v7-goals.mjs
+      - name: Full shared release validation
+        run: npm run check
+      - name: Verify reviewed source manifest
+        run: sha256sum -c SHA256SUMS.txt
+      - name: Dry-run staging build
+        run: npm run build:staging
+      - name: Record feature source hashes
+        if: always()
+        run: |
+          sha256sum private/app-v6.8.html.txt
+          sha256sum scripts/validate-v7-foundation.mjs
+          sha256sum scripts/validate-shared.mjs
+          sha256sum RELEASE_NOTES.md

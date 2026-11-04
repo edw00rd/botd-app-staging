@@ -6,7 +6,7 @@ const root=path.resolve(new URL('..',import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'663990061e69202a6c777d744be1e322f03f846b7c584539af56e48e9bf4f728');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'79d4a93879048dd37f28d310ccaf44aed14a4e3ce33a804b754672572d623fff');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'01f707b402749962b1d4540620d3d100a164b2da2d0c49f38bd2180d8d85783a');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
@@ -238,7 +238,7 @@ assert.ok(deployGate.includes("const sourceTree=git('rev-parse','HEAD^{tree}')")
 assert.ok(deployGate.includes('`${approvedStagingCommit}^{tree}`'));
 assert.ok(deployGate.includes('Production source tree does not exactly match BOTD_APPROVED_STAGING_COMMIT.'));
 assert.ok(!deployGate.includes('BOTD_APPROVED_STAGING_COMMIT!==commit'));
-assert.ok(releaseNotes.includes('663990061e69202a6c777d744be1e322f03f846b7c584539af56e48e9bf4f728'));
+assert.ok(releaseNotes.includes('551d5d14a79081a3463f3c90e7290c97c5331142844cb44ad09903d2fa2b2acf'));
 assert.ok(read('LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
 assert.ok(read('public/LICENSE.txt').includes('B.O.T.D. Hockey Playbook Studio v6.8.2'));
 
