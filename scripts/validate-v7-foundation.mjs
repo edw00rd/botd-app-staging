@@ -48,4 +48,15 @@ for(const marker of [
   "v7ObjectLength",
 ]) assert.ok(app.includes(marker),`Missing interactive object marker: ${marker}`);
 
+// Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
+const v7Timeline=app.slice(app.lastIndexOf("buildPuckTimeline=function(){"));
+const v7Shot=v7Timeline.slice(v7Timeline.indexOf('if(event.type==="shot"){'),v7Timeline.indexOf("function v7EquipmentSvg"));
+for(const required of [
+  "v60BuildShotPath(start",
+  "requestedDuration(event,naturalDuration)",
+  "slicePolylineByProgress(path,0,progress)",
+  "includeObjects:true",
+  "boardFollow:!!built?.boardFollow"
+]) assert.ok(v7Shot.includes(required),`V7 shot path regression: missing ${required}`);
+
 console.log("V7 foundation validation passed: legacy clipboard preserved, semantic metadata present, interactive rink-object engine compiled.");
