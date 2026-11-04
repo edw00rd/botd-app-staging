@@ -31,3 +31,14 @@ No database migration, authentication change, Stripe price change, or production
 Health identities: `6.8.2-staging-v1` and `6.8.2-production-v1`.
 
 Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e48e9bf4f728`.
+
+
+## Unreleased — V7 platform foundation preview
+
+- Preserves the v6.8.2 animated clipboard as the default workflow.
+- Adds compatibility-safe semantic movement metadata for player skating and puck actions.
+- Adds persistent practice-equipment primitives: cone, tire, divider pad, training pad, extra puck, puck pile, stick, rebounder, and extra net.
+- Adds a progressive-disclosure Practice Equipment picker; placed equipment can be dragged and deleted without changing normal play authoring.
+- Adds v7 platform/data-model documentation and isolated branch validation.
+- Editor SHA-256: `9e896dd7be36102f64efe32fa4eccf32faba51c95c52c71f67cc1c3f8f942022`.
+- This is staging-only feature work and is not a production release.
