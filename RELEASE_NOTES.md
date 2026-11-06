@@ -62,3 +62,5 @@ Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e
 - Adds team and publishing-provenance schema scaffolding without exposing JSON to player accounts.
 - Existing browser/local editor workflow is unchanged. Cloud-playbook UI, video publishing, My Hockey Blog integration and AI remain follow-up steps.
 - Staging migration applied; production untouched. See docs/V7_CLOUD_LIBRARY.md.
+
+- Adds the first coach-facing My Cloud Playbooks panel: choose/create private playbooks, explicitly save or revise plays, load server JSON into the local editor, and copy existing browser-saved plays without deleting originals. Cloud operations are explicit, not per-drag.

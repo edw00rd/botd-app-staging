@@ -27,8 +27,8 @@ jobs:
         run: npm ci
       - name: Validate Worker syntax
         run: node --check src/worker.js
-      - name: Validate cloud library API
-        run: node scripts/smoke-cloud-playbooks.mjs
+      - name: Validate cloud library API and editor
+        run: npm run check:cloud
       - name: Validate v7 editor foundation
         run: node scripts/validate-v7-foundation.mjs
       - name: Validate first-class goal geometry
