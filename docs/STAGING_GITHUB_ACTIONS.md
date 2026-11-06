@@ -30,7 +30,7 @@ This workflow:
 - uses the existing guarded npm run deploy:staging release gate;
 - runs npm ci, SHA256SUMS validation, npm run check, and a staging dry-run;
 - enforces the staging Worker name, test URL, Supabase project, and keep_vars;
-- deploys only with credentials stored in GitHub Secrets, and checks the resulting live staging health response and version;
+- deploys only with credentials stored in GitHub Secrets, and verifies the actively serving Worker version through Cloudflare's deployment API (the Access-protected HTTP health check is supplemental);
 - provides serialized deploys and read-only GitHub token permissions.
 
 Notes:
@@ -41,3 +41,6 @@ Notes:
 
 Official Cloudflare guide: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
 Official GitHub secrets guide: https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+
+## Cloudflare Access-protected health verification
+Because `staging.botdhockey.com` requires a Cloudflare Access login, an unauthenticated GitHub runner receives an HTML login page instead of `/api/health` JSON. The workflow now parses Wrangler's `Current Version ID` and independently checks Cloudflare's authenticated deployments API to confirm that exact Worker version serves 100% of `botd-app-staging`. An HTTP health check is attempted once, but an Access login page does not falsely fail the deployment. Authorized browser acceptance is still required to validate UI, login, billing, and cloud saves. No Access bypass or additional secrets are required.
