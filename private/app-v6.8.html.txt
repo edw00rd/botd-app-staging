@@ -5258,7 +5258,314 @@ Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
    Product invariant: preserve the fast animated clipboard. Advanced drill tools
    appear only when requested and use the same deterministic timeline engine. */
 const V7_PLATFORM_SCHEMA_VERSION=2;
-const V7_CREASE_RADIUS_UNITS=26.4; // 6 ft measured against 15 ft faceoff radius of 66 units
+
+/* V7 ICE SURFACE OBJECT — one persisted model owns the rink and its markings.
+   All dimensions use feet internally. IIHF definitions convert from meters.
+   Sources: NHL 2026-27 Rule 1; USA Hockey 2025-29 Rules 102-105;
+   Hockey Canada 2026-28 Rules 1.2-1.8; IIHF 2026-27 Rules 1.2-1.9. */
+const V7_ICE_M_TO_FT=3.280839895013123;
+const V7_ICE_PROFILES=Object.freeze({
+  nhl:{label:"NHL regulation",length:200,width:85,corner:28,goalInset:11,blueInset:75,endSpotFromGoal:20,
+    faceoffOffset:22,neutralSpotInset:5,faceoffRadius:15,creaseRadius:6,creaseStyle:"nhl",trapezoid:true},
+  usa:{label:"USA Hockey (200 × 85 ft)",length:200,width:85,corner:28,goalInset:11,blueInset:75,endSpotFromGoal:20,
+    faceoffOffset:22,neutralSpotInset:5,faceoffRadius:15,creaseRadius:6,creaseStyle:"usa",trapezoid:false},
+  canada:{label:"Hockey Canada (200 × 85 ft)",length:200,width:85,corner:28,goalInset:11,blueInset:75,endSpotFromGoal:20,
+    faceoffOffset:22,neutralSpotInset:5,faceoffRadius:15,creaseRadius:6,creaseStyle:"canada",trapezoid:false},
+  iihf:{label:"IIHF (60 × 26 m)",length:60*V7_ICE_M_TO_FT,width:26*V7_ICE_M_TO_FT,corner:7.5*V7_ICE_M_TO_FT,
+    goalInset:4*V7_ICE_M_TO_FT,blueInset:22.5*V7_ICE_M_TO_FT,endSpotFromGoal:6*V7_ICE_M_TO_FT,
+    faceoffOffset:7*V7_ICE_M_TO_FT,neutralSpotInset:1.5*V7_ICE_M_TO_FT,faceoffRadius:4.5*V7_ICE_M_TO_FT,
+    creaseRadius:1.83*V7_ICE_M_TO_FT,creaseStyle:"iihf",trapezoid:true}
+});
+const V7_ICE_FIELDS=["length","width","corner","goalInset","blueInset","endSpotFromGoal","faceoffOffset","neutralSpotInset","faceoffRadius","creaseRadius"];
+const V7_ICE_SOURCE_LINKS={
+ nhl:"https://www.nhl.com/info/official-rules",
+ usa:"https://www.usahockey.com/playingrules",
+ canada:"https://www.hockeycanada.ca/en-ca/hockey-programs/officiating/downloads",
+ iihf:"https://www.iihf.com/en/statichub/4719/rules-and-regulations"
+};
+function v7NormalizeIce(raw){
+  const source=raw&&typeof raw==="object"?raw:{};
+  const profile=Object.hasOwn(V7_ICE_PROFILES,source.profile)?source.profile:"nhl";
+  const basis=V7_ICE_PROFILES[profile];
+  const ice={id:"rink-surface",type:"ice",schemaVersion:1,profile,custom:!!source.custom,
+    ...basis,colors:{ice:"#e9f6fa",boards:"#476777",red:"#db3c43",blue:"#0868bc",crease:"#b8e1f1"},
+    show:{markings:true,trapezoid:basis.trapezoid,refereeCrease:true,hashMarks:true,centerLogo:true}};
+  for(const key of V7_ICE_FIELDS){
+    const incoming=Number(source[key]);
+    if(Number.isFinite(incoming)&&incoming>0)ice[key]=incoming
+  }
+  ice.length=clamp(ice.length,160,210);ice.width=clamp(ice.width,72,110);
+  ice.corner=clamp(ice.corner,10,Math.min(ice.width/2-2,35));
+  ice.goalInset=clamp(ice.goalInset,7,18);
+  ice.blueInset=clamp(ice.blueInset,ice.goalInset+30,ice.length/2-15);
+  ice.faceoffRadius=clamp(ice.faceoffRadius,10,17);
+  ice.creaseRadius=clamp(ice.creaseRadius,4,8);
+  ice.faceoffOffset=clamp(ice.faceoffOffset,14,Math.min(28,ice.width/2-ice.faceoffRadius-1));
+  ice.endSpotFromGoal=clamp(ice.endSpotFromGoal,14,26);
+  ice.neutralSpotInset=clamp(ice.neutralSpotInset,2,10);
+  ice.creaseStyle=["nhl","usa","canada","iihf"].includes(source.creaseStyle)?source.creaseStyle:basis.creaseStyle;
+  if(source.colors&&typeof source.colors==="object")for(const key of Object.keys(ice.colors))
+    if(/^#[0-9a-fA-F]{6}$/.test(source.colors[key]||""))ice.colors[key]=source.colors[key];
+  if(source.show&&typeof source.show==="object")for(const key of Object.keys(ice.show))
+    if(typeof source.show[key]==="boolean")ice.show[key]=source.show[key];
+  return ice
+}
+function v7IceGeometry(ice=state?.ice){
+  const config=ice||V7_ICE_PROFILES.nhl;
+  const scale=Math.min(960/config.length,540/config.width);
+  const width=config.length*scale,height=config.width*scale;
+  const x=500-width/2,y=300-height/2;
+  return {scale,x,y,width,height,xRight:x+width,yBottom:y+height,
+    goalLeft:x+config.goalInset*scale,goalRight:x+(config.length-config.goalInset)*scale,
+    blueLeft:x+config.blueInset*scale,blueRight:x+(config.length-config.blueInset)*scale,
+    centerX:500,centerY:300,corner:config.corner*scale,
+    ftX:value=>x+value*scale,ftY:value=>300+value*scale}
+}
+function v7IcePerimeter(ice=state.ice){
+  const g=v7IceGeometry(ice),r=g.corner,points=[];
+  const add=(px,py)=>{const p={x:round(px,4),y:round(py,4)};
+    if(!points.length||Math.hypot(p.x-points.at(-1).x,p.y-points.at(-1).y)>.001)points.push(p)};
+  const arc=(cx,cy,from,to)=>{for(let k=1;k<=18;k++){
+    const a=(from+(to-from)*k/18)*Math.PI/180;add(cx+Math.cos(a)*r,cy+Math.sin(a)*r)
+  }};
+  add(g.x+r,g.y);add(g.xRight-r,g.y);arc(g.xRight-r,g.y+r,-90,0);
+  add(g.xRight,g.yBottom-r);arc(g.xRight-r,g.yBottom-r,0,90);
+  add(g.x+r,g.yBottom);arc(g.x+r,g.yBottom-r,90,180);
+  add(g.x,g.y+r);arc(g.x+r,g.y+r,180,270);
+  points.push({...points[0]});return points
+}
+function v7IceCreaseOutline(side,ice=state.ice){
+  const g=v7IceGeometry(ice),s=g.scale,r=ice.creaseRadius*s,c=300;
+  const gl=side==="left"?g.goalLeft:g.goalRight,sign=side==="left"?1:-1;
+  const style=ice.creaseStyle;
+  if(style==="nhl"){
+    const h=4*s,d=4.5*s;
+    const a={x:gl+sign*d,y:c-h},b={x:gl+sign*d,y:c+h};
+    return "M"+round(gl,2)+" "+round(c-h,2)+" L"+round(a.x,2)+" "+round(a.y,2)+
+      " A"+round(r,2)+" "+round(r,2)+" 0 0 "+(sign>0?1:0)+" "+round(b.x,2)+" "+round(b.y,2)+
+      " L"+round(gl,2)+" "+round(c+h,2)+" Z"
+  }
+  return "M"+round(gl,2)+" "+round(c-r,2)+
+    " A"+round(r,2)+" "+round(r,2)+" 0 0 "+(sign>0?1:0)+
+    " "+round(gl,2)+" "+round(c+r,2)+" Z"
+}
+function v7IceSvg(tag,props){return svgEl(tag,props)}
+function v7IceLine(parent,x1,y1,x2,y2,color,width,other={}){
+  parent.append(v7IceSvg("line",{x1,y1,x2,y2,stroke:color,"stroke-width":width,...other}))
+}
+function v7IceCircle(parent,x,y,r,stroke,width,fill="none",other={}){
+  parent.append(v7IceSvg("circle",{cx:x,cy:y,r,stroke,"stroke-width":width,fill,...other}))
+}
+function v7IceEndFaceoff(parent,x,y,ice,g){
+  const s=g.scale,R=ice.faceoffRadius*s,red=ice.colors.red;
+  v7IceCircle(parent,x,y,R,red,2*s/12);
+  v7IceCircle(parent,x,y,s,red,0,red);
+  // Four 4×3 ft player-restraining L markings around each end-zone dot.
+  for(const dx of [-1,1])for(const dy of [-1,1]){
+    const sx=x+dx*3*s,sy=y+dy*2*s;
+    parent.append(v7IceSvg("path",{d:"M"+round(sx-dx*3*s,2)+" "+round(sy,2)+
+      " H"+round(sx,2)+" V"+round(sy+dy*4*s,2),
+      stroke:red,"stroke-width":2*s/12,fill:"none"}))
+  }
+  if(ice.show.hashMarks){
+    for(const ix of [-2*s,2*s])for(const iy of [-1,1])
+      v7IceLine(parent,x+ix,y+iy*(R-1.05*s),x+ix,y+iy*(R+1.05*s),red,2*s/12)
+  }
+}
+function v7IceDraw(){
+  const ice=state.ice,g=v7IceGeometry(ice),s=g.scale;
+  const root=$("#fullRink");if(!root)return;
+  const centerLogo=$("#centerLogoFull");
+  const clip=$("#fullClip rect");
+  if(clip)for(const [key,val] of Object.entries({x:g.x,y:g.y,width:g.width,height:g.height,rx:g.corner}))clip.setAttribute(key,round(val,3));
+  const surface=v7IceSvg("g",{"data-v7-ice-model":"rink-surface","aria-label":ice.profile.toUpperCase()+" rink surface"});
+  const edge=v7IceSvg("rect",{x:g.x,y:g.y,width:g.width,height:g.height,rx:g.corner,
+    fill:"url(#iceGrad)",stroke:ice.colors.boards,"stroke-width":3.7});
+  surface.append(edge);
+  surface.append(v7IceSvg("rect",{x:g.x,y:g.y,width:g.width,height:g.height,rx:g.corner,
+    fill:ice.colors.ice,opacity:.5,"pointer-events":"none"}));
+  surface.append(v7IceSvg("rect",{x:g.x,y:g.y,width:g.width,height:g.height,rx:g.corner,fill:"url(#iceTex)",opacity:.75,
+    "clip-path":"url(#fullClip)"}));
+  const markings=v7IceSvg("g",{"clip-path":"url(#fullClip)","data-v7-ice-markings":"true"});
+  if(ice.show.markings){
+    const red=ice.colors.red,blue=ice.colors.blue;
+    const thick=s,thin=2*s/12;
+    for(const gx of [g.goalLeft,g.goalRight])v7IceLine(markings,gx,g.y,gx,g.yBottom,red,thin);
+    for(const bx of [g.blueLeft,g.blueRight])v7IceLine(markings,bx,g.y,bx,g.yBottom,blue,thick);
+    v7IceLine(markings,500,g.y,500,g.yBottom,red,thick);
+    // Painted red center stripe includes thin white/ice breaking marks.
+    v7IceLine(markings,500,g.y,500,g.yBottom,"#fffbf5",Math.max(.75,s*.11),
+      {"stroke-dasharray":round(s*.52,2)+" "+round(s*.48,2),opacity:.75});
+    const faceoffRadius=ice.faceoffRadius*s;
+    v7IceCircle(markings,500,300,faceoffRadius,blue,thin);
+    v7IceCircle(markings,500,300,s*.5,blue,0,blue);
+    for(const side of [-1,1]){
+      const gx=side<0?g.goalLeft:g.goalRight,bx=side<0?g.blueLeft:g.blueRight;
+      const fx=gx-side*ice.endSpotFromGoal*s;
+      const nx=bx-side*ice.neutralSpotInset*s;
+      for(const ySign of [-1,1]){
+        const yy=300+ySign*ice.faceoffOffset*s;
+        v7IceEndFaceoff(markings,fx,yy,ice,g);
+        v7IceCircle(markings,nx,yy,s,red,0,red)
+      }
+      const outline=v7IceCreaseOutline(side<0?"left":"right",ice);
+      markings.append(v7IceSvg("path",{d:outline,fill:ice.colors.crease,"fill-opacity":.9,
+        stroke:red,"stroke-width":thin,"data-v7-ice-crease":side<0?"left":"right"}));
+      if(ice.creaseStyle!=="nhl"){
+        const h=4*s,arcX=Math.sqrt(Math.max(0,ice.creaseRadius**2-16))*s;
+        for(const ySign of [-1,1]){
+          const cy=300+ySign*h,endX=gx-side*arcX;
+          v7IceLine(markings,gx,cy,endX,cy,red,thin)
+        }
+      }
+      if(ice.show.trapezoid){
+        const back=side<0?g.x:g.xRight,atGoal=11*s,atBoard=14*s;
+        for(const v of [-1,1])v7IceLine(markings,gx,300+v*atGoal,back,300+v*atBoard,red,thin)
+      }
+    }
+    if(ice.show.refereeCrease){
+      const rr=10*s;
+      markings.append(v7IceSvg("path",{d:"M"+round(500-rr,2)+" "+round(g.yBottom,2)+
+        " A"+round(rr,2)+" "+round(rr,2)+" 0 0 1 "+round(500+rr,2)+" "+round(g.yBottom,2),
+        fill:"none",stroke:red,"stroke-width":thin}))
+    }
+  }
+  const maxLogo=Math.min(ice.faceoffRadius*s*1.58,160);
+  if(centerLogo){
+    centerLogo.setAttribute("x",round(500-maxLogo/2,2));
+    centerLogo.setAttribute("y",round(300-maxLogo/2,2));
+    centerLogo.setAttribute("width",round(maxLogo,2));
+    centerLogo.setAttribute("height",round(maxLogo,2));
+    centerLogo.style.display=ice.show.centerLogo?"":"none";
+    centerLogo.setAttribute("href",state.centerLogo||CENTER_LOGO_DEFAULT);
+    centerLogo.setAttribute("opacity",state.logoOpacity);
+    markings.insertBefore(centerLogo,markings.firstChild)
+  }
+  surface.append(markings);
+  surface.append(v7IceSvg("rect",{x:g.x,y:g.y,width:g.width,height:g.height,rx:g.corner,
+    fill:"none",stroke:"#456171","stroke-width":3.5,"pointer-events":"none"}));
+  root.replaceChildren(surface);
+  root.dataset.iceObject="rink-surface"
+}
+let v7IceRenderKey="",v7IceRenderedLogo=null;
+function v7IceRenderIfNeeded(force=false){
+  const ice=state?.ice;if(!ice)return;
+  // The center logo can be a large data URL; never stringify it on each animation frame.
+  const key=JSON.stringify(ice)+"|"+state.logoOpacity;
+  if(!force&&key===v7IceRenderKey&&v7IceRenderedLogo===state.centerLogo)return;
+  v7IceRenderKey=key;v7IceRenderedLogo=state.centerLogo;
+  v60PerimeterCache=null;v7IceDraw()
+}
+function v7IceSetField(key,value){
+  const ice=v7NormalizeIce(state.ice);
+  if(key==="profile"&&Object.hasOwn(V7_ICE_PROFILES,value)){
+    state.ice=v7NormalizeIce({profile:value});
+    state.appearance.creaseStyle=state.ice.creaseStyle==="nhl"?"nhl":"youth"
+  }else if(V7_ICE_FIELDS.includes(key)){
+    ice[key]=Number(value);ice.profile="custom";ice.custom=true;
+    state.ice=v7NormalizeIce(ice)
+  }else if(key==="creaseStyle"){
+    ice.creaseStyle=value;ice.custom=true;state.ice=v7NormalizeIce(ice);
+    state.appearance.creaseStyle=value==="nhl"?"nhl":"youth"
+  }else if(key.startsWith("show.")){
+    const name=key.slice(5);if(!(name in ice.show))return;
+    ice.show[name]=!!value;ice.custom=true;state.ice=v7NormalizeIce(ice)
+  }else if(key.startsWith("color.")){
+    const name=key.slice(6);if(!(name in ice.colors)||!/^#[0-9a-fA-F]{6}$/.test(value))return;
+    ice.colors[name]=value;ice.custom=true;state.ice=v7NormalizeIce(ice)
+  }else return;
+  v7IceSyncGoalObjects();
+  v7IceRenderIfNeeded(true);
+  v7IceSyncView();
+  syncActiveVariation();
+  renderAll();scheduleSave()
+}
+function v7IceSyncGoalObjects(){
+  if(!Array.isArray(state.equipment))return;
+  const g=v7IceGeometry(state.ice),s=g.scale;
+  for(const net of state.equipment){
+    if(!net.goalSide||net.type!=="net")continue;
+    const left=net.goalSide==="left";
+    const oldDefaults=left?[62,67.85,63.2]:[938,932.15,936.8];
+    const goalX=left?g.goalLeft:g.goalRight;
+    const depth=4*s,center=goalX+(left?-depth/2:depth/2);
+    const rotation=left?0:180;
+    const appearsDefault=net.iceAnchor!==false&&(oldDefaults.some(x=>Math.abs(net.x-x)<.15)||
+      net.iceAnchor===true);
+    if(!appearsDefault)continue;
+    net.x=round(center,2);net.y=300;net.rotation=rotation;net.scale=1;
+    net.netPreset="pro";net.geometry=v7NetDimensions("pro");net.capabilities.resize="none";
+    net.iceAnchor=true
+  }
+}
+function v7IceSyncView(){
+  const svg=$("#rinkSvg"),frame=$("#rinkFrame");if(!svg||!frame||!state.ice)return;
+  const g=v7IceGeometry(state.ice),half=state.view==="half";
+  if(half){
+    svg.setAttribute("viewBox",round(g.y-10,2)+" "+round(g.x-10,2)+" "+round(g.height+20,2)+" "+round(500-g.x+20,2))
+  }else{
+    svg.setAttribute("viewBox","0 "+round(g.y-10,2)+" 1000 "+round(g.height+20,2))
+  }
+  fitRink()
+}
+function v7IcePrepareUI(){
+  const bar=$(".rink-view-controls");if(!bar||$("#v7IceSettingsBtn"))return;
+  const button=document.createElement("button");button.id="v7IceSettingsBtn";
+  button.className="view-badge";button.textContent="RINK";button.type="button";
+  button.title="Edit the ice surface, markings, and regulation preset";
+  bar.append(button);
+  const dialog=document.createElement("dialog");dialog.id="v7IceSettingsDialog";
+  dialog.style.cssText="max-width:min(610px,94vw);width:610px;border:1px solid #34617b;border-radius:14px;background:#0b2437;color:#ecf8ff;padding:19px 21px;box-shadow:0 20px 80px #0009";
+  dialog.innerHTML='<h2 style="margin:0 0 5px;font-size:18px">Ice Surface</h2>'+
+    '<p style="font-size:11px;color:#b8cddc;line-height:1.5">A real-dimension rink object; regulation presets or custom geometry. Saved with this play.</p>'+
+    '<div id="v7IceEditor" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"></div>'+
+    '<p id="v7IceDimensions" style="font-size:11px;color:#b8cddc"></p>'+ 
+    '<p style="font-size:10px;color:#9eb8c9">Presets use published rulebook measurements. Local rink markings may vary; confirm with your league.</p>'+
+    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:15px"><button type="button" id="v7IceReset" class="btn small">Reset NHL</button>'+
+    '<button type="button" id="v7IceClose" class="btn primary">Done</button></div>';
+  document.body.append(dialog);
+  const edit=$("#v7IceEditor");
+  const profileOptions=Object.entries(V7_ICE_PROFILES).map(([id,p])=>'<option value="'+id+'">'+p.label+'</option>').join("");
+  const numeric=[["length","Rink length (ft)",160,210],["width","Rink width (ft)",72,110],
+    ["corner","Corner radius (ft)",10,35],["goalInset","Goal line from end (ft)",7,18],
+    ["blueInset","Blue line from end (ft)",45,95],["faceoffRadius","Faceoff radius (ft)",10,17],
+    ["faceoffOffset","Faceoff dots from center (ft)",14,28],["endSpotFromGoal","End spots beyond goal line (ft)",14,26],
+    ["neutralSpotInset","Neutral-zone spot inset (ft)",2,10],["creaseRadius","Crease radius (ft)",4,8]];
+  const input=(title,html)=>'<label style="display:grid;gap:4px;font-size:11px;color:#dcebf4">'+title+html+'</label>';
+  const inputStyle='style="box-sizing:border-box;width:100%;background:#112e43;border:1px solid #476a81;border-radius:6px;padding:7px;color:#fff"';
+  edit.innerHTML=input("Rink standard",'<select data-ice-key="profile" '+inputStyle+'>'+profileOptions+'<option value="custom">Custom</option></select>')+
+    input("Goal crease",'<select data-ice-key="creaseStyle" '+inputStyle+'><option value="nhl">NHL</option><option value="usa">USA Hockey</option><option value="canada">Hockey Canada</option><option value="iihf">IIHF</option></select>')+
+    numeric.map(([id,title,min,max])=>input(title,'<input type="number" data-ice-key="'+id+'" min="'+min+'" max="'+max+'" step=".1" '+inputStyle+'>')).join("")+
+    [["trapezoid","Goalkeeper trapezoid"],["refereeCrease","Referee crease"],["hashMarks","Faceoff hash marks"],["centerLogo","Center-ice logo"],
+     ["markings","All rink markings"]].map(([id,title])=>
+      '<label style="display:flex;align-items:center;gap:8px;font-size:11px"><input type="checkbox" data-ice-key="show.'+id+'">'+title+'</label>').join("")+
+    [["ice","Ice tint"],["boards","Board color"],["red","Red markings"],["blue","Blue lines"],["crease","Crease fill"]].map(([id,title])=>
+      input(title,'<input type="color" data-ice-key="color.'+id+'" style="height:32px;width:100%;border:1px solid #476a81;border-radius:6px;background:transparent">')).join("");
+  const refresh=()=>{
+    const ice=state.ice;for(const control of edit.querySelectorAll("[data-ice-key]")){
+      const key=control.dataset.iceKey;
+      if(control.type==="checkbox")control.checked=!!ice.show[key.slice(5)];
+      else if(key.startsWith("color."))control.value=ice.colors[key.slice(6)];
+      else if(key==="profile")control.value=ice.custom?"custom":ice.profile;
+      else if(key==="creaseStyle")control.value=ice.creaseStyle;
+      else control.value=String(round(ice[key],2))
+    }
+    const g=v7IceGeometry(ice);
+    $("#v7IceDimensions").textContent=round(ice.length,2)+" × "+round(ice.width,2)+
+      " feet · scale "+round(g.scale,3)+" units/ft · drawn at true proportions";
+  };
+  button.addEventListener("click",()=>{refresh();dialog.showModal()});
+  dialog.addEventListener("change",event=>{
+    const target=event.target,key=target?.dataset?.iceKey;
+    if(!key||key==="profile"&&target.value==="custom")return;
+    v7IceSetField(key,target.type==="checkbox"?target.checked:target.value);refresh()
+  });
+  $("#v7IceReset").addEventListener("click",()=>{v7IceSetField("profile","nhl");refresh()});
+  $("#v7IceClose").addEventListener("click",()=>dialog.close());
+  dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close()})
+}
+
+const V7_CREASE_RADIUS_UNITS=28.8; // Default 6ft crease × 4.8 screen units/ft
 const V7_NET_SIZES=Object.freeze({
   // Conventional coaching/equipment terms; retain stable IDs in saved plays.
   pro:Object.freeze({label:"Regulation Goal",widthFeet:6,heightFeet:4}),
@@ -5267,7 +5574,8 @@ const V7_NET_SIZES=Object.freeze({
 });
 function v7NetDimensions(preset="pro"){
   const spec=V7_NET_SIZES[preset]||V7_NET_SIZES.pro;
-  return{length:round(26*(V7_CREASE_RADIUS_UNITS/48)*spec.widthFeet/6,2),width:round(V7_CREASE_RADIUS_UNITS*spec.widthFeet/6,2),heightFeet:spec.heightFeet}
+  const ftScale=typeof state!=="undefined"&&state?.ice?v7IceGeometry(state.ice).scale:4.8;
+  return{length:round(4*ftScale*spec.widthFeet/6,2),width:round(ftScale*spec.widthFeet,2),heightFeet:spec.heightFeet}
 }
 function v7NetPostRadius(item){return Math.max(1.8,3.6*(Number(item.geometry?.width)||48)/48)}
 const V7_PUCK_RADIUS=2.8;
@@ -5319,7 +5627,7 @@ const V7_RINK_OBJECT_TYPES=Object.freeze({
   },
   net:{
     label:"Extra net",short:"NET",shape:"net",
-    geometry:{length:26,width:48,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
+    geometry:{length:19.2,width:28.8,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
     capabilities:{rotatable:true,resize:"none",puckSource:false}
   }
 });
@@ -5367,12 +5675,15 @@ function v7NormalizeEquipmentItem(item){
   if(!item||typeof item!=="object"||!V7_RINK_OBJECT_TYPES[item.type])return null;
   const def=V7_RINK_OBJECT_TYPES[item.type],defaults=v7CloneObjectDefaults(item.type);
   const p=v59ValidPoint?.(item)?v59CopyPoint(item):{x:Number(item.x)||500,y:Number(item.y)||300};
-  // Recenter only the untouched v7 default nets. Never move user-customized nets.
-  if(item.type==="net"&&item.netPreset==="pro"&&Math.abs(p.y-300)<.01&&
-    ((item.goalSide==="left"&&Math.abs(p.x-62)<.01&&Math.abs(Number(item.rotation)||0)<.01)||
-     (item.goalSide==="right"&&Math.abs(p.x-938)<.01&&Math.abs(Math.abs(Number(item.rotation)||0)-180)<.01))){
-    const halfDepth=v7NetDimensions("pro").length/2;
-    p.x=item.goalSide==="left"?75-halfDepth:925+halfDepth
+  // Recognize original unmodified default net coordinates without moving custom goals.
+  if(item.type==="net"&&item.goalSide&&item.iceAnchor!==false&&
+     Math.abs(p.y-300)<.01&&(Math.abs(Number(item.rotation)||0)<.01||
+     Math.abs(Math.abs(Number(item.rotation)||0)-180)<.01)){
+    const old=item.goalSide==="left"?[62,67.85,63.2]:[938,932.15,936.8];
+    if(old.some(x=>Math.abs(p.x-x)<.16)){
+      const g=v7IceGeometry(state?.ice||V7_ICE_PROFILES.nhl),halfDepth=v7NetDimensions("pro").length/2;
+      p.x=item.goalSide==="left"?g.goalLeft-halfDepth:g.goalRight+halfDepth
+    }
   }
   const geometry={...defaults.geometry,...(item.geometry&&typeof item.geometry==="object"?item.geometry:{})};
   const physics={...defaults.physics,...(item.physics&&typeof item.physics==="object"?item.physics:{})};
@@ -5382,17 +5693,18 @@ function v7NormalizeEquipmentItem(item){
   const resize=capabilities.resize;
   let scale=clamp(Number(item.scale)||1,.45,2.75);
   if(resize==="none"||isNet)scale=1;
-  const minLength=item.type==="net"?6:item.type==="divider"?28:item.type==="stick"?24:18;
+  const minLength=item.type==="net"?5:item.type==="divider"?28:item.type==="stick"?24:18;
   const maxLength=item.type==="divider"?190:item.type==="stick"?70:120;
   if(Number.isFinite(Number(item.length)))geometry.length=clamp(Number(item.length),minLength,maxLength);
   if(Number.isFinite(Number(geometry.radius)))geometry.radius=clamp(Number(geometry.radius),2.5,28);
-  if(Number.isFinite(Number(geometry.width)))geometry.width=clamp(Number(geometry.width),2,item.goalSide?130:48);
+  if(Number.isFinite(Number(geometry.width)))geometry.width=clamp(Number(geometry.width),2,item.type==="net"?90:48);
   if(Number.isFinite(Number(geometry.length)))geometry.length=clamp(Number(geometry.length),minLength,maxLength);
   return{
     id:String(item.id||uid("eq")),
     type:item.type,
     goalSide:item.type==="net"&&(item.goalSide==="left"||item.goalSide==="right")?item.goalSide:null,
     netPreset:isNet?netPreset:null,
+    iceAnchor:item.goalSide?item.iceAnchor!==false:false,
     x:round(Number(p.x)||500,2),
     y:round(Number(p.y)||300,2),
     rotation:capabilities.rotatable?round(Number(item.rotation)||0,1):0,
@@ -5413,7 +5725,7 @@ function v7DefaultGoalNet(side){
   const left=side==="left";
   return v7NormalizeEquipmentItem({
     id:"v7-goal-"+side,type:"net",goalSide:side,
-    x:left?round(75-v7NetDimensions("pro").length/2,2):round(925+v7NetDimensions("pro").length/2,2),y:300,rotation:left?0:180,scale:1,netPreset:"pro",
+    x:left?round(v7IceGeometry(state?.ice||V7_ICE_PROFILES.nhl).goalLeft-v7NetDimensions("pro").length/2,2):round(v7IceGeometry(state?.ice||V7_ICE_PROFILES.nhl).goalRight+v7NetDimensions("pro").length/2,2),y:300,rotation:left?0:180,scale:1,netPreset:"pro",iceAnchor:true,
     geometry:v7NetDimensions("pro"),
     physics:{collidable:true,response:"stop",restitution:0}
   })
@@ -5449,10 +5761,12 @@ function v7EnsureSemanticTimeline(timeline){
 function v7EnsurePlatformState(output){
   if(!output||typeof output!=="object")return output;
   output.platform=v7NormalizePlatformMeta(output.platform);
+  output.ice=v7NormalizeIce(output.ice);
   output.equipment=v7NormalizeEquipmentList(output.equipment);
   v7EnsureSemanticTimeline(output.timeline);
   if(Array.isArray(output.variations)){
     for(const option of output.variations){
+      option.ice=v7NormalizeIce(option.ice||output.ice);
       option.equipment=v7NormalizeEquipmentList(option.equipment);
       v7EnsureSemanticTimeline(option.timeline)
     }
@@ -5468,6 +5782,7 @@ normalizeState=function(raw){return v7EnsurePlatformState(normalizeStateV682ForV
 const captureVariationV682ForV7=captureVariationFromStateLike;
 captureVariationFromStateLike=function(source,id,name,sourceRange=null){
   const option=captureVariationV682ForV7(source,id,name,sourceRange);
+  option.ice=v7NormalizeIce(source?.ice||state?.ice);
   option.equipment=v7NormalizeEquipmentList(source?.equipment);
   v7EnsureSemanticTimeline(option.timeline);
   return option
@@ -5475,6 +5790,7 @@ captureVariationFromStateLike=function(source,id,name,sourceRange=null){
 const applyVariationV682ForV7=applyVariation;
 applyVariation=function(option){
   applyVariationV682ForV7(option);
+  state.ice=v7NormalizeIce(option?.ice||state?.ice);
   state.equipment=v7NormalizeEquipmentList(option?.equipment);
   v7EnsureSemanticTimeline(state.timeline)
 };
@@ -5483,16 +5799,24 @@ const snapshotV682ForV7=snapshot;
 snapshot=function(){
   const data=JSON.parse(snapshotV682ForV7());
   data.platform=v7NormalizePlatformMeta(state.platform);
+  data.ice=v7NormalizeIce(state.ice);
   data.equipment=v7NormalizeEquipmentList(state.equipment);
-  if(Array.isArray(data.variations))for(const option of data.variations)option.equipment=v7NormalizeEquipmentList(option.equipment);
+  if(Array.isArray(data.variations))for(const option of data.variations){
+    option.ice=v7NormalizeIce(option.ice||state.ice);
+    option.equipment=v7NormalizeEquipmentList(option.equipment)
+  }
   return JSON.stringify(data)
 };
 const snapshotPlayV682ForV7=snapshotPlay;
 snapshotPlay=function(name){
   const play=snapshotPlayV682ForV7(name);
   play.platform=v7NormalizePlatformMeta(state.platform);
+  play.ice=v7NormalizeIce(state.ice);
   play.equipment=v7NormalizeEquipmentList(state.equipment);
-  if(Array.isArray(play.variations))for(const option of play.variations)option.equipment=v7NormalizeEquipmentList(option.equipment);
+  if(Array.isArray(play.variations))for(const option of play.variations){
+    option.ice=v7NormalizeIce(option.ice||state.ice);
+    option.equipment=v7NormalizeEquipmentList(option.equipment)
+  }
   v7EnsureSemanticTimeline(play.timeline);
   return play
 };
@@ -5500,7 +5824,9 @@ const loadPlayV682ForV7=loadPlay;
 loadPlay=function(play){
   loadPlayV682ForV7(play);
   state.platform=v7NormalizePlatformMeta(play?.platform||state.platform);
+  state.ice=v7NormalizeIce(play?.ice||state.ice);
   state.equipment=v7NormalizeEquipmentList(play?.equipment||state.equipment);
+  v7IceSyncGoalObjects();
   v7EnsurePlatformState(state);
   syncActiveVariation();
   renderAll()
@@ -5510,7 +5836,9 @@ newBoard=function(){
   // Let the legacy New operation capture undo history before clearing v7 data.
   newBoardV682ForV7();
   state=v7EnsurePlatformState(state);
+  state.ice=v7NormalizeIce({profile:"nhl"});
   state.equipment=v7NormalizeEquipmentList([]);
+  v7IceSyncGoalObjects();
   ui.v7EquipmentDrag=null;
   ui.v7EquipmentTransform=null;
   v7CancelEquipmentPlacement();
@@ -5883,7 +6211,8 @@ function v7CreasePath(side,style="nhl"){
     " L"+fmt(300+h)+" 105 Z"
 }
 function v7ApplyCreaseProfile(){
-  const style=state.appearance?.creaseStyle==="youth"?"youth":"nhl";
+  const style=state.ice?.creaseStyle==="nhl"?"nhl":"youth";
+  v7IceRenderIfNeeded();
   for(const [id,side] of [["v7FullCreaseLeft","left"],["v7FullCreaseRight","right"],["v7HalfCrease","half"]]){
     const node=$("#"+id),path=v7CreasePath(side,style);
     if(node&&node.getAttribute("d")!==path)node.setAttribute("d",path)
@@ -5898,8 +6227,7 @@ function v7PrepareCreaseStyleUI(){
   select.innerHTML='<option value="nhl">NHL crease</option><option value="youth">USA / Canada crease</option>';
   select.style.cssText="min-height:27px;max-width:170px;border:1px solid #3c5b72;border-radius:9px;background:#061827;color:#edf6fb;padding:4px 6px;font-size:10px;cursor:pointer";
   select.addEventListener("change",()=>{
-    state.appearance={...state.appearance,creaseStyle:select.value==="youth"?"youth":"nhl"};
-    v7ApplyCreaseProfile();scheduleSave()
+    v7IceSetField("creaseStyle",select.value==="youth"?"canada":"nhl")
   });
   root.append(select);v7ApplyCreaseProfile()
 }
@@ -6131,6 +6459,7 @@ function v7SetupEquipmentEvents(){
       event.preventDefault();event.stopImmediatePropagation();
       const item=v7EquipmentById(transform.id);if(!item)return;const p=svgPoint(event);
       pushTransformHistory(transform);transform.changed=true;
+      if(item.goalSide)item.iceAnchor=false;
       if(transform.kind==="rotate"){
         const angle=Math.atan2(p.y-item.y,p.x-item.x)*180/Math.PI+90;
         item.rotation=round(((angle+180)%360)-180,1)
@@ -6195,6 +6524,7 @@ function v7SetupInspectorEvents(){
   root.addEventListener("input",event=>{
     if(ui.selectedType!=="equipment")return;const item=v7EquipmentById(ui.selectedId);if(!item)return;
     const id=event.target.id;
+    if(item.goalSide&&["v7ObjectX","v7ObjectY","v7ObjectRotation"].includes(id))item.iceAnchor=false;
     if(id==="v7ObjectX"){item.x=Number(event.target.value);$("#v7ObjectXOut").textContent=Math.round(item.x)}
     else if(id==="v7ObjectY"){item.y=Number(event.target.value);$("#v7ObjectYOut").textContent=Math.round(item.y)}
     else if(id==="v7ObjectRotation"){item.rotation=Number(event.target.value);$("#v7ObjectRotationOut").textContent=Math.round(item.rotation)+"°"}
@@ -6349,6 +6679,42 @@ renderFrame=function(time=ui.playhead){
   return output
 };
 
+/* V7 ice camera and physics are derived from the exact same rink object as the artwork. */
+fitRink=function(){
+  cancelAnimationFrame(rinkFitRaf);
+  rinkFitRaf=requestAnimationFrame(()=>{
+    const shell=$(".rink-shell"),frame=$("#rinkFrame"),svg=$("#rinkSvg");
+    if(!shell||!frame||!svg)return;
+    const box=svg.viewBox.baseVal,ratio=box.width>0&&box.height>0?box.width/box.height:1000/600;
+    const sw=Math.max(0,shell.clientWidth-2),sh=Math.max(0,shell.clientHeight-2);
+    if(sw<40||sh<40)return;
+    let w=sw,h=w/ratio;if(h>sh){h=sh;w=h*ratio}
+    frame.style.width=Math.floor(w)+"px";frame.style.height=Math.floor(h)+"px"
+  })
+};
+const v7IceUpdateViewOriginal=updateRinkView;
+updateRinkView=function(){
+  v7IceUpdateViewOriginal();
+  v7IceRenderIfNeeded();
+  v7IceSyncView()
+};
+v60RoundedRinkPerimeter=function(){return v7IcePerimeter(state.ice)};
+rinkBounds=function(){
+  const g=v7IceGeometry(state.ice);
+  return{minX:g.x+2,maxX:g.xRight-2,minY:g.y+2,maxY:g.yBottom-2,width:g.width,height:g.height}
+};
+v59VisibleWorldBounds=function(){
+  const b=rinkBounds();
+  if(state.view!=="half")return b;
+  return state.halfSide==="left"?{...b,maxX:Math.min(500,b.maxX)}:
+    {...b,minX:Math.max(500,b.minX)}
+};
+v58OffsideModel=function(teamId){
+  const g=v7IceGeometry(state.ice);
+  return teamId==="A"?{axis:"x",direction:1,edge:g.blueRight+g.scale/2}:
+    {axis:"x",direction:-1,edge:g.blueLeft-g.scale/2}
+};
+
 const initV682ForV7=init;
 init=function(){
   initV682ForV7();
@@ -6357,6 +6723,8 @@ init=function(){
   syncActiveVariation();
   v7PrepareEquipmentUI();
   v7PrepareCreaseStyleUI();
+  v7IcePrepareUI();
+  v7IceSyncGoalObjects();
   v7PrepareShotCollisionUI();
   v7SetupEquipmentEvents();
   v7SetupInspectorEvents();
@@ -6372,7 +6740,12 @@ Object.assign(window.BOTD_TEST,{
   semanticMovements:()=>deepClone(V7_SEMANTIC_MOVEMENT),
   equipmentCollision:(id,point)=>{const item=v7EquipmentById(id);return item?deepClone(v7EquipmentCollisionAt(item,point)):null},
   takePuckFromPile:id=>{const item=v7EquipmentById(id);v7TakePuckFromPile(item);return deepClone(state.equipment||[])},
-  creaseRadiusUnits:()=>V7_CREASE_RADIUS_UNITS,
+  creaseRadiusUnits:()=>6*v7IceGeometry(state.ice).scale,
+  ice:()=>deepClone(state.ice),
+  iceGeometry:()=>{const g=v7IceGeometry(state.ice);return{...g,ftX:undefined,ftY:undefined}},
+  setIceField:(key,value)=>v7IceSetField(key,value),
+  icePerimeter:()=>deepClone(v7IcePerimeter(state.ice)),
+  iceCreaseOutline:side=>v7IceCreaseOutline(side,state.ice),
   creasePath:(side,style)=>v7CreasePath(side,style),
   netSizes:()=>deepClone(V7_NET_SIZES),
   triggerNetLight:id=>v7TriggerGoalLight(id),
