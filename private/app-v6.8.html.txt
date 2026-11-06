@@ -1626,7 +1626,7 @@ function renderPuckLayer(time,puckTimeline){
 function renderDrawing(){const layer=$("#drawingLayer");layer.innerHTML="";for(const stroke of state.drawings){if(!stroke.points?.length)continue;layer.append(svgEl("path",{d:pathD(stroke.points),fill:"none",stroke:stroke.color,"stroke-width":stroke.width,"stroke-linecap":"round","stroke-linejoin":"round",opacity:stroke.opacity??1}))}}
 function renderRoutes(time){const layer=$("#routeLayer");layer.innerHTML="";if(!state.display.routes||state.display.routeMode==="off")return;for(const clip of state.timeline.movements){let points=clip.points;if(state.display.routeMode==="ahead"&&time>=clip.start&&time<=clip.start+clip.duration){const progress=(time-clip.start)/clip.duration;const idx=Math.max(0,Math.floor(progress*(points.length-1)));points=[pointAtPolyline(points,progress),...points.slice(idx+1)]}else if(state.display.routeMode==="ahead"&&time>clip.start+clip.duration)continue;const p=playerById(clip.playerId),c=p?playerColors(p).primary:"#39d8ff";layer.append(svgEl("path",{d:pathD(points),class:"route-path",stroke:c}))}
   const pt=buildPuckTimeline();for(const interval of pt.intervals){if(interval.kind!=="travel")continue;if(state.display.routeMode==="ahead"&&time>interval.end)continue;let points=interval.path;if(state.display.routeMode==="ahead"&&time>=interval.start&&time<=interval.end){const progress=(time-interval.start)/(interval.end-interval.start);const idx=Math.floor(progress*(points.length-1));points=[pointAtPolyline(points,progress),...points.slice(idx+1)]}layer.append(svgEl("path",{d:pathD(points),class:"route-path",stroke:"#14181c","stroke-dasharray":interval.sauce?"10 7":""}))}}
-function renderFrame(time=ui.playhead){const pt=buildPuckTimeline();renderObjectLayer(time);const ps=renderPuckLayer(time,pt);renderRoutes(time);renderDrawing();const off=offsideStateAt(time,pt),light=$("#offsideLight");light.style.display=off==="hidden"?"none":"";light.className=`offside-light ${off==="orange"?"orange":off==="red"?"red":""}`;light.title=off==="red"?t("offsideViolation"):off==="orange"?t("offsideWarning"):t("onside");light.setAttribute("aria-label",light.title);$("#rinkFrame").classList.toggle("playing",ui.playing);$("#timeCode").textContent=`${fmtTime(time)} / ${fmtTime(state.timeline.duration)}`;updateTimelinePlayhead();const currentGoal=pt.intervals.find(i=>i.kind==="travel"&&i.goal&&time>=i.end-.08&&time<=i.end+.75);$("#goalBanner").classList.toggle("active",!!currentGoal);return{pt,ps}}
+function renderFrame(time=ui.playhead){const pt=buildPuckTimeline();renderObjectLayer(time);const ps=renderPuckLayer(time,pt);renderRoutes(time);renderDrawing();const off=offsideStateAt(time,pt),light=$("#offsideLight");light.style.display=off==="hidden"?"none":"";light.className=`offside-light ${off==="orange"?"orange":off==="red"?"red":""}`;light.title=off==="red"?t("offsideViolation"):off==="orange"?t("offsideWarning"):t("onside");light.setAttribute("aria-label",light.title);$("#rinkFrame").classList.toggle("playing",ui.playing);$("#timeCode").textContent=`${fmtTime(time)} / ${fmtTime(state.timeline.duration)}`;updateTimelinePlayhead();$("#goalBanner").classList.remove("active");return{pt,ps}}
 function renderStatic(){applyAppearance();renderTeams();renderRoster();renderPlaybook();renderSettings();renderBenches();updateRinkView();renderTimeline();renderInspector();renderFrame(ui.playhead);$("#topStatus").textContent=t("topStatus",{onIce:Object.keys(state.onIce).length,moves:state.timeline.movements.length,events:activeTake().events.length});applyStaticTranslations();updateDrawerHandles();fitRink()}
 function renderAll(){renderStatic();scheduleSave()}
 function timelinePx(){const body=$("#timelineBody"),label=window.innerWidth<=720?104:window.innerWidth<=1180?132:158;const available=Math.max(180,(body?.clientWidth||window.innerWidth)-label-2);return available/Math.max(1,state.timeline.duration)}
@@ -4298,10 +4298,19 @@ togglePlayback=function(){
 tick=function(ts){
   if(!ui.playing)return;
   if(!ui.lastFrame)ui.lastFrame=ts;
-  const prev=ui.playhead,dt=Math.min(.08,(ts-ui.lastFrame)/1000)*ui.speed,end=v64PlaybackEnd();ui.lastFrame=ts;ui.playhead+=dt;
-  if(ui.playhead>=end-.0005){ui.playhead=end;stopPlayback({keepDirect:false});return}
-  const pt=buildPuckTimeline();for(const interval of pt.intervals){if(interval.goal&&prev<interval.end&&ui.playhead>=interval.end){goalSiren();ui.liveGoalEvent=interval.eventId}}
-  renderFrame(ui.playhead);ui.raf=requestAnimationFrame(tick)
+  const prev=ui.playhead,dt=Math.min(.08,(ts-ui.lastFrame)/1000)*ui.speed,end=v64PlaybackEnd();
+  ui.lastFrame=ts;ui.playhead=Math.min(end,ui.playhead+dt);
+  const pt=buildPuckTimeline();
+  for(const interval of pt.intervals){
+    const scoredAt=Number.isFinite(interval.goalTime)?interval.goalTime:interval.end;
+    if(interval.goal&&prev<scoredAt&&ui.playhead>=scoredAt){
+      if(interval.netId)v7TriggerGoalLight(interval.netId);
+      goalSiren()
+    }
+  }
+  renderFrame(ui.playhead);
+  if(ui.playhead>=end-.0005){stopPlayback({keepDirect:false});return}
+  ui.raf=requestAnimationFrame(tick)
 };
 
 function v64RaySegmentHit(start,direction,maxDistance,a,b){
@@ -4350,7 +4359,7 @@ v60BuildShotPath=function(start,aimPoint,power){
     const goal=v64GoalCandidate(current,direction,remaining),surface=v64NearestShotSurface(current,direction,remaining);
     if(goal&&(!surface||goal.distance<surface.distance-.05)){
       v64AppendPoint(path,goal.entry);v64AppendPoint(path,goal.end);
-      return{path,direction:initial,goal:true,boardFollow,bounced,netBounce,bounceCount,contacts,distance:polylineLength(path)}
+      return{path,direction:initial,goal:true,netId:goal.netId,boardFollow,bounced,netBounce,bounceCount,contacts,distance:polylineLength(path)}
     }
     if(!surface){v64AppendPoint(path,v64ClampPlayablePoint({x:current.x+direction.x*remaining,y:current.y+direction.y*remaining},.35));remaining=0;break}
     v64AppendPoint(path,surface.point);remaining=Math.max(0,remaining-surface.distance);contacts.push({kind:surface.kind,surface:surface.surface||"boards",point:deepClone(surface.point)});
@@ -5251,6 +5260,16 @@ Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
    appear only when requested and use the same deterministic timeline engine. */
 const V7_PLATFORM_SCHEMA_VERSION=2;
 const V7_CREASE_RADIUS_UNITS=48;
+const V7_NET_SIZES=Object.freeze({
+  little:Object.freeze({label:"Little",widthFeet:3,heightFeet:2}),
+  medium:Object.freeze({label:"Medium",widthFeet:4,heightFeet:3}),
+  pro:Object.freeze({label:"Pro",widthFeet:6,heightFeet:4})
+});
+function v7NetDimensions(preset="pro"){
+  const spec=V7_NET_SIZES[preset]||V7_NET_SIZES.pro;
+  return{length:round(26*spec.widthFeet/6,2),width:round(V7_CREASE_RADIUS_UNITS*spec.widthFeet/6,2),heightFeet:spec.heightFeet}
+}
+function v7NetPostRadius(item){return Math.max(1.8,3.6*(Number(item.geometry?.width)||48)/48)}
 const V7_PUCK_RADIUS=2.8;
 const V7_RINK_OBJECT_TYPES=Object.freeze({
   cone:{
@@ -5300,8 +5319,8 @@ const V7_RINK_OBJECT_TYPES=Object.freeze({
   },
   net:{
     label:"Extra net",short:"NET",shape:"net",
-    geometry:{length:42,width:22},physics:{collidable:true,response:"stop",restitution:0},
-    capabilities:{rotatable:true,resize:"uniform",puckSource:false}
+    geometry:{length:26,width:48,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
+    capabilities:{rotatable:true,resize:"none",puckSource:false}
   }
 });
 const V7_EQUIPMENT_TYPES=V7_RINK_OBJECT_TYPES;
@@ -5351,9 +5370,11 @@ function v7NormalizeEquipmentItem(item){
   const geometry={...defaults.geometry,...(item.geometry&&typeof item.geometry==="object"?item.geometry:{})};
   const physics={...defaults.physics,...(item.physics&&typeof item.physics==="object"?item.physics:{})};
   const capabilities={...defaults.capabilities,...(item.capabilities&&typeof item.capabilities==="object"?item.capabilities:{})};
+  const isNet=item.type==="net",netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPreset)?item.netPreset:"pro";
+  if(isNet){Object.assign(geometry,v7NetDimensions(netPreset));capabilities.resize="none"}
   const resize=capabilities.resize;
   let scale=clamp(Number(item.scale)||1,.45,2.75);
-  if(resize==="none")scale=1;
+  if(resize==="none"||isNet)scale=1;
   const minLength=item.type==="divider"?28:item.type==="stick"?24:18;
   const maxLength=item.type==="divider"?190:item.type==="stick"?70:120;
   if(Number.isFinite(Number(item.length)))geometry.length=clamp(Number(item.length),minLength,maxLength);
@@ -5364,6 +5385,7 @@ function v7NormalizeEquipmentItem(item){
     id:String(item.id||uid("eq")),
     type:item.type,
     goalSide:item.type==="net"&&(item.goalSide==="left"||item.goalSide==="right")?item.goalSide:null,
+    netPreset:isNet?netPreset:null,
     x:round(Number(p.x)||500,2),
     y:round(Number(p.y)||300,2),
     rotation:capabilities.rotatable?round(Number(item.rotation)||0,1):0,
@@ -5384,8 +5406,8 @@ function v7DefaultGoalNet(side){
   const left=side==="left";
   return v7NormalizeEquipmentItem({
     id:"v7-goal-"+side,type:"net",goalSide:side,
-    x:left?62:938,y:300,rotation:left?0:180,scale:1,
-    geometry:{length:26,width:86},
+    x:left?62:938,y:300,rotation:left?0:180,scale:1,netPreset:"pro",
+    geometry:v7NetDimensions("pro"),
     physics:{collidable:true,response:"stop",restitution:0}
   })
 }
@@ -5560,7 +5582,7 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNet
     for(let i=0;i<=steps;i++){
       const u=i/steps,along=(walked+seg*u)/total,p=pointLerp(a,b,u);
       for(const item of state.equipment||[]){
-        if(item.goalSide&&!includeGoalNets)continue;
+        if(item.type==="net"&&!includeGoalNets)continue;
         const hit=v7EquipmentCollisionAt(item,p);
         if(hit&&(!best||along<best.progress)){
           best={...hit,time:lerp(startTime,endTime,along),progress:along};
@@ -5578,7 +5600,7 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNet
    Progress is arc length (rather than segment index), so board-following
    trajectories display the lift at the actual obstacle crossing. */
 function v7ObjectClearancesOnPath(points){
-  const total=polylineLength(points),items=(state.equipment||[]).filter(item=>item.physics?.collidable&&!item.goalSide);
+  const total=polylineLength(points),items=(state.equipment||[]).filter(item=>item.physics?.collidable&&item.type!=="net");
   if(total<.001||!items.length)return[];
   const clearances=[],byId=new Map();
   let walked=0;
@@ -5604,7 +5626,7 @@ function v7ObjectClearancesOnPath(points){
 
 /* First-class regulation goals: +local X faces the ice; scoring is only
    front-to-back through the actual mouth, never through mesh or posts. */
-function v7GoalNets(){return(state.equipment||[]).filter(item=>item.type==="net"&&!!item.goalSide)}
+function v7GoalNets(){return(state.equipment||[]).filter(item=>item.type==="net")}
 function v7GoalNetPoints(item){
   const halfL=(Number(item.geometry?.length)||26)/2,halfW=(Number(item.geometry?.width)||86)/2;
   return{
@@ -5624,7 +5646,7 @@ function v7NetGoalCandidate(start,direction,maxDistance){
     const local=v7WorldToLocal(net,hit.point),margin=Math.min(4.5,p.halfW*.13);
     if(Math.abs(local.y)>=p.halfW-margin)continue;
     const end=v7LocalToWorld(net,{x:-p.halfL+1,y:local.y});
-    const candidate={goal:true,distance:hit.distance,entry:hit.point,end,side:net.goalSide,netId:net.id};
+    const candidate={goal:true,distance:hit.distance,entry:hit.point,end,side:net.goalSide||null,netId:net.id};
     if(!best||candidate.distance<best.distance)best=candidate
   }
   return best
@@ -5647,12 +5669,12 @@ v64NearestShotSurface=function(start,direction,maxDistance){
   for(let i=0;i<perimeter.length-1;i++)
     consider(perimeter[i],perimeter[i+1],{kind:"board",index:i});
   for(const net of v7GoalNets()){
-    const p=v7GoalNetPoints(net),attrs={kind:"net",net:net.goalSide,netId:net.id};
+    const p=v7GoalNetPoints(net),attrs={kind:"net",net:net.goalSide||"extra",netId:net.id};
     consider(p.frontTop,p.backTop,{...attrs,surface:"top"});
     consider(p.backTop,p.backBottom,{...attrs,surface:"back"});
     consider(p.backBottom,p.frontBottom,{...attrs,surface:"bottom"});
     for(const center of [p.frontTop,p.frontBottom]){
-      const radius=3.6*(net.scale||1),ox=start.x-center.x,oy=start.y-center.y;
+      const radius=v7NetPostRadius(net),ox=start.x-center.x,oy=start.y-center.y;
       const projection=ox*direction.x+oy*direction.y;
       const delta=projection*projection-(ox*ox+oy*oy-radius*radius);
       if(delta<0)continue;
@@ -5797,7 +5819,7 @@ buildPuckTimeline=function(){
       const hasAim=aim&&Number.isFinite(Number(aim.x))&&Number.isFinite(Number(aim.y));
       const built=hasAim?v60BuildShotPath(start,{x:start.x+Number(aim.x)*240,y:start.y+Number(aim.y)*240},power):null;
       const target=clampRinkPoint(event.target||currentPos);
-      const legacyGoal=built?{goal:built.goal}:goalResultForShot(start,target);
+      const legacyGoal=built?{goal:built.goal,netId:built.netId}:goalResultForShot(start,target);
       let path=built?built.path:(legacyGoal.goal?[start,legacyGoal.entry,legacyGoal.end]:[start,target]);
       const naturalDuration=polylineLength(path)/shotSpeedUnits(power);
       const duration=requestedDuration(event,naturalDuration);
@@ -5817,14 +5839,38 @@ buildPuckTimeline=function(){
       }
       const clearances=event.ignoreObjects?v7ObjectClearancesOnPath(path):[];
       const impacts=(built?.contacts||[]).map(contact=>({...contact,progress:v7ContactProgress(path,contact.point)})).filter(contact=>Number.isFinite(contact.progress));
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,collision,clearances,impacts,boardFollow:!!built?.boardFollow,motion:"shot",power});
+      const netId=goal?(built?.netId||legacyGoal.netId||null):null;
+      const mouthDistance=goal&&path.length>2?polylineLength(path.slice(0,-1)):polylineLength(path);
+      const mouthProgress=goal?clamp(mouthDistance/Math.max(.001,polylineLength(path)),0,1):1;
+      const mouthTime=goal?at+duration*(1-Math.pow(1-mouthProgress,1/(built?.boardFollow?1.58:1.35))):null;
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,netId,goalTime:mouthTime,collision,clearances,impacts,boardFollow:!!built?.boardFollow,motion:"shot",power});
       cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
-      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,collision,clearances,boardFollow:!!built?.boardFollow,power});continue
+      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,netId,collision,clearances,boardFollow:!!built?.boardFollow,power});continue
     }
   }
   addSteady(state.timeline.duration+5);return{intervals,results,events}
 };
 
+const v7GoalFlashes=new Map();
+let v7GoalLightAnimationFrame=0;
+function v7UpdateGoalLights(){
+  const now=performance.now();
+  for(const [id,endsAt] of v7GoalFlashes)if(now>=endsAt)v7GoalFlashes.delete(id);
+  for(const node of $("[data-v7-goal-light]")){
+    const active=v7GoalFlashes.has(node.dataset.v7GoalLight);
+    const bulb=node.querySelector("[data-v7-goal-bulb]");
+    if(!bulb)continue;
+    const bright=active&&Math.floor(now/240)%2===0;
+    bulb.setAttribute("fill",bright?"#ff2437":"#731822");
+    bulb.style.filter=bright?"drop-shadow(0 0 8px #ff2437) drop-shadow(0 0 13px #fc3348)":"";
+  }
+  v7GoalLightAnimationFrame=v7GoalFlashes.size?requestAnimationFrame(v7UpdateGoalLights):0
+}
+function v7TriggerGoalLight(netId){
+  if(!netId||!v7EquipmentById(netId))return;
+  v7GoalFlashes.set(netId,performance.now()+5000);
+  if(!v7GoalLightAnimationFrame)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
+}
 function v7EquipmentSvg(item){
   const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
     "data-equipment-id":item.id,
@@ -5865,11 +5911,15 @@ function v7EquipmentSvg(item){
   }else if(item.type==="net"){
     const L=Number(geo.length)||42,D=Number(geo.width)||22;
     g.append(svgEl("rect",{x:-L/2,y:-D/2,width:L,height:D,fill:"rgba(215,228,233,.22)",stroke:"none"}));
-    g.append(svgEl("path",{d:"M"+(L/2)+" "+(-D/2)+" H"+(-L/2)+" V"+(D/2)+" H"+(L/2),fill:"none",stroke:red,"stroke-width":item.goalSide?3.1:2.4,"stroke-linejoin":"round"}));
+    g.append(svgEl("path",{d:"M"+(L/2)+" "+(-D/2)+" H"+(-L/2)+" V"+(D/2)+" H"+(L/2),fill:"none",stroke:red,"stroke-width":3.1,"stroke-linejoin":"round"}));
     for(let x=-L*.34;x<L*.35;x+=Math.max(4,L*.17))g.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
     for(let y=-D*.45;y<D*.49;y+=Math.max(5,D*.15))g.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
     g.append(svgEl("line",{x1:L/2,y1:-D/2,x2:L/2,y2:D/2,stroke:"#ee6b6b","stroke-width":1.5,"stroke-dasharray":"3 5",opacity:.58}));
-    for(const y of [-D/2,D/2])g.append(svgEl("circle",{cx:L/2,cy:y,r:item.goalSide?3.6:2.5,fill:"#e33b42",stroke:"#fff","stroke-width":1.1}))
+    for(const y of [-D/2,D/2])g.append(svgEl("circle",{cx:L/2,cy:y,r:v7NetPostRadius(item),fill:"#e33b42",stroke:"#fff","stroke-width":1.1}));
+    const beacon=svgEl("g",{"data-v7-goal-light":item.id,"aria-hidden":"true","pointer-events":"none"});
+    beacon.append(svgEl("circle",{cx:-L/2-9,cy:0,r:7.6,fill:"#37424a",stroke:"#e9f4fa","stroke-width":1.2}));
+    beacon.append(svgEl("circle",{cx:-L/2-9,cy:0,r:5.1,fill:"#731822","data-v7-goal-bulb":"1"}));
+    g.append(beacon)
   }
   if(item.label){
     const label=svgEl("text",{x:0,y:Math.max(16,(Number(geo.width)||12)*.9+9),"text-anchor":"middle",class:"token-label","font-size":"8"});label.textContent=item.label;g.append(label)
@@ -5902,14 +5952,16 @@ function v7RenderEquipment(){
 const renderObjectLayerV682ForV7=renderObjectLayer;
 renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment()};
 
-function v7SetEquipmentPlacement(type){
+function v7SetEquipmentPlacement(type,preset="pro"){
   if(!V7_RINK_OBJECT_TYPES[type])return;
   ui.v7EquipmentPlacement=type;
+  ui.v7EquipmentPlacementPreset=Object.hasOwn(V7_NET_SIZES,preset)?preset:"pro";
   const btn=$("#v7EquipmentBtn");if(btn){btn.classList.remove("active");btn.title="Rink objects"}
   toast("Tap the rink once to place "+V7_RINK_OBJECT_TYPES[type].label+".",2600)
 }
 function v7CancelEquipmentPlacement(){
   ui.v7EquipmentPlacement=null;
+  ui.v7EquipmentPlacementPreset=null;
   const btn=$("#v7EquipmentBtn");if(btn){btn.classList.remove("active");btn.title="Rink objects"}
 }
 function v7AddEquipment(type,point,overrides={}){
@@ -5946,8 +5998,8 @@ function v7RenderEquipmentInspector(){
   const root=$("#inspectorContent"),title=$("#inspectorTitle"),sub=$("#inspectorSubtitle"),item=v7EquipmentById(ui.selectedId);
   if(!root||!item){ui.selectedType=null;return renderInspector()}
   const def=V7_RINK_OBJECT_TYPES[item.type],g=item.geometry||{},cap=item.capabilities||{},phys=item.physics||{};
-  title.textContent=item.goalSide?"Goal net":def.label;sub.textContent=item.goalSide?"Regulation goal · editable scoring geometry":"Rink object · physical properties";
-  const resize=cap.resize,hasLength=resize==="length",isPile=item.type==="puckPile",isPuck=item.type==="puck";
+  title.textContent=item.goalSide?"Goal net":def.label;sub.textContent=item.goalSide?"Permanent scoring goal":"Rink object · physical properties";
+  const resize=cap.resize,hasLength=resize==="length",isPile=item.type==="puckPile",isPuck=item.type==="puck",isNet=item.type==="net";
   const collisionLabel=phys.response==="bounce"?"Bounces puck":phys.response==="stop"?"Stops puck":phys.response==="soft_block"?"Soft blocker":"No puck collision";
   root.innerHTML=
     '<div class="identity-card"><div class="identity-token puck" style="border-radius:8px"><span style="font-size:9px">'+escapeHtml(def.short)+'</span></div><div><strong>'+escapeHtml(def.label)+'</strong><small>'+escapeHtml(collisionLabel)+' · top-down rink object</small></div></div>'+
@@ -5956,6 +6008,7 @@ function v7RenderEquipmentInspector(){
     '<div class="range-label"><span>Y axis</span><output id="v7ObjectYOut">'+Math.round(item.y)+'</output></div><input id="v7ObjectY" type="range" min="'+rinkBounds().minY+'" max="'+rinkBounds().maxY+'" step="1" value="'+item.y+'" style="width:100%">'+
     '<div class="v7-nudge-grid"><button class="btn small" data-v7-nudge="0,-4">↑</button><button class="btn small" data-v7-nudge="-4,0">←</button><button class="btn small" data-v7-nudge="4,0">→</button><button class="btn small" data-v7-nudge="0,4">↓</button></div></section>'+
     (cap.rotatable?'<section class="inspector-section"><h3>Rotation</h3><div class="range-label"><span>Angle</span><output id="v7ObjectRotationOut">'+Math.round(item.rotation)+'°</output></div><input id="v7ObjectRotation" type="range" min="-180" max="180" step="1" value="'+item.rotation+'" style="width:100%"><div class="button-row"><button class="btn small" data-v7-rotate="-15">−15°</button><button class="btn small" data-v7-rotate="15">+15°</button><button class="btn small" data-v7-rotate="90">+90°</button></div></section>':'')+
+    (isNet?'<section class="inspector-section"><h3>Net size</h3><select id="v7NetSizeSelect" style="width:100%">'+Object.entries(V7_NET_SIZES).map(([id,preset])=>'<option value="'+id+'" '+(item.netPreset===id?'selected':'')+'>'+preset.label+' · '+preset.heightFeet+' × '+preset.widthFeet+' ft (H × W)</option>').join("")+'</select><p>Exact opening width is scaled to the regulation 6 ft crease radius. Nets move and rotate but cannot be free-resized.</p></section>':'')+
     (resize!=="none"?'<section class="inspector-section"><h3>Size</h3>'+
       (hasLength?'<div class="range-label"><span>Length</span><output id="v7ObjectLengthOut">'+Math.round(Number(g.length)||30)+'</output></div><input id="v7ObjectLength" type="range" min="'+(item.type==="divider"?28:item.type==="stick"?24:18)+'" max="'+(item.type==="divider"?190:item.type==="stick"?70:120)+'" step="1" value="'+(Number(g.length)||30)+'" style="width:100%">':
       '<div class="range-label"><span>Scale</span><output id="v7ObjectScaleOut">'+Number(item.scale||1).toFixed(2)+'×</output></div><input id="v7ObjectScale" type="range" min=".45" max="2.75" step=".05" value="'+item.scale+'" style="width:100%">')+
@@ -5963,7 +6016,7 @@ function v7RenderEquipmentInspector(){
     (isPile?'<section class="inspector-section"><h3>Puck source</h3><div class="range-label"><span>Pucks remaining</span><output id="v7ObjectQuantityOut">'+item.quantity+'</output></div><input id="v7ObjectQuantity" type="range" min="0" max="40" step="1" value="'+item.quantity+'" style="width:100%"><button class="btn primary" id="v7TakePuckBtn">Take a usable puck</button></section>':'')+
     (isPuck?'<section class="inspector-section"><h3>Extra puck</h3><p>This is a real spare puck object. Make it active to start a new independent puck route from this exact location.</p><button class="btn primary" id="v7UsePuckBtn">Use as active puck</button></section>':'')+
     '<section class="inspector-section"><h3>Physics</h3><p>'+escapeHtml(collisionLabel)+(phys.response==="bounce"?' · '+Math.round((phys.restitution||0)*100)+'% rebound response.':'')+'</p></section>'+
-    (item.goalSide?'<section class="inspector-section"><p>Permanent goal net. Moving or rotating it updates the scoring mouth, goalposts, and cage physics.</p><button class="btn small" data-v7-reset-goal>Reset net position</button></section>':'<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>');
+    (item.goalSide?'<section class="inspector-section"><p>Permanent goal. Move, rotate, or select a fixed preset; scoring and the individual goal light follow this net.</p><button class="btn small" data-v7-reset-goal>Reset net position</button></section>':'<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>');
 }
 const renderInspectorV682ForV7=renderInspector;
 renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();return renderInspectorV682ForV7()};
@@ -5977,11 +6030,11 @@ function v7PrepareEquipmentUI(){
     btn.addEventListener("click",()=>$("#v7EquipmentDialog")?.showModal())
   }
   const dialog=document.createElement("dialog");dialog.id="v7EquipmentDialog";
-  dialog.innerHTML='<div class="dialog-head"><h2>Rink Objects</h2><p>Place physical drill objects without changing the basic clipboard workflow.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_RINK_OBJECT_TYPES).map(function(entry){return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Objects are top-down, rink-relative, draggable, and individually configurable. Collidable objects affect puck travel.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
+  dialog.innerHTML='<div class="dialog-head"><h2>Rink Objects</h2><p>Place physical drill objects without changing the basic clipboard workflow.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_RINK_OBJECT_TYPES).map(function(entry){if(entry[0]==="net")return Object.entries(V7_NET_SIZES).map(([id,preset])=>'<button type="button" class="v7-equipment-choice" data-v7-equipment="net" data-v7-net-preset="'+id+'"><strong>'+preset.label+' net</strong><span>'+preset.heightFeet+' × '+preset.widthFeet+' ft</span></button>').join("");return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Objects are top-down, rink-relative, draggable, and individually configurable. Collidable objects affect puck travel.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
   document.body.append(dialog);
   dialog.addEventListener("click",event=>{
     const choice=event.target.closest("[data-v7-equipment]");
-    if(choice){const type=choice.dataset.v7Equipment;dialog.close();v7SetEquipmentPlacement(type)}
+    if(choice){const type=choice.dataset.v7Equipment;dialog.close();v7SetEquipmentPlacement(type,choice.dataset.v7NetPreset||"pro")}
     if(event.target.closest("[data-v7-equipment-close]"))dialog.close()
   });
   const style=document.createElement("style");style.id="v7PlatformStyles";style.textContent='.v7-equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.v7-equipment-choice{min-height:64px;border:1px solid #36556d;background:#10283e;color:#edf6fb;border-radius:10px;padding:8px;display:grid;gap:3px;place-items:center;cursor:pointer}.v7-equipment-choice:hover{background:#1a405d}.v7-equipment-choice strong{font-size:12px}.v7-equipment-choice span{font-size:9px;color:#9bb2c3;letter-spacing:.08em}.v7-equipment-help{font-size:11px;color:#9bb2c3;line-height:1.45;margin:12px 0 0}.v7-object-handle-line{stroke:#2ba6d6;stroke-width:2;vector-effect:non-scaling-stroke}.v7-object-handle{fill:#fff;stroke:#087fae;stroke-width:3;vector-effect:non-scaling-stroke;cursor:grab;pointer-events:all}.v7-object-handle:active{cursor:grabbing}.v7-nudge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}@media(max-width:520px){.v7-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
@@ -5999,7 +6052,7 @@ function v7SetupEquipmentEvents(){
     const equipmentNode=event.target.closest?.("[data-equipment-id]");
     if(ui.v7EquipmentPlacement){
       event.preventDefault();event.stopImmediatePropagation();
-      const type=ui.v7EquipmentPlacement;v7AddEquipment(type,svgPoint(event));v7CancelEquipmentPlacement();return
+      const type=ui.v7EquipmentPlacement;v7AddEquipment(type,svgPoint(event),type==="net"?{netPreset:ui.v7EquipmentPlacementPreset||"pro"}:{});v7CancelEquipmentPlacement();return
     }
     if(!equipmentNode||ui.tool!=="select")return;
     event.preventDefault();event.stopImmediatePropagation();
@@ -6088,6 +6141,12 @@ function v7SetupInspectorEvents(){
     if(id==="v7ObjectX"){item.x=Number(event.target.value);$("#v7ObjectXOut").textContent=Math.round(item.x)}
     else if(id==="v7ObjectY"){item.y=Number(event.target.value);$("#v7ObjectYOut").textContent=Math.round(item.y)}
     else if(id==="v7ObjectRotation"){item.rotation=Number(event.target.value);$("#v7ObjectRotationOut").textContent=Math.round(item.rotation)+"°"}
+    else if(id==="v7NetSizeSelect"&&item.type==="net"){
+      if(!Object.hasOwn(V7_NET_SIZES,event.target.value))return;
+      pushHistory();item.netPreset=event.target.value;
+      Object.assign(item.geometry,v7NetDimensions(item.netPreset));item.scale=1;
+      item.capabilities.resize="none";renderInspector()
+    }
     else if(id==="v7ObjectScale"){item.scale=Number(event.target.value);$("#v7ObjectScaleOut").textContent=Number(item.scale).toFixed(2)+"×"}
     else if(id==="v7ObjectLength"){item.geometry.length=Number(event.target.value);$("#v7ObjectLengthOut").textContent=Math.round(item.geometry.length)}
     else if(id==="v7ObjectQuantity"){item.quantity=Number(event.target.value);$("#v7ObjectQuantityOut").textContent=item.quantity}
@@ -6254,7 +6313,10 @@ Object.assign(window.BOTD_TEST,{
   semanticMovements:()=>deepClone(V7_SEMANTIC_MOVEMENT),
   equipmentCollision:(id,point)=>{const item=v7EquipmentById(id);return item?deepClone(v7EquipmentCollisionAt(item,point)):null},
   takePuckFromPile:id=>{const item=v7EquipmentById(id);v7TakePuckFromPile(item);return deepClone(state.equipment||[])},
-  creaseRadiusUnits:()=>V7_CREASE_RADIUS_UNITS
+  creaseRadiusUnits:()=>V7_CREASE_RADIUS_UNITS,
+  netSizes:()=>deepClone(V7_NET_SIZES),
+  triggerNetLight:id=>v7TriggerGoalLight(id),
+  activeNetLights:()=>[...v7GoalFlashes.keys()]
 });
 
 
