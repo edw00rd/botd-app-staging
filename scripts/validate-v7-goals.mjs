@@ -28,22 +28,26 @@ const normContext={V7_RINK_OBJECT_TYPES:types,deepClone,clamp,round,uid:prefix=>
   v59ValidPoint:p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y),
   v59CopyPoint:p=>({x:p.x,y:p.y})};
 const presetSource=app.slice(app.indexOf("const V7_NET_SIZES="),app.indexOf("const V7_PUCK_RADIUS="));
-normContext.V7_CREASE_RADIUS_UNITS=48;
+normContext.V7_CREASE_RADIUS_UNITS=26.4;
 vm.runInNewContext(presetSource+"\n"+app.slice(normalizerStart,normalizerEnd),normContext,{timeout:2000});
 const initial=normContext.v7NormalizeEquipmentList([]);
 assert.equal(initial.length,2,"Fresh play must have two nets");
+const migrated=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:62,y:300,rotation:0,netPreset:"pro"});
+assert.equal(migrated.x,67.85,"Original built-in net should align to recalibrated goal line");
+const custom=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:82,y:295,rotation:15,netPreset:"pro"});
+assert.equal(custom.x,82,"A user-moved net must never migrate unexpectedly");
 assert.deepEqual(Array.from(initial,n=>n.goalSide).sort(),["left","right"]);
 const left=initial.find(n=>n.goalSide==="left"),right=initial.find(n=>n.goalSide==="right");
-assert.equal(left.x,62);assert.equal(left.geometry.width,48);assert.equal(left.rotation,0);
+assert.equal(left.x,67.85);assert.equal(left.geometry.width,26.4);assert.equal(left.rotation,0);
 assert.equal(left.netPreset,"pro");assert.equal(left.scale,1);assert.equal(left.capabilities.resize,"none");
-for(const [name,width,height] of [["little",24,2],["medium",32,3],["pro",48,4]]){
+for(const [name,width,height] of [["little",13.2,2],["medium",17.6,3],["pro",26.4,4]]){
  const item=normContext.v7NormalizeEquipmentItem({id:name,type:"net",x:500,y:300,netPreset:name,scale:2.5,geometry:{length:110,width:120}});
  assert.equal(item.geometry.width,width,"Net opening must track 6 ft crease scale");
  assert.equal(item.geometry.heightFeet,height);
  assert.equal(item.scale,1,"Net resize must be disabled");
  assert.equal(item.capabilities.resize,"none");
 }
-assert.equal(right.x,938);assert.equal(right.rotation,180);
+assert.equal(right.x,932.15);assert.equal(right.rotation,180);
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);
@@ -88,8 +92,8 @@ const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
 assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-925)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
 assert.equal(ctx.v64GoalCandidate({x:40,y:300},{x:1,y:0},400),null,"Shooting from behind cannot score");
-assert.equal(ctx.v64GoalCandidate({x:300,y:324},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
-const post=ctx.v64NearestShotSurface({x:300,y:324},{x:-1,y:0},400);
+assert.equal(ctx.v64GoalCandidate({x:300,y:313.2},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
+const post=ctx.v64NearestShotSurface({x:300,y:313.2},{x:-1,y:0},400);
 assert.equal(post?.surface,"post","Post must have physical collision");
 const back=ctx.v64NearestShotSurface({x:40,y:300},{x:1,y:0},50);
 assert.equal(back?.surface,"back","Back mesh must block shots from behind");
@@ -98,10 +102,10 @@ ctx.state.equipment[0].x=500;ctx.state.equipment[0].rotation=90;
 const rotated=ctx.v64GoalCandidate({x:500,y:400},{x:0,y:-1},200);
 assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
-ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=62;
+ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=67.85;
 ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
-assert.equal(ctx.v64GoalCandidate({x:300,y:312},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
-assert.equal(ctx.v64GoalCandidate({x:300,y:324},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
+assert.equal(ctx.v64GoalCandidate({x:300,y:307},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
+assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
 const added=normContext.v7NormalizeEquipmentItem({id:"added-net",type:"net",x:450,y:300,netPreset:"little",rotation:0});
 ctx.state.equipment.push(added);
 const extraGoal=ctx.v64GoalCandidate({x:600,y:300},{x:-1,y:0},400);
@@ -124,4 +128,16 @@ assert.ok(app.includes('netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPres
   "Nets without a preset must default to regulation size");
 const playback=app.slice(app.indexOf("tick=function(ts){"),app.indexOf("function v64RaySegmentHit("));
 assert.ok(!playback.includes("goalSiren()"),"Scoring must not play a separate siren");
-console.log("V7 goal regression passed: regulation default, named mini/cross-ice/regulation goals, net-frame/mesh blinking for 3.5 seconds with no standalone beacon.");
+// Both crease profiles must preserve the 6ft radius; NHL has 4.5ft sides.
+{
+  const a=app.indexOf("function v7CreasePath("),b=app.indexOf("function v7ApplyCreaseProfile(",a);
+  assert.ok(a>0&&b>a,"Crease profile geometry missing");
+  const ctx={V7_CREASE_RADIUS_UNITS:26.4,round};
+  vm.runInNewContext(app.slice(a,b)+"\nthis.path=v7CreasePath;",ctx,{timeout:2000});
+  for(const side of ["left","right","half"]){
+    assert.ok(ctx.path(side,"nhl").includes(" L"),"NHL crease needs straight sides");
+    assert.ok(ctx.path(side,"youth").includes("A26.4 26.4"),"USA/Canada style must use a semicircle");
+  }
+  assert.ok(app.includes("v7PrepareCreaseStyleUI();"),"Crease profile selector must initialize");
+}
+console.log("V7 goal regression passed: crease scale aligned with faceoff circles, net mouth and goal line, NHL and youth crease styles.");
