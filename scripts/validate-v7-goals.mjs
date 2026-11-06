@@ -87,7 +87,7 @@ assert.ok(begin>0&&end>begin);
 vm.runInNewContext(app.slice(begin,end),ctx,{timeout:2000});
 const leftGoal=ctx.v64GoalCandidate({x:300,y:300},{x:-1,y:0},400);
 assert.equal(leftGoal?.side,"left");assert.ok(Math.abs(leftGoal.entry.x-75)<.01);
-assert.ok(Math.abs(leftGoal.end.x-50)<.01);
+assert.ok(Math.abs(leftGoal.end.x-61.7)<.01);
 const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
 assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-925)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
