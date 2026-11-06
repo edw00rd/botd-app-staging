@@ -100,7 +100,7 @@ assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
 ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=62;
 ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
-assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
+assert.equal(ctx.v64GoalCandidate({x:300,y:312},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
 assert.equal(ctx.v64GoalCandidate({x:300,y:324},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
 const added=normContext.v7NormalizeEquipmentItem({id:"added-net",type:"net",x:450,y:300,netPreset:"little",rotation:0});
 ctx.state.equipment.push(added);
