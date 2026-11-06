@@ -6,7 +6,7 @@ const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url
 assert.ok(app.includes("function v7DefaultGoalNet(side)"));
 assert.ok(app.includes("function v7NetGoalCandidate(start,direction,maxDistance)"));
 assert.ok(app.includes("includeGoalNets:false"));
-assert.ok(app.includes("!item.goalSide"),"Ignored-object clearances must exclude goal nets");
+assert.ok(app.includes('item.type!=="net"'),"Ignored-object clearances must exclude all nets");
 assert.ok(!app.includes('d="M49 257h26v86'),"Legacy full-rink grey nets still present");
 assert.ok(!app.includes('d="M258 105V65Q300'),"Legacy half-rink net still present");
 assert.ok(app.includes('state.equipment=v7NormalizeEquipmentList([])'),"New must restore both nets");
@@ -18,7 +18,7 @@ const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
-  net:{geometry:{length:42,width:22},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"uniform",puckSource:false}},
+  net:{geometry:{length:26,width:48},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
   cone:{geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},capabilities:{rotatable:false,resize:"uniform",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
@@ -27,12 +27,22 @@ assert.ok(normalizerStart>0&&normalizerEnd>normalizerStart);
 const normContext={V7_RINK_OBJECT_TYPES:types,deepClone,clamp,round,uid:prefix=>prefix+"-test",
   v59ValidPoint:p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y),
   v59CopyPoint:p=>({x:p.x,y:p.y})};
-vm.runInNewContext(app.slice(normalizerStart,normalizerEnd),normContext,{timeout:2000});
+const presetSource=app.slice(app.indexOf("const V7_NET_SIZES="),app.indexOf("const V7_PUCK_RADIUS="));
+normContext.V7_CREASE_RADIUS_UNITS=48;
+vm.runInNewContext(presetSource+"\n"+app.slice(normalizerStart,normalizerEnd),normContext,{timeout:2000});
 const initial=normContext.v7NormalizeEquipmentList([]);
 assert.equal(initial.length,2,"Fresh play must have two nets");
 assert.deepEqual(Array.from(initial,n=>n.goalSide).sort(),["left","right"]);
 const left=initial.find(n=>n.goalSide==="left"),right=initial.find(n=>n.goalSide==="right");
-assert.equal(left.x,62);assert.equal(left.geometry.width,86);assert.equal(left.rotation,0);
+assert.equal(left.x,62);assert.equal(left.geometry.width,48);assert.equal(left.rotation,0);
+assert.equal(left.netPreset,"pro");assert.equal(left.scale,1);assert.equal(left.capabilities.resize,"none");
+for(const [name,width,height] of [["little",24,2],["medium",32,3],["pro",48,4]]){
+ const item=normContext.v7NormalizeEquipmentItem({id:name,type:"net",x:500,y:300,netPreset:name,scale:2.5,geometry:{length:110,width:120}});
+ assert.equal(item.geometry.width,width,"Net opening must track 6 ft crease scale");
+ assert.equal(item.geometry.heightFeet,height);
+ assert.equal(item.scale,1,"Net resize must be disabled");
+ assert.equal(item.capabilities.resize,"none");
+}
 assert.equal(right.x,938);assert.equal(right.rotation,180);
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
@@ -60,6 +70,7 @@ function raySegment(start,direction,maxDistance,a,b){
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const ctx={
   state:{equipment:structuredClone(initial)},v7LocalToWorld:toWorld,v7WorldToLocal:toLocal,v7RotatePoint:rotate,
+  v7NetPostRadius:item=>Math.max(1.8,3.6*(Number(item.geometry?.width)||48)/48),
   v64RaySegmentHit:raySegment,v64GoalCandidate:null,goalResultForShot:null,v64NearestShotSurface:null,
   v64Unit:p=>{const n=Math.hypot(p.x,p.y)||1;return{x:p.x/n,y:p.y/n}},
   v60RoundedRinkPerimeter:()=>[{x:10,y:10},{x:990,y:10},{x:990,y:590},{x:10,y:590},{x:10,y:10}],
@@ -77,8 +88,8 @@ const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
 assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-925)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
 assert.equal(ctx.v64GoalCandidate({x:40,y:300},{x:1,y:0},400),null,"Shooting from behind cannot score");
-assert.equal(ctx.v64GoalCandidate({x:300,y:343},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
-const post=ctx.v64NearestShotSurface({x:300,y:343},{x:-1,y:0},400);
+assert.equal(ctx.v64GoalCandidate({x:300,y:324},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
+const post=ctx.v64NearestShotSurface({x:300,y:324},{x:-1,y:0},400);
 assert.equal(post?.surface,"post","Post must have physical collision");
 const back=ctx.v64NearestShotSurface({x:40,y:300},{x:1,y:0},50);
 assert.equal(back?.surface,"back","Back mesh must block shots from behind");
@@ -87,9 +98,16 @@ ctx.state.equipment[0].x=500;ctx.state.equipment[0].rotation=90;
 const rotated=ctx.v64GoalCandidate({x:500,y:400},{x:0,y:-1},200);
 assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
-ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=62;ctx.state.equipment[0].scale=1.5;
-assert.equal(ctx.v64GoalCandidate({x:300,y:355},{x:-1,y:0},400)?.side,"left","Scaling net must resize its scoring mouth");
+ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=62;
+ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
+assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
+assert.equal(ctx.v64GoalCandidate({x:300,y:324},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
+const added=normContext.v7NormalizeEquipmentItem({id:"added-net",type:"net",x:450,y:300,netPreset:"little",rotation:0});
+ctx.state.equipment.push(added);
+const extraGoal=ctx.v64GoalCandidate({x:600,y:300},{x:-1,y:0},400);
+assert.equal(extraGoal?.netId,"added-net","Extra nets must score independently");
 assert.equal(ctx.goalResultForShot({x:300,y:300},{x:40,y:300})?.goal,true);
 assert.equal(ctx.goalResultForShot({x:300,y:390},{x:40,y:390})?.goal,false);
 
-console.log("V7 goal regression passed: legacy migration, net ownership, post/back collision, moved/rotated/scaled scoring, front-only entry.");
+for(const marker of ["data-v7-goal-light","v7GoalFlashes.set(netId,performance.now()+5000)","v7NetSizeSelect","data-v7-net-preset","v7TriggerGoalLight(interval.netId)",'$("#goalBanner").classList.remove("active")'])assert.ok(app.includes(marker),"Missing net preset/light feature: "+marker);
+console.log("V7 goal regression passed: official goal presets, no free resize, extra-net scoring and five-second per-net lights.");
