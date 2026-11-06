@@ -4304,8 +4304,7 @@ tick=function(ts){
   for(const interval of pt.intervals){
     const scoredAt=Number.isFinite(interval.goalTime)?interval.goalTime:interval.end;
     if(interval.goal&&prev<scoredAt&&ui.playhead>=scoredAt){
-      if(interval.netId)v7TriggerGoalLight(interval.netId);
-      goalSiren()
+      if(interval.netId)v7TriggerGoalLight(interval.netId)
     }
   }
   renderFrame(ui.playhead);
@@ -5261,9 +5260,10 @@ Object.assign(window.BOTD_TEST,{rinkControlLayout:v682RinkControlLayout});
 const V7_PLATFORM_SCHEMA_VERSION=2;
 const V7_CREASE_RADIUS_UNITS=48;
 const V7_NET_SIZES=Object.freeze({
-  little:Object.freeze({label:"Little",widthFeet:3,heightFeet:2}),
-  medium:Object.freeze({label:"Medium",widthFeet:4,heightFeet:3}),
-  pro:Object.freeze({label:"Pro",widthFeet:6,heightFeet:4})
+  // Conventional coaching/equipment terms; retain stable IDs in saved plays.
+  pro:Object.freeze({label:"Regulation Goal",widthFeet:6,heightFeet:4}),
+  medium:Object.freeze({label:"Cross-Ice Goal",widthFeet:4,heightFeet:3}),
+  little:Object.freeze({label:"Mini Goal",widthFeet:3,heightFeet:2})
 });
 function v7NetDimensions(preset="pro"){
   const spec=V7_NET_SIZES[preset]||V7_NET_SIZES.pro;
@@ -5851,24 +5851,32 @@ buildPuckTimeline=function(){
   addSteady(state.timeline.duration+5);return{intervals,results,events}
 };
 
+/* A goal is a 3.5-second, per-net visual event. Never stop or scrub playback.
+   No freestanding beacon: pulse the existing red goal frame and net mesh. */
 const v7GoalFlashes=new Map();
 let v7GoalLightAnimationFrame=0;
+function v7ApplyNetGoalFlash(node,now){
+  const active=v7GoalFlashes.has(node.dataset.v7NetVisual);
+  // Reduced-motion users get a steady red highlight instead of blinking.
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches||false;
+  const bright=active&&(reduced||Math.floor(now/240)%2===0);
+  node.style.opacity=active&&!bright?".38":"1";
+  for(const part of node.querySelectorAll("[data-v7-net-red]")){
+    const kind=part.getAttribute("data-v7-net-red");
+    const base=kind==="post"?"#e33b42":kind==="line"?"#ee6b6b":"#c43d3d";
+    part.setAttribute(kind==="post"?"fill":"stroke",bright?"#ff2539":base);
+    part.style.filter=bright?"drop-shadow(0 0 5px #ff2539)":"";
+  }
+}
 function v7UpdateGoalLights(){
   const now=performance.now();
   for(const [id,endsAt] of v7GoalFlashes)if(now>=endsAt)v7GoalFlashes.delete(id);
-  for(const node of $("[data-v7-goal-light]")){
-    const active=v7GoalFlashes.has(node.dataset.v7GoalLight);
-    const bulb=node.querySelector("[data-v7-goal-bulb]");
-    if(!bulb)continue;
-    const bright=active&&Math.floor(now/240)%2===0;
-    bulb.setAttribute("fill",bright?"#ff2437":"#731822");
-    bulb.style.filter=bright?"drop-shadow(0 0 8px #ff2437) drop-shadow(0 0 13px #fc3348)":"";
-  }
+  for(const node of $("[data-v7-net-visual]"))v7ApplyNetGoalFlash(node,now);
   v7GoalLightAnimationFrame=v7GoalFlashes.size?requestAnimationFrame(v7UpdateGoalLights):0
 }
 function v7TriggerGoalLight(netId){
-  if(!netId||!v7EquipmentById(netId))return;
-  v7GoalFlashes.set(netId,performance.now()+5000);
+  if(!netId||v7EquipmentById(netId)?.type!=="net")return;
+  v7GoalFlashes.set(netId,performance.now()+3500);
   if(!v7GoalLightAnimationFrame)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
 }
 function v7EquipmentSvg(item){
@@ -5909,17 +5917,16 @@ function v7EquipmentSvg(item){
     let d="";for(let x=-L*.38,i=0;x<=L*.38;x+=L*.19,i++)d+=(i?" L":"M")+round(x,1)+" "+(i%2?-W*.28:W*.28);
     g.append(svgEl("path",{d,fill:"none",stroke:red,"stroke-width":1.4}))
   }else if(item.type==="net"){
-    const L=Number(geo.length)||42,D=Number(geo.width)||22;
-    g.append(svgEl("rect",{x:-L/2,y:-D/2,width:L,height:D,fill:"rgba(215,228,233,.22)",stroke:"none"}));
-    g.append(svgEl("path",{d:"M"+(L/2)+" "+(-D/2)+" H"+(-L/2)+" V"+(D/2)+" H"+(L/2),fill:"none",stroke:red,"stroke-width":3.1,"stroke-linejoin":"round"}));
-    for(let x=-L*.34;x<L*.35;x+=Math.max(4,L*.17))g.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
-    for(let y=-D*.45;y<D*.49;y+=Math.max(5,D*.15))g.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
-    g.append(svgEl("line",{x1:L/2,y1:-D/2,x2:L/2,y2:D/2,stroke:"#ee6b6b","stroke-width":1.5,"stroke-dasharray":"3 5",opacity:.58}));
-    for(const y of [-D/2,D/2])g.append(svgEl("circle",{cx:L/2,cy:y,r:v7NetPostRadius(item),fill:"#e33b42",stroke:"#fff","stroke-width":1.1}));
-    const beacon=svgEl("g",{"data-v7-goal-light":item.id,"aria-hidden":"true","pointer-events":"none"});
-    beacon.append(svgEl("circle",{cx:-L/2-9,cy:0,r:7.6,fill:"#37424a",stroke:"#e9f4fa","stroke-width":1.2}));
-    beacon.append(svgEl("circle",{cx:-L/2-9,cy:0,r:5.1,fill:"#731822","data-v7-goal-bulb":"1"}));
-    g.append(beacon)
+    const L=Number(geo.length)||26,D=Number(geo.width)||48;
+    const netArt=svgEl("g",{"data-v7-net-visual":item.id,"pointer-events":"none"});
+    netArt.append(svgEl("rect",{x:-L/2,y:-D/2,width:L,height:D,fill:"rgba(215,228,233,.22)",stroke:"none"}));
+    netArt.append(svgEl("path",{d:"M"+(L/2)+" "+(-D/2)+" H"+(-L/2)+" V"+(D/2)+" H"+(L/2),fill:"none",stroke:red,"stroke-width":3.1,"stroke-linejoin":"round","data-v7-net-red":"frame"}));
+    for(let x=-L*.34;x<L*.35;x+=Math.max(4,L*.17))netArt.append(svgEl("line",{x1:x,y1:-D/2,x2:x,y2:D/2,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
+    for(let y=-D*.45;y<D*.49;y+=Math.max(5,D*.15))netArt.append(svgEl("line",{x1:-L/2,y1:y,x2:L/2,y2:y,stroke:"#7c919c","stroke-width":.8,opacity:.7}));
+    netArt.append(svgEl("line",{x1:L/2,y1:-D/2,x2:L/2,y2:D/2,stroke:"#ee6b6b","stroke-width":1.5,"stroke-dasharray":"3 5",opacity:.58,"data-v7-net-red":"line"}));
+    for(const y of [-D/2,D/2])netArt.append(svgEl("circle",{cx:L/2,cy:y,r:v7NetPostRadius(item),fill:"#e33b42",stroke:"#fff","stroke-width":1.1,"data-v7-net-red":"post"}));
+    v7ApplyNetGoalFlash(netArt,performance.now());
+    g.append(netArt)
   }
   if(item.label){
     const label=svgEl("text",{x:0,y:Math.max(16,(Number(geo.width)||12)*.9+9),"text-anchor":"middle",class:"token-label","font-size":"8"});label.textContent=item.label;g.append(label)

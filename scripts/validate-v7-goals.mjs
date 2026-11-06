@@ -109,5 +109,19 @@ assert.equal(extraGoal?.netId,"added-net","Extra nets must score independently")
 assert.equal(ctx.goalResultForShot({x:300,y:300},{x:40,y:300})?.goal,true);
 assert.equal(ctx.goalResultForShot({x:300,y:390},{x:40,y:390})?.goal,false);
 
-for(const marker of ["data-v7-goal-light","v7GoalFlashes.set(netId,performance.now()+5000)","v7NetSizeSelect","data-v7-net-preset","v7TriggerGoalLight(interval.netId)",'$("#goalBanner").classList.remove("active")'])assert.ok(app.includes(marker),"Missing net preset/light feature: "+marker);
-console.log("V7 goal regression passed: official goal presets, no free resize, extra-net scoring and five-second per-net lights.");
+for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"Mini Goal"',
+  'v7GoalFlashes.set(netId,performance.now()+3500)',
+  'data-v7-net-visual','data-v7-net-red','v7NetSizeSelect',
+  'data-v7-net-preset','v7TriggerGoalLight(interval.netId)',
+  '$("#', 'v7ApplyNetGoalFlash(netArt,performance.now())',
+  '$("#goalBanner").classList.remove("active")'
+].filter(marker=>marker!=='$("#'))assert.ok(app.includes(marker),"Missing 3.5 second goal animation/preset: "+marker);
+assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");
+assert.ok(!app.includes('data-v7-goal-bulb'),"Standalone bulb must be gone");
+assert.ok(app.indexOf('pro:Object.freeze({label:"Regulation Goal"')<app.indexOf('medium:Object.freeze({label:"Cross-Ice Goal"'),
+  "Regulation goal must be first in default net selector");
+assert.ok(app.includes('netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPreset)?item.netPreset:"pro"'),
+  "Nets without a preset must default to regulation size");
+const playback=app.slice(app.indexOf("tick=function(ts){"),app.indexOf("function v64RaySegmentHit("));
+assert.ok(!playback.includes("goalSiren()"),"Scoring must not play a separate siren");
+console.log("V7 goal regression passed: regulation default, named mini/cross-ice/regulation goals, net-frame/mesh blinking for 3.5 seconds with no standalone beacon.");
