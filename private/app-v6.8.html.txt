@@ -1980,7 +1980,7 @@ function v7CloudInstall(){
     const id=event.target.closest("[data-cloud-play-id]")?.dataset.cloudPlayId;
     if(id)v7CloudOpenPlay(id);
   });
-  $(".tab-btn").filter(button=>button.dataset.tab==="playbook").forEach(button=>{
+  $$(".tab-btn").filter(button=>button.dataset.tab==="playbook").forEach(button=>{
     button.addEventListener("click",()=>v7CloudRefreshBooks(false));
   });
 }
