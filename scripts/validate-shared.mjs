@@ -236,9 +236,10 @@ assert.ok(worker.includes('previewVersion: isLive(env) ? null : STAGING_PREVIEW_
 
 assert.ok(!shell.includes('Version 6.8.1'));
 assert.ok(worker.includes('const RELEASE_VERSION = "6.8.2";'));
-assert.ok(worker.includes('version: `${RELEASE_VERSION}-${env.ENVIRONMENT}-v1`'));
+assert.ok(worker.includes('version: isLive(env) ? `${RELEASE_VERSION}-production-v1` : `${STAGING_PREVIEW_VERSION}-staging`'));
 assert.ok(productionSmoke.includes('6.8.2-production-v1'));
-assert.ok(stagingSmoke.includes('6.8.2-staging-v1'));
+assert.ok(stagingSmoke.includes('7.0.0-preview.1-staging'));
+assert.ok(stagingSmoke.includes('healthPayload.previewVersion, "7.0.0-preview.1"'));
 assert.ok(deployGate.includes("const sourceTree=git('rev-parse','HEAD^{tree}')"));
 assert.ok(deployGate.includes('`${approvedStagingCommit}^{tree}`'));
 assert.ok(deployGate.includes('Production source tree does not exactly match BOTD_APPROVED_STAGING_COMMIT.'));
