@@ -55,3 +55,14 @@ Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e
 - Preserved the default Ignore Defense / Ignore Objects shot choices, puck-over-obstacle animation, and added board/net contact haptics where browser-supported.
 - Added isolated regression coverage for goals and physical net surfaces; this change is not production-approved.
 - Candidate editor SHA-256: `79d4a93879048dd37f28d310ccaf44aed14a4e3ce33a804b754672572d623fff`.
+
+
+## V7 cloud playbook foundation (2026-11-05, staging candidate)
+- Introduces secured owner-only multi-playbook and play JSON schema, paid coach API, transactional play creation, and revision-safe updates.
+- Adds team and publishing-provenance schema scaffolding without exposing JSON to player accounts.
+- Existing browser/local editor workflow is unchanged. Cloud-playbook UI, video publishing, My Hockey Blog integration and AI remain follow-up steps.
+- Staging migration applied; production untouched. See docs/V7_CLOUD_LIBRARY.md.
+
+- Adds the first coach-facing My Cloud Playbooks panel: choose/create private playbooks, explicitly save or revise plays, load server JSON into the local editor, and copy existing browser-saved plays without deleting originals. Cloud operations are explicit, not per-drag.
+
+- V7 release-label correction: the feature-branch shell/editor identify as **V7 Preview** and staging health reports **7.0.0-preview.1**, while serialized play compatibility and the untouched production release remain **6.8.2**. No Cloudflare deployment has occurred for this correction.
