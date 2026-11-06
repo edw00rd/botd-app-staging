@@ -1,0 +1,139 @@
+name: Deploy B.O.T.D. to Cloudflare STAGING
+run-name: Staging deployment (${{ github.event_name == 'workflow_dispatch' && inputs.deploy_ref || 'main' }})
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/workflows/deploy-staging.yml"
+      - "docs/**"
+      - "README.md"
+      - "SHA256SUMS.txt"
+  workflow_dispatch:
+    inputs:
+      deploy_ref:
+        description: "Reviewed staging source to deploy"
+        required: true
+        type: choice
+        default: feature/v7-cloud-playbook-foundation
+        options:
+          - feature/v7-cloud-playbook-foundation
+          - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: botd-cloudflare-staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    if: github.repository == 'edw00rd/botd-app-staging' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://staging.botdhockey.com
+    steps:
+      - name: Check out the selected staging source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_ref || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Enforce staging-only Cloudflare configuration
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const cfg = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          assert.equal(cfg.name, 'botd-app-staging');
+          assert.equal(cfg.vars.ENVIRONMENT, 'staging');
+          assert.equal(cfg.vars.APP_URL, 'https://staging.botdhockey.com');
+          assert.equal(cfg.vars.SUPABASE_URL, 'https://dolbsnodupgppvwnnlgd.supabase.co');
+          assert.equal(cfg.keep_vars, true);
+          assert.equal(cfg.workers_dev, false);
+          assert.equal(cfg.preview_urls, false);
+          console.log('Staging-only Cloudflare configuration verified.');
+          NODE
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate exact source checksums and run all tests
+        run: |
+          sha256sum -c SHA256SUMS.txt
+          npm run check
+          npm run build:staging
+
+      - name: Verify Cloudflare credentials are configured
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Missing Cloudflare credentials. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as staging environment secrets (or repository Actions secrets)."
+            exit 1
+          fi
+
+      - name: Deploy through existing guarded staging release gate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CI: "true"
+        run: npm run deploy:staging
+
+      - name: Verify deployed staging Worker health and version
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const src = fs.readFileSync('src/worker.js','utf8');
+          const stable = src.match(/const RELEASE_VERSION = "([^"]+)";/)?.[1];
+          const preview = src.match(/const STAGING_PREVIEW_VERSION = "([^"]+)";/)?.[1];
+          assert.ok(stable, 'Release identity must be declared in the Worker');
+          const expected = preview ? preview + '-staging' : stable + '-staging-v1';
+          let last = 'No response';
+          for (let attempt = 0; attempt < 8; attempt++) {
+            try {
+              const url = 'https://staging.botdhockey.com/api/health?ci=' + Date.now() + '-' + attempt;
+              const res = await fetch(url, {
+                headers: { 'Cache-Control': 'no-cache' },
+                signal: AbortSignal.timeout(10000)
+              });
+              const data = await res.json();
+              if (res.ok && data.ok === true &&
+                  data.service === 'botd-app-staging' &&
+                  data.environment === 'staging' &&
+                  data.mode === 'staging-test-only' &&
+                  data.version === expected) {
+                console.log('Verified staging deployment: ' + data.version);
+                if (process.env.GITHUB_STEP_SUMMARY) {
+                  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                    '### Staging deployment verified\n\n' +
+                    '- URL: https://staging.botdhockey.com\n' +
+                    '- Version: ' + data.version + '\n' +
+                    '- Environment: staging only\n');
+                }
+                process.exit(0);
+              }
+              last = 'HTTP ' + res.status + ', version=' + data.version + ', environment=' + data.environment + ', ok=' + data.ok;
+            } catch (error) {
+              last = String(error.message || error);
+            }
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          }
+          console.error('Staging health/version verification failed:', last);
+          process.exit(1);
+          NODE
