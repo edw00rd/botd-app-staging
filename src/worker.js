@@ -8,7 +8,8 @@ import APP_HTML from "../private/app-v6.8.html.txt";
 
 
 // One source revision is used in both environments. No implicit environment fallback.
-const RELEASE_VERSION = "6.8.2";
+const RELEASE_VERSION = "6.8.2"; // Saved-play compatibility and stable production baseline.
+const STAGING_PREVIEW_VERSION = "7.0.0-preview.1";
 const ENVIRONMENTS = Object.freeze({
   staging: {appUrl:"https://staging.botdhockey.com",supabaseUrl:"https://dolbsnodupgppvwnnlgd.supabase.co",live:false},
   production: {appUrl:"https://app.botdhockey.com",supabaseUrl:"https://stcobnlzdbkoakgvfaez.supabase.co",live:true},
@@ -212,8 +213,9 @@ async function handleHealth(env) {
   return jsonResponse({
     ok: Object.values(checks).every(Boolean),
     service: `botd-app-${env.ENVIRONMENT}`,
-    version: `${RELEASE_VERSION}-${env.ENVIRONMENT}-v1`,
+    version: isLive(env) ? `${RELEASE_VERSION}-production-v1` : `${STAGING_PREVIEW_VERSION}-staging`,
     release: RELEASE_VERSION,
+    previewVersion: isLive(env) ? null : STAGING_PREVIEW_VERSION,
     environment: env.ENVIRONMENT,
     mode: isLive(env) ? "live-production" : "staging-test-only",
     checks,

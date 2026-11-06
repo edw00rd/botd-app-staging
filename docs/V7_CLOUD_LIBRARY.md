@@ -35,3 +35,6 @@ All responses are private/no-store and all writes follow existing same-origin CS
 - npm run check
 - CI staging dry run and SHA256SUMS.txt verification
 - Staging Supabase security advisors: one unrelated pre-existing warning about Auth leaked-password protection.
+
+## Displayed build version
+The V7 feature branch is a **7.0.0-preview.1** UI and staging health preview, still using the stable **6.8.2 serialized-play format** for backward compatibility. The public shell, protected editor subtitle and readiness message display **V7 Preview**. The production health identity and production release remain 6.8.2. A staging deployment is still required before the preview label appears at staging.botdhockey.com.

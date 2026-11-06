@@ -64,3 +64,5 @@ Protected editor SHA-256: `663990061e69202a6c777d744be1e322f03f846b7c584539af56e
 - Staging migration applied; production untouched. See docs/V7_CLOUD_LIBRARY.md.
 
 - Adds the first coach-facing My Cloud Playbooks panel: choose/create private playbooks, explicitly save or revise plays, load server JSON into the local editor, and copy existing browser-saved plays without deleting originals. Cloud operations are explicit, not per-drag.
+
+- V7 release-label correction: the feature-branch shell/editor identify as **V7 Preview** and staging health reports **7.0.0-preview.1**, while serialized play compatibility and the untouched production release remain **6.8.2**. No Cloudflare deployment has occurred for this correction.
