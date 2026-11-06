@@ -146,6 +146,13 @@ async function routeApiRequest(request, env, ctx, path) {
     assertSameOrigin(request);
   }
 
+  if (path.startsWith("/api/cloud/")) {
+    return handleCloudPlaybooks(request, env, path, {
+      requireSession, userHasCoachProAccess, assertSupabaseDataConfig,
+      jsonResponseWithCookies, AppError,
+    });
+  }
+
   switch (`${request.method} ${path}`) {
     case "GET /api/health":
       return handleHealth(env);
@@ -2190,4 +2197,187 @@ function constantTimeEqual(left, right) {
     result |= left.charCodeAt(index) ^ right.charCodeAt(index);
   }
   return result === 0;
+}
+
+
+// B.O.T.D. V7 account-scoped cloud library API.
+// Uses the user's Supabase JWT and RLS, never a service-role key.
+// Editable JSON endpoints are paid-coach-only; team members have no route to source.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CLOUD_BODY_LIMIT = 300_000;
+const CLOUD_PLAY_LIMIT = 262_144;
+const NAME_LIMIT = 180;
+
+function title(value, AppError) {
+  const output = typeof value === "string" ? value.trim() : "";
+  if (!output || output.length > NAME_LIMIT) {
+    throw new AppError(400, "invalid_title", "Enter a name of 1 to 180 characters.");
+  }
+  return output;
+}
+function uuid(value, AppError) {
+  if (typeof value !== "string" || !UUID.test(value)) {
+    throw new AppError(400, "invalid_id", "A valid play or playbook ID is required.");
+  }
+  return value.toLowerCase();
+}
+async function cloudBody(request, AppError) {
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (length > CLOUD_BODY_LIMIT) {
+    throw new AppError(413, "play_too_large", "Cloud saves must be smaller than 300 KB.");
+  }
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).length > CLOUD_BODY_LIMIT) {
+    throw new AppError(413, "play_too_large", "Cloud saves must be smaller than 300 KB.");
+  }
+  let data;
+  try { data = JSON.parse(raw); } catch {
+    throw new AppError(400, "invalid_json", "The request must contain valid JSON.");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new AppError(400, "invalid_json", "The request must contain a JSON object.");
+  }
+  return data;
+}
+function content(value, AppError) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new AppError(400, "invalid_play", "A play must contain a JSON object.");
+  }
+  if (new TextEncoder().encode(JSON.stringify(value)).length > CLOUD_PLAY_LIMIT) {
+    throw new AppError(413, "play_too_large", "This play exceeds the 256 KB cloud limit. Remove embedded images.");
+  }
+  return value;
+}
+async function cloudDb(env, token, tablePath, options, deps) {
+  deps.assertSupabaseDataConfig(env, true);
+  const headers = new Headers({
+    apikey: env.SUPABASE_PUBLISHABLE_KEY,
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Accept-Profile": "public",
+    "Content-Profile": "public",
+  });
+  const method = options.method || "GET";
+  if (method !== "GET") {
+    headers.set("Content-Type", "application/json");
+    headers.set("Prefer", "return=representation");
+  }
+  const suffix = options.query ? `?${new URLSearchParams(options.query).toString()}` : "";
+  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${tablePath}${suffix}`;
+  const response = await fetch(url, {
+    method, headers,
+    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+  });
+  let data;
+  try { data = await response.json(); } catch { data = null; }
+  if (!response.ok) {
+    // Do not expose database details, table names, or contents to browsers.
+    throw new deps.AppError(
+      response.status === 401 || response.status === 403 ? 403 : 502,
+      "cloud_storage_unavailable",
+      "Cloud library could not complete the request.",
+      false,
+    );
+  }
+  return data;
+}
+
+async function handleCloudPlaybooks(request, env, path, deps) {
+  const session = await deps.requireSession(request, env);
+  const allowed = await deps.userHasCoachProAccess(session.user.id, env, session.accessToken);
+  if (!allowed) {
+    throw new deps.AppError(403, "coach_subscription_required",
+      "Cloud playbook editing requires a paid coach account.");
+  }
+  const reply = (data, status = 200) => deps.jsonResponseWithCookies(data, status, session.cookieHeaders);
+  const query = (table, params) => cloudDb(env, session.accessToken, table,
+    { query: params }, deps);
+  const rpc = (name, body) => cloudDb(env, session.accessToken, `rpc/${name}`,
+    { method: "POST", body }, deps);
+
+  if (path === "/api/cloud/playbooks") {
+    if (request.method === "GET") {
+      const rows = await query("botd_playbooks", {
+        select: "id,name,description,revision,updated_at,created_at",
+        archived_at: "is.null", order: "updated_at.desc", limit: "100",
+      });
+      return reply({ ok: true, playbooks: rows });
+    }
+    if (request.method === "POST") {
+      const body = await cloudBody(request, deps.AppError);
+      const name = title(body.name, deps.AppError);
+      const description = typeof body.description === "string" ? body.description.trim() : "";
+      if (description.length > 2048) {
+        throw new deps.AppError(400, "invalid_description", "Description is too long.");
+      }
+      const rows = await cloudDb(env, session.accessToken, "botd_playbooks", {
+        method: "POST", body: { owner_id: session.user.id, name, description },
+      }, deps);
+      return reply({ ok: true, playbook: rows?.[0] || null }, 201);
+    }
+  }
+
+  if (path === "/api/cloud/teams" && request.method === "GET") {
+    const rows = await query("botd_teams", {
+      select: "id,name,updated_at", order: "updated_at.desc", limit: "100",
+    });
+    return reply({ ok: true, teams: rows });
+  }
+
+  const bookEntries = path.match(/^\/api\/cloud\/playbooks\/([0-9a-f-]{36})\/plays$/i);
+  if (bookEntries && request.method === "GET") {
+    const playbookId = uuid(bookEntries[1], deps.AppError);
+    const rows = await query("botd_playbook_entries", {
+      select: "play_id,sort_order,botd_plays(id,title,kind,revision,updated_at)",
+      playbook_id: `eq.${playbookId}`, order: "sort_order.asc", limit: "200",
+    });
+    return reply({ ok: true, plays: rows });
+  }
+
+  if (path === "/api/cloud/plays" && request.method === "POST") {
+    const body = await cloudBody(request, deps.AppError);
+    const playbookId = uuid(body.playbookId, deps.AppError);
+    const name = title(body.title, deps.AppError);
+    const kind = body.kind === "drill" ? "drill" : "play";
+    const rows = await rpc("botd_cloud_create_play", {
+      p_playbook_id: playbookId, p_title: name,
+      p_kind: kind, p_content: content(body.content, deps.AppError),
+    });
+    if (!Array.isArray(rows) || !rows.length) {
+      throw new deps.AppError(502, "cloud_save_failed", "Could not save this play.");
+    }
+    return reply({ ok: true, play: rows[0] }, 201);
+  }
+
+  const playMatch = path.match(/^\/api\/cloud\/plays\/([0-9a-f-]{36})$/i);
+  if (playMatch) {
+    const playId = uuid(playMatch[1], deps.AppError);
+    if (request.method === "GET") {
+      const rows = await query("botd_plays", {
+        select: "id,title,kind,content,revision,updated_at",
+        id: `eq.${playId}`, archived_at: "is.null", limit: "1",
+      });
+      if (!rows?.length) throw new deps.AppError(404, "play_not_found", "Play not found.");
+      return reply({ ok: true, play: rows[0] });
+    }
+    if (request.method === "PUT") {
+      const body = await cloudBody(request, deps.AppError);
+      const revision = Number(body.expectedRevision);
+      if (!Number.isSafeInteger(revision) || revision < 1) {
+        throw new deps.AppError(400, "invalid_revision", "A valid expected revision is required.");
+      }
+      const rows = await rpc("botd_cloud_update_play", {
+        p_play_id: playId, p_expected_revision: revision,
+        p_title: title(body.title, deps.AppError),
+        p_content: content(body.content, deps.AppError),
+      });
+      if (!Array.isArray(rows) || !rows.length) {
+        throw new deps.AppError(409, "revision_conflict",
+          "This play changed on another device. Reload or save a new copy.");
+      }
+      return reply({ ok: true, play: rows[0] });
+    }
+  }
+
+  throw new deps.AppError(404, "not_found", "Cloud library endpoint not found.");
 }
