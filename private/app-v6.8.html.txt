@@ -864,6 +864,22 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
 @media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-underglow,.rink-status-strip .offside-light.red{animation:none!important}}
 </style>
 
+<style id="mobileEditorStyles">
+/* Phone drill editor: short screens include iPhone landscape. */
+.mobile-only{display:none}
+@media(max-width:600px),(max-height:500px) and (pointer:coarse){
+ body{height:100dvh!important;grid-template-rows:minmax(0,1fr) auto!important;overflow:hidden;--left-w:0px;--right-w:0px;--timeline-h:0px}
+ body .topbar,body .left-drawer,body .right-drawer,body .drawer-edge-handle,body .timeline-dock,body .command-bar,body .bench-rack,body .v60-context-menu{display:none!important}
+ body .workspace,body.focus-mode .workspace{grid-template-columns:minmax(0,1fr)!important;min-height:0}
+ .stage{padding:3px max(4px,env(safe-area-inset-right)) 3px max(4px,env(safe-area-inset-left))!important;min-height:0;overflow:hidden}
+ .mobile-only{display:flex}.mobile-controls{background:#091b29;color:#fff;flex-direction:column;gap:5px;padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));z-index:60}
+ .mobile-row{display:flex;gap:5px;align-items:center}.mobile-row button{flex:1;min-width:0;min-height:44px;padding:5px 3px;font-size:12px;border-radius:9px;border:1px solid #537087;background:#17364a;color:#fff;touch-action:manipulation}.mobile-row button:disabled{opacity:.45}.mobile-row button.active{background:#0057b8}
+ #mobileScrub{flex:1;min-width:40px;height:36px;touch-action:none}#mobileTime{font-size:11px;font-variant-numeric:tabular-nums;min-width:80px}#mobileContext{font-size:11px;color:#bdd7e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+ .mobile-controls .mobile-small{flex:0 0 44px}.mobile-sheet{width:calc(100% - 16px);max-height:80dvh;padding:12px;border-radius:15px;background:#091b29;color:#fff}.mobile-sheet .mobile-row{flex-wrap:wrap}.mobile-sheet button,.mobile-sheet select{min-height:44px}.mobile-sheet h2{font-size:17px;margin:4px 0 10px}.mobile-sheet label{display:grid;gap:5px;margin:10px 0}.mobile-sheet select{font-size:16px;width:100%}.mobile-player-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}.mobile-player-list button{min-height:44px;background:#17364a;color:#fff;border:1px solid #537087;border-radius:8px}
+ body .toast{bottom:170px!important}body.mobile-exporting .workspace,body.mobile-exporting .mobile-controls{pointer-events:none;opacity:.65}
+ @media(orientation:landscape){.mobile-controls{gap:2px;padding-top:3px}.mobile-row button{min-height:44px}#mobileScrub{height:26px}.mobile-controls>.mobile-row:first-child{position:absolute;top:4px;left:10px;right:10px;pointer-events:none}#mobileContext{background:#091b29bd;border-radius:6px;padding:4px}.mobile-controls>.mobile-row:first-child button{pointer-events:auto;flex:0 0 64px}.mobile-controls>.mobile-row:first-child #mobileTime{background:#091b29bd}}
+}
+</style>
 </head>
 <body class="theme-light left-hidden right-hidden timeline-hidden">
 <header class="topbar">
@@ -6784,6 +6800,103 @@ init();
 v682SetupGlowRangeEvents();
 v682SyncTelestrationTools();
 v682NotifyShellReady();
+
+/* Compact phone controls share all editing, history, and persistence models. */
+const mobileQuery=matchMedia('(max-width:600px),(max-height:500px) and (pointer:coarse)');
+let mobileExportBusy=false,mobileVideoFile=null,mobileVideoUrl=null;
+function mobileSelectedPlayer(){return ui.selectedType==='player'?ui.selectedId:ui.selectedType==='clip'?state.timeline.movements.find(c=>c.id===ui.selectedId)?.playerId:null}
+function mobileSync(){
+ const scrub=$('#mobileScrub');if(!scrub)return;
+ scrub.max=state.timeline.duration;scrub.value=ui.playhead;
+ $('#mobileTime').textContent=fmtTime(ui.playhead)+' / '+fmtTime(state.timeline.duration);
+ $('#mobilePlay').textContent=ui.playing?'Pause':'Play';
+ const id=mobileSelectedPlayer();$('#mobileMove').disabled=false;
+ $('#mobileContext').textContent=ui.recordingMove?'Trace route · release to finish':ui.targetMode?'Tap a player or the ice to set the puck action':id?(playerById(id)?.name||'Player')+' · drag to position':ui.selectedType==='equipment'?'Object selected · drag or use handles':'Tap a player, then Paths to animate';
+}
+function mobileSheet(title,html){
+ const dialog=$('#mobileSheet');dialog.innerHTML='<h2>'+escapeHtml(title)+'</h2>'+html+'<div class="mobile-row" style="margin-top:12px"><button data-mobile-close>Done</button></div>';
+ if(!dialog.open)dialog.showModal();return dialog
+}
+function mobilePlayers(){
+ mobileSheet('Players', '<p>Tap a player to place or select them.</p><div class="mobile-player-list">'+allRoster().filter(p=>p.role==='skater'||p.role==='goalie').map(p=>'<button data-mobile-player="'+escapeHtml(p.id)+'">'+escapeHtml(teamById(p.teamId).name+' · '+p.number+' '+p.name)+(state.onIce[p.id]?' ✓':' +')+'</button>').join('')+'</div>');
+}
+function mobilePaths(){
+ const id=mobileSelectedPlayer();
+ mobileSheet('Paths', '<p>Choose the playback position with the scrubber first.</p><div class="mobile-row"><button data-mobile-path="move" '+(!id?'disabled':'')+'>Skate route</button><button data-mobile-path="possess">Give puck</button><button data-mobile-path="pass">Pass</button><button data-mobile-path="shot">Shoot</button><button data-mobile-path="cancel">Cancel action</button></div>');
+}
+function mobileDelete(){
+ if(ui.selectedType==='equipment'){v7DeleteEquipment(ui.selectedId);renderAll();return}
+ const id=mobileSelectedPlayer();if(id){returnToBench(id);return}
+ if(ui.selectedType==='event'){pushHistory();activeTake().events=activeTake().events.filter(e=>e.id!==ui.selectedId);ui.selectedType=null;renderAll();return}
+ toast('Select a player, puck event, or object to remove.');
+}
+function mobileSaveMenu(){
+ mobileSheet('Save drill','<div class="mobile-row"><button data-mobile-save="local">Save on device</button><button data-mobile-save="cloud">Save to playbook</button><button data-mobile-save="video">Create video</button><button data-mobile-save="open">Open saved drill</button></div><p>Video renders the full drill at normal speed. Keep this screen open until it finishes.</p>');
+}
+async function mobileSvgFrame(canvas,time){
+ renderFrame(time);
+ const original=$('#rinkSvg'),clone=original.cloneNode(true),sources=[original,...original.querySelectorAll('*')],copies=[clone,...clone.querySelectorAll('*')];
+ // SVG images do not inherit the page stylesheet. Inline computed presentation.
+ const properties=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','fill-opacity','stroke-opacity','font-family','font-size','font-weight','text-anchor','dominant-baseline','display','visibility','filter'];
+ sources.forEach((source,i)=>{const style=getComputedStyle(source);for(const key of properties)copies[i].style.setProperty(key,style.getPropertyValue(key))});
+ clone.querySelectorAll('.v7-object-handle,.v7-object-handle-line').forEach(n=>n.remove());
+ // External images cannot load reliably inside an SVG image; keep embedded art.
+ clone.querySelectorAll('image').forEach(n=>{const href=n.getAttribute('href')||n.getAttribute('xlink:href')||'';if(href&&!href.startsWith('data:'))n.remove()});
+ clone.setAttribute('xmlns','http://www.w3.org/2000/svg');clone.setAttribute('width',canvas.width);clone.setAttribute('height',canvas.height);
+ const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:'image/svg+xml'}));
+ try{const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('The rink could not be rendered.'));img.src=url});const ctx=canvas.getContext('2d');ctx.fillStyle='#f5f8fb';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height)}finally{URL.revokeObjectURL(url)}
+}
+async function mobileExportVideo(){
+ if(mobileExportBusy)return;
+ const canvas=document.createElement('canvas');
+ if(!window.MediaRecorder||!canvas.captureStream){toast('Video export is unavailable in this browser. Your drill can still be saved.');return}
+ const mime=['video/mp4','video/webm;codecs=vp8','video/webm'].find(type=>MediaRecorder.isTypeSupported(type));
+ if(!mime){toast('This browser has no supported video encoder. Save the drill to export on another device.');return}
+ mobileExportBusy=true;document.body.classList.add('mobile-exporting');stopPlayback({keepDirect:false});cancelMoveRecording();
+ const previous=ui.playhead,selection=[ui.selectedType,ui.selectedId],chunks=[];let stream,recorder;
+ const viewBox=$('#rinkSvg').viewBox.baseVal;canvas.width=1000;canvas.height=Math.round(1000*viewBox.height/viewBox.width/2)*2;
+ try{
+  ui.selectedType=null;ui.selectedId=null;
+  await mobileSvgFrame(canvas,0);stream=canvas.captureStream(24);recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4000000});
+  const stopped=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=resolve;recorder.onerror=()=>reject(new Error('Video encoding failed.'))});
+  // Install a rejection handler before encoding so asynchronous errors are handled.
+  stopped.catch(()=>{});recorder.start();const started=performance.now();let time=0;
+  while(time<state.timeline.duration){if(document.hidden)throw new Error('Export interrupted. Keep BOTD open and try again.');time=Math.min(state.timeline.duration,(performance.now()-started)/1000);await mobileSvgFrame(canvas,time);$('#mobileContext').textContent='Creating video · '+Math.round(time/state.timeline.duration*100)+'%';await new Promise(resolve=>setTimeout(resolve,40))}
+  recorder.stop();await stopped;
+  const blob=new Blob(chunks,{type:recorder.mimeType||mime});if(!blob.size)throw new Error('The video was empty. Please try again.');
+  const extension=blob.type.includes('mp4')?'mp4':'webm';mobileVideoFile=new File([blob],'BOTD-drill.'+extension,{type:blob.type});
+  if(mobileVideoUrl)URL.revokeObjectURL(mobileVideoUrl);mobileVideoUrl=URL.createObjectURL(blob);
+  mobileSheet('Video ready','<video id="mobileVideoPreview" controls playsinline style="width:100%;max-height:45dvh"></video><div class="mobile-row"><button data-mobile-share>Share video</button><a id="mobileVideoDownload" class="btn" download="BOTD-drill.'+extension+'">Download video</a></div>');
+  $('#mobileVideoPreview').src=mobileVideoUrl;$('#mobileVideoDownload').href=mobileVideoUrl;
+ }catch(error){toast(error.message||'Video export failed. Your saved drill is unchanged.',5000)}finally{
+  if(recorder&&recorder.state!=='inactive')recorder.stop();stream?.getTracks().forEach(track=>track.stop());mobileExportBusy=false;document.body.classList.remove('mobile-exporting');[ui.selectedType,ui.selectedId]=selection;setPlayhead(previous);mobileSync();
+ }
+}
+function mobileInstall(){
+ const controls=document.createElement('section');controls.className='mobile-only mobile-controls';controls.setAttribute('aria-label','Phone drill editor');
+ controls.innerHTML='<div class="mobile-row"><span id="mobileContext"></span><span id="mobileTime"></span><button id="mobileSave">Save</button></div><div class="mobile-row"><button id="mobileRestart" class="mobile-small" aria-label="Restart">↤</button><button id="mobilePlay" class="mobile-small">Play</button><input id="mobileScrub" type="range" min="0" max="12" value="0" step=".05" aria-label="Drill playback position"><button id="mobileUndo" class="mobile-small" aria-label="Undo">↶</button></div><div class="mobile-row"><button id="mobileSelect">Select</button><button id="mobilePlayers">Players</button><button id="mobileObjects">Objects</button><button id="mobileMove">Paths</button><button id="mobileDelete">Delete</button><button id="mobileIce">Ice</button></div>';
+ document.body.append(controls);const sheet=document.createElement('dialog');sheet.id='mobileSheet';sheet.className='mobile-sheet';document.body.append(sheet);
+ $('#mobileSelect').onclick=()=>{cancelMoveRecording();v7CancelEquipmentPlacement();v60ResetTransientState();ui.tool='select';updateToolButtons();renderFrame(ui.playhead)};
+ $('#mobilePlayers').onclick=mobilePlayers;$('#mobileObjects').onclick=()=>$('#v7EquipmentDialog').showModal();$('#mobileMove').onclick=mobilePaths;$('#mobileDelete').onclick=mobileDelete;$('#mobileSave').onclick=mobileSaveMenu;
+ $('#mobilePlay').onclick=()=>{togglePlayback();mobileSync()};$('#mobileRestart').onclick=()=>{stopPlayback({keepDirect:false});setPlayhead(0)};$('#mobileUndo').onclick=()=>$('#undoBtn').click();
+ $('#mobileScrub').oninput=e=>{stopPlayback({keepDirect:false});setPlayhead(Number(e.target.value))};
+ $('#mobileIce').onclick=()=>{mobileSheet('Drill setup','<label>Ice view<select id="mobileView"><option value="whole">Full ice</option><option value="half">Half ice</option></select></label><label>Drill length (seconds)<input id="mobileDuration" type="number" min="4" max="60" value="'+state.timeline.duration+'" style="font-size:16px;min-height:44px"></label><div class="mobile-row"><button data-mobile-new>New drill</button></div>');$('#mobileView').value=state.view};
+ sheet.addEventListener('change',e=>{if(e.target.id==='mobileView')changeView(e.target.value);if(e.target.id==='mobileDuration'){const value=Number(e.target.value);if(value>=4&&value<=60){pushHistory();extendTimelineTo(value);state.timeline.duration=Math.max(value,...state.timeline.movements.map(c=>c.start+c.duration),...activeTake().events.map(x=>x.time+1));renderAll();scheduleSave()}}});
+ sheet.addEventListener('click',async e=>{
+  const button=e.target.closest('button');if(!button)return;
+  if(button.hasAttribute('data-mobile-close')){sheet.close();return}
+  if(button.hasAttribute('data-mobile-open')){if(confirm('Open this saved drill? Save your current changes first.')){loadUserPlay(Number(button.dataset.mobileOpen));sheet.close()}return}
+  const player=button.dataset.mobilePlayer;if(player){addToIce(player);selectItem('player',player,true);sheet.close()}
+  const action=button.dataset.mobilePath;if(action){sheet.close();if(action==='move')startDirectPlayerMove(mobileSelectedPlayer());else if(action==='cancel'){cancelMoveRecording();v60ResetTransientState()}else{cancelMoveRecording();ui.targetMode={type:action};ui.tool='select';toast(action==='shot'?'Tap the ice to aim your shot.':'Tap a player for '+action+'.')}}
+  const save=button.dataset.mobileSave;if(save){sheet.close();if(save==='local')saveCurrentPlay();if(save==='cloud'){await v7CloudRefreshBooks();if(!v7Cloud.bookId)await v7CloudNewBook();await v7CloudSave(false);toast($('#v7CloudStatus')?.textContent||'Check your cloud playbook status.')}if(save==='video')await mobileExportVideo();if(save==='open')mobileSheet('Saved on this device','<div class="mobile-player-list">'+userPlays.map((p,i)=>'<button data-mobile-open="'+i+'">'+escapeHtml(p.name||'Drill '+(i+1))+'</button>').join('')+'</div>')}
+  if(button.hasAttribute('data-mobile-new')&&confirm('Start a new drill? Save your current drill first.')){sheet.close();newBoard()}
+  if(button.hasAttribute('data-mobile-share')){if(navigator.canShare?.({files:[mobileVideoFile]})){try{await navigator.share({files:[mobileVideoFile],title:'BOTD drill'})}catch(error){if(error.name!=='AbortError')toast('Sharing failed. Use Download video.')}}else toast('Use Download video to save this file.')}
+ });
+ const apply=()=>{document.body.classList.toggle('phone-editor',mobileQuery.matches);if(mobileQuery.matches)setTimelineVisible(false);fitRink();mobileSync()};mobileQuery.addEventListener('change',apply);apply();
+ const oldRender=renderFrame;renderFrame=function(...args){const result=oldRender(...args);if(mobileQuery.matches)mobileSync();return result};
+}
+mobileInstall();
+
 </script>
 </body>
 </html>
