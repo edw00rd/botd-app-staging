@@ -6347,8 +6347,58 @@ function v7RenderEquipment(){
     if(first)layer.insertBefore(node,first);else layer.append(node)
   }
 }
+
+/* V7 on-ice visual scale. Never resize stored routes or rink equipment.
+   NHL: 4.8 units/ft, regulation 6ft goal = 28.8 units wide.
+   Skater visual footprint ~3ft, goaltender ~3.6ft; puck slightly
+   exaggerated from regulation 3in for readability, but still tiny. */
+function v7OnIceSymbolMetrics(unitsPerFoot){
+ const u=Math.max(1,Number(unitsPerFoot)||4.8);
+ return {skaterDiameter:3*u,goalieWidth:3.6*u,skaterScale:3*u/46,goalieScale:3.6*u/48,staffScale:3*u/60,
+   puckRadius:Math.max(1.6,.4*u),playerHitRadius:Math.max(18,3.5*u),puckHitRadius:Math.max(17,3.5*u)}
+}
+function v7ScalePlayerSymbols(){
+ const layer=$("#objectLayer");if(!layer)return;
+ const m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale);
+ for(const group of layer.querySelectorAll("[data-player-id]")){
+  const p=playerById(group.dataset.playerId),token=group.querySelector(".ice-token");if(!p||!token)continue;
+  const scale=p.role==="goalie"?m.goalieScale:(p.role==="coach"||p.role==="manager")?m.staffScale:m.skaterScale;
+  const old=(token.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();
+  token.setAttribute("transform",(old?old+" ":"")+"scale("+round(scale,4)+")");
+  token.querySelectorAll(".token-number").forEach(n=>{n.style.fontSize=(p.role==="goalie"?25:27)+"px";n.style.strokeWidth="1.15px"});
+  token.querySelectorAll(".token-role-badge").forEach(b=>{const c=b.querySelector("circle"),t=b.querySelector("text");if(c)c.setAttribute("r","14");if(t)t.style.fontSize="16px"});
+  const glow=[...group.children].find(n=>n.classList?.contains("v682-underglow"));
+  if(glow)glow.setAttribute("transform","scale("+round(scale,4)+")");
+  const ring=[...group.children].find(n=>n.classList?.contains("selection-ring"));
+  if(ring){const rot=(ring.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();ring.setAttribute("transform",(rot?rot+" ":"")+"scale("+round(scale,4)+")")}
+  const target=[...group.children].find(n=>n.classList?.contains("target-lock-upright-v59"));
+  if(target){const rot=(target.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();target.setAttribute("transform",(rot?rot+" ":"")+"scale("+round(scale,4)+")")}
+  else{const nodes=[...group.children].filter(n=>n.classList?.contains("target-triangle")||n.classList?.contains("target-lock-dot"));
+   if(nodes.length){const wrap=svgEl("g",{class:"v7-scaled-target",transform:"scale("+round(scale,4)+")","pointer-events":"none"});group.insertBefore(wrap,nodes[0]);nodes.forEach(n=>wrap.append(n))}}
+  const label=[...group.children].find(n=>n.classList?.contains("token-label"));
+  if(label){const y=p.role==="goalie"?-23:-19;label.setAttribute("y",String(y));if(state.view==="half")label.setAttribute("transform","rotate("+v59CounterAngle()+" 0 "+y+")")}
+  const hit=svgEl("circle",{class:"v7-player-hitbox",r:round(m.playerHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"});
+  group.insertBefore(hit,token);
+ }
+ $("#targetLayer")?.querySelectorAll(".timeline-player-focus-ring").forEach(ring=>ring.setAttribute("r",String(round(m.skaterDiameter*.95,2))));
+}
+function v7ScalePuckArt(){
+ const outer=$("#puckLayer [data-puck]");if(!outer)return;
+ const m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(m.puckRadius,2);
+ const sprite=[...outer.querySelectorAll("g")].find(node=>[...node.children].some(c=>c.tagName?.toLowerCase()==="rect"&&c.getAttribute("width")==="26"));
+ if(sprite)sprite.replaceChildren(
+  svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}),
+  svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
+ for(const glow of outer.querySelectorAll(".v682-underglow"))glow.setAttribute("transform","scale("+round(r/11,3)+")");
+ for(const ring of outer.querySelectorAll(".puck-select"))ring.setAttribute("transform","scale("+round(r/10,3)+")");
+ for(const shadow of [...outer.children].filter(n=>n.tagName?.toLowerCase()==="ellipse"))shadow.setAttribute("transform","scale("+round(r/11,3)+")");
+ const hit=svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"});
+ const airborne=[...outer.children].find(n=>n.classList?.contains("v7-airborne-puck"));
+ if(airborne)outer.insertBefore(hit,airborne);else outer.insertBefore(hit,sprite||null);
+}
+
 const renderObjectLayerV682ForV7=renderObjectLayer;
-renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment()};
+renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment();v7ScalePlayerSymbols()};
 
 function v7SetEquipmentPlacement(type,preset="pro"){
   if(!V7_RINK_OBJECT_TYPES[type])return;
@@ -6658,12 +6708,13 @@ renderPuckLayer=function(time,timeline){
   const result=renderPuckLayerV682ForV7(time,timeline);
   const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
   const flight=v7PuckLiftAt(interval,time),outer=$("#puckLayer [data-puck]");
-  if(!flight||flight.lift<.4||!outer)return result;
+  if(!flight||flight.lift<.4||!outer){v7ScalePuckArt();return result}
   const shadow=svgEl("ellipse",{cx:3,cy:6,rx:12+flight.lift*.19,ry:5+flight.lift*.09,fill:"#111820",opacity:round(.27-flight.lift*.004,3),"pointer-events":"none"});
   const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
     transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
   while(outer.firstChild)raised.append(outer.firstChild);
   outer.append(shadow,raised);
+  v7ScalePuckArt();
   return result
 };
 
@@ -6762,7 +6813,8 @@ Object.assign(window.BOTD_TEST,{
   creasePath:(side,style)=>v7CreasePath(side,style),
   netSizes:()=>deepClone(V7_NET_SIZES),
   triggerNetLight:id=>v7TriggerGoalLight(id),
-  activeNetLights:()=>[...v7GoalFlashes.keys()]
+  activeNetLights:()=>[...v7GoalFlashes.keys()],
+  onIceSymbolMetrics:()=>v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale)
 });
 
 
@@ -6821,7 +6873,7 @@ async function v7VideoFrame(canvas,time){
  // A serialized SVG must have computed styles inlined before it is drawn into a video canvas.
  const props=["fill","stroke","stroke-width","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","text-anchor","dominant-baseline","display","visibility","filter","transform","transform-origin","paint-order"];
  for(let i=0;i<sources.length;i++){const computed=getComputedStyle(sources[i]);for(const prop of props)copies[i].style.setProperty(prop,computed.getPropertyValue(prop))}
- clone.querySelectorAll(".selection-ring,.v7-object-handle,.v7-object-handle-line,.timeline-player-focus-ring,[data-selection-handle]").forEach(el=>el.remove());
+ clone.querySelectorAll(".selection-ring,.v7-object-handle,.v7-object-handle-line,.timeline-player-focus-ring,.v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]").forEach(el=>el.remove());
  clone.querySelectorAll("image").forEach(el=>{const href=el.getAttribute("href")||el.getAttribute("xlink:href")||"";if(href&&!href.startsWith("data:"))el.remove()});
  clone.setAttribute("xmlns","http://www.w3.org/2000/svg");clone.setAttribute("width",canvas.width);clone.setAttribute("height",canvas.height);
  const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:"image/svg+xml"}));

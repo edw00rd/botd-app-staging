@@ -14,6 +14,22 @@ assert.ok(app.includes('if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide)re
 assert.ok(app.includes('data-v7-reset-goal'),"Goal reset control missing");
 assert.ok(app.includes('const impacts=(built?.contacts||[])'),"Board/net impact data must reach haptics");
 
+
+/* Visual footprint is tied to physical rink scale, not the old oversized tokens. */
+const metricsStart=app.indexOf("function v7OnIceSymbolMetrics("),metricsEnd=app.indexOf("function v7ScalePlayerSymbols(",metricsStart);
+assert.ok(metricsStart>0&&metricsEnd>metricsStart);
+const metricScope={};
+vm.runInNewContext(app.slice(metricsStart,metricsEnd)+"\nthis.metrics=v7OnIceSymbolMetrics(4.8)",metricScope,{timeout:1500});
+const visual=metricScope.metrics,goalWidth=6*4.8;
+assert.ok(Math.abs(visual.skaterDiameter-14.4)<.001);
+assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
+assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
+assert.ok(visual.skaterDiameter<goalWidth&&visual.goalieWidth<goalWidth);
+assert.ok(visual.playerHitRadius>visual.skaterDiameter/2&&visual.puckHitRadius>visual.puckRadius);
+assert.ok(app.includes("v7RenderEquipment();v7ScalePlayerSymbols()"));
+assert.ok(app.includes("v7ScalePuckArt();return result")&&app.includes("outer.append(shadow,raised);\n  v7ScalePuckArt()"));
+assert.ok(app.includes(".v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]"));
+
 const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
