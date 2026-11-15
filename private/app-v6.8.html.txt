@@ -737,6 +737,18 @@ body.theme-light .v63-telestration-clip{border-color:rgba(10,35,55,.45)}
 body{grid-template-rows:minmax(0,1fr) var(--toolbar-h) var(--timeline-h)}
 .topbar{display:none!important}
 #fullscreenBottomBtn{display:none!important}
+
+/* V7 local-video export */
+#exportVideoBtn{width:auto;min-width:78px;padding:0 9px;font-size:11px;font-weight:850;white-space:nowrap}
+#exportVideoBtn:disabled{opacity:.55;cursor:wait}
+.video-export-dialog{width:min(470px,calc(100vw - 30px));max-height:calc(100dvh - 40px);padding:20px 22px;border:1px solid #52718b;border-radius:15px;background:#10283b;color:#f5fbff;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.video-export-dialog::backdrop{background:rgba(2,10,17,.77)}
+.video-export-dialog h2{font-size:20px;margin:0 0 9px}
+.video-export-dialog p{font-size:13px;line-height:1.5;color:#d5e5ee}
+.video-export-dialog progress{display:block;width:100%;height:15px;margin:16px 0;accent-color:#1f9bcb}
+.video-export-dialog .video-export-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:16px}
+.video-export-dialog .video-export-actions a{display:inline-flex;align-items:center;text-decoration:none}
+@media(max-width:800px){#exportVideoBtn{min-width:34px;width:34px;padding:0;font-size:15px}#exportVideoBtn span{display:none}}
 </style>
 
 <style id="v64Styles">
@@ -997,7 +1009,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
     <button class="transport" id="jumpStartBtn" title="Go to start" aria-label="Go to start">⏮</button><button class="transport" id="rewindBtn" title="Rewind 1 second" aria-label="Rewind 1 second">⏪</button><button class="transport" id="prevActionBtn" title="Previous action" aria-label="Previous action">◀│</button><button class="transport" id="stepBackSmallBtn" title="Step back 0.1 seconds" aria-label="Step back 0.1 seconds">−.1</button><button class="transport primary" id="playBtn" title="Play or pause" aria-label="Play or pause">▶</button><button class="transport" id="stepForwardSmallBtn" title="Step forward 0.1 seconds" aria-label="Step forward 0.1 seconds">+.1</button><button class="transport" id="nextActionBtn" title="Next action" aria-label="Next action">│▶</button><button class="transport" id="jumpEndBtn" title="Go to end" aria-label="Go to end">⏭</button>
     <select id="playSpeed" class="toolbar-speed" title="Playback speed" aria-label="Playback speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value=".75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select><span class="time-code" id="timeCode" aria-live="off">0:00.0 / 0:12.0</span>
   </div>
-  <div class="command-right" role="group" aria-label="Route and timeline controls"><label class="route-toggle"><input id="toolbarRoutes" type="checkbox" checked><span>Routes</span></label><select id="toolbarRouteMode"><option value="ahead">Ahead</option><option value="full">All</option><option value="off">Hidden</option></select><button class="tool-btn" id="timelineToggleBtn" title="Show or hide timeline">⌁</button><button class="tool-btn" id="fullscreenBottomBtn" title="Full-screen focus">⛶</button></div>
+  <div class="command-right" role="group" aria-label="Route and timeline controls"><label class="route-toggle"><input id="toolbarRoutes" type="checkbox" checked><span>Routes</span></label><select id="toolbarRouteMode"><option value="ahead">Ahead</option><option value="full">All</option><option value="off">Hidden</option></select><button class="tool-btn" id="exportVideoBtn" type="button" title="Download the full play as video" aria-label="Export video">⇩<span> Video</span></button><button class="tool-btn" id="timelineToggleBtn" title="Show or hide timeline">⌁</button><button class="tool-btn" id="fullscreenBottomBtn" title="Full-screen focus">⛶</button></div>
 </div>
 
 <section class="timeline-dock" id="timelineDock" aria-label="Single continuous timeline">
@@ -6784,6 +6796,102 @@ init();
 v682SetupGlowRangeEvents();
 v682SyncTelestrationTools();
 v682NotifyShellReady();
+
+/* Share the whole play at 1x, encoded locally without a cloud upload. */
+let v7VideoBusy=false,v7VideoCancelled=false,v7VideoUrl=null;
+function v7VideoDialog(){
+ let d=$("#v7VideoDialog");
+ if(d)return d;
+ d=document.createElement("dialog");d.id="v7VideoDialog";d.className="video-export-dialog";
+ d.innerHTML='<h2>Export play as video</h2><p id="v7VideoStatus" role="status" aria-live="polite">Preparing video…</p><progress id="v7VideoProgress" max="100" value="0"></progress><p>Exporting the entire play at normal speed. Keep this tab visible; the video is processed only in your browser.</p><div class="video-export-actions"><button class="btn small" type="button" id="v7VideoCancel">Cancel</button><a class="btn small primary" id="v7VideoDownload" download hidden>Download video</a><button class="btn small" id="v7VideoClose" type="button" hidden>Close</button></div>';
+ document.body.append(d);
+ $("#v7VideoCancel").onclick=()=>{v7VideoCancelled=true;$("#v7VideoCancel").disabled=true;$("#v7VideoStatus").textContent="Cancelling…"};
+ $("#v7VideoClose").onclick=()=>d.close();
+ d.addEventListener("cancel",e=>{if(v7VideoBusy){e.preventDefault();v7VideoCancelled=true;$("#v7VideoCancel").disabled=true}});
+ d.addEventListener("close",()=>{if(!v7VideoBusy&&v7VideoUrl){URL.revokeObjectURL(v7VideoUrl);v7VideoUrl=null}});
+ return d;
+}
+function v7VideoStatus(percent,message){$("#v7VideoProgress").value=Math.max(0,Math.min(100,percent));$("#v7VideoStatus").textContent=message}
+async function v7VideoFrame(canvas,time){
+ renderFrame(time);
+ const svg=$("#rinkSvg");
+ if(!svg)throw new Error("The rink is unavailable.");
+ const clone=svg.cloneNode(true),sources=[svg,...svg.querySelectorAll("*")],copies=[clone,...clone.querySelectorAll("*")];
+ // A serialized SVG must have computed styles inlined before it is drawn into a video canvas.
+ const props=["fill","stroke","stroke-width","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","text-anchor","dominant-baseline","display","visibility","filter","transform","transform-origin","paint-order"];
+ for(let i=0;i<sources.length;i++){const computed=getComputedStyle(sources[i]);for(const prop of props)copies[i].style.setProperty(prop,computed.getPropertyValue(prop))}
+ clone.querySelectorAll(".selection-ring,.v7-object-handle,.v7-object-handle-line,.timeline-player-focus-ring,[data-selection-handle]").forEach(el=>el.remove());
+ clone.querySelectorAll("image").forEach(el=>{const href=el.getAttribute("href")||el.getAttribute("xlink:href")||"";if(href&&!href.startsWith("data:"))el.remove()});
+ clone.setAttribute("xmlns","http://www.w3.org/2000/svg");clone.setAttribute("width",canvas.width);clone.setAttribute("height",canvas.height);
+ const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:"image/svg+xml"}));
+ try{
+  const image=new Image();
+  await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error("Could not draw a video frame."));image.src=url});
+  const ctx=canvas.getContext("2d",{alpha:false});if(!ctx)throw new Error("Canvas rendering is unavailable.");
+  ctx.fillStyle="#f5f8fb";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+ }finally{URL.revokeObjectURL(url)}
+}
+async function v7ExportVideo(){
+ if(v7VideoBusy)return;
+ const canvas=document.createElement("canvas");
+ if(typeof MediaRecorder==="undefined"||typeof canvas.captureStream!=="function"){toast("Video export requires a browser with recording support.",5000);return}
+ const mime=["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(x=>MediaRecorder.isTypeSupported(x));
+ if(!mime){toast("This browser has no supported video encoder.",5000);return}
+ if(ui.recordingMove){toast("Finish tracing the movement before exporting.",4000);return}
+ const dialog=v7VideoDialog();
+ if(v7VideoUrl){URL.revokeObjectURL(v7VideoUrl);v7VideoUrl=null}
+ $("#v7VideoDownload").hidden=true;$("#v7VideoClose").hidden=true;
+ $("#v7VideoCancel").hidden=false;$("#v7VideoCancel").disabled=false;
+ v7VideoBusy=true;v7VideoCancelled=false;$("#exportVideoBtn").disabled=true;dialog.showModal();
+ const oldTime=ui.playhead,oldSelection=[ui.selectedType,ui.selectedId],parts=[];
+ let stream=null,recorder=null;
+ try{
+  stopPlayback({keepDirect:false});ui.selectedType=null;ui.selectedId=null;
+  const view=$("#rinkSvg").viewBox.baseVal;
+  canvas.width=1280;canvas.height=Math.round(1280*view.height/view.width/2)*2;
+  v7VideoStatus(0,"Preparing rink and encoder…");
+  await v7VideoFrame(canvas,0);
+  stream=canvas.captureStream(24);
+  recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4500000});
+  const finished=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};recorder.onstop=resolve;recorder.onerror=()=>reject(new Error("Video encoding failed."))});
+  finished.catch(()=>{});
+  recorder.start();
+  const duration=state.timeline.duration,started=performance.now();
+  let time=0;
+  while(time<duration){
+   if(v7VideoCancelled)throw new Error("Video export canceled.");
+   if(document.hidden)throw new Error("Keep the B.O.T.D. tab visible until export finishes.");
+   time=Math.min(duration,(performance.now()-started)/1000);
+   await v7VideoFrame(canvas,time);
+   const pct=Math.round(100*time/duration);
+   v7VideoStatus(pct,"Creating video · "+pct+"%");
+   await new Promise(resolve=>setTimeout(resolve,38));
+  }
+  await new Promise(resolve=>setTimeout(resolve,125));
+  if(v7VideoCancelled)throw new Error("Video export canceled.");
+  recorder.stop();await finished;
+  const blob=new Blob(parts,{type:recorder.mimeType||mime});
+  if(!blob.size)throw new Error("The recorded video was empty.");
+  const ext=blob.type.includes("mp4")?"mp4":"webm";
+  const raw=String(v7Cloud?.activeTitle||state.playbookName||"BOTD-play");
+  const file=(raw.replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,55)||"BOTD-play")+"-"+new Date().toISOString().slice(0,10)+"."+ext;
+  v7VideoUrl=URL.createObjectURL(blob);
+  const download=$("#v7VideoDownload");download.href=v7VideoUrl;download.download=file;download.hidden=false;
+  v7VideoStatus(100,"Video ready · "+ext.toUpperCase()+" · "+(blob.size/1048576).toFixed(1)+" MB");
+  $("#v7VideoCancel").hidden=true;$("#v7VideoClose").hidden=false;
+  download.click();
+ }catch(e){
+  const message=e?.message||"Video export failed.";
+  v7VideoStatus(0,message);$("#v7VideoCancel").hidden=true;$("#v7VideoClose").hidden=false;
+  if(!v7VideoCancelled)toast(message,5000);
+ }finally{
+  if(recorder&&recorder.state!=="inactive")recorder.stop();
+  stream?.getTracks().forEach(track=>track.stop());
+  [ui.selectedType,ui.selectedId]=oldSelection;setPlayhead(oldTime);
+  v7VideoBusy=false;$("#exportVideoBtn").disabled=false;
+ }
+}
+$("#exportVideoBtn").addEventListener("click",v7ExportVideo);
 </script>
 </body>
 </html>
