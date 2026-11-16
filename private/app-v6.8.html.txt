@@ -3024,6 +3024,7 @@ function v60AnchorElement(){
   if(!ui.v60DirectSelection)return null;
   if(ui.selectedType==="player")return $(`#objectLayer [data-player-id="${String(ui.selectedId).replaceAll('"','\\"')}"] .ice-token`)||$(`#objectLayer [data-player-id="${String(ui.selectedId).replaceAll('"','\\"')}"]`);
   if(ui.selectedType==="puck")return $("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]");
+  if(ui.selectedType==="additionalPuck")return v7PuckActionAnchor();
   return null
 }
 
@@ -3048,7 +3049,7 @@ function v60ContextMarkup(){
     const player=playerById(ui.selectedId);if(!player||!state.onIce[player.id])return"";
     return `<div class="v60-context-actions" role="group" aria-label="Actions for ${escapeHtml(player.name)}"><button class="v60-float-button primary" data-v60-action="move" type="button">Move</button><button class="v60-float-button secondary" data-v60-action="bench" type="button">Return to bench</button></div>`
   }
-  if(ui.selectedType==="puck"&&v60PuckCanBeDirected())return `<div class="v60-context-actions" role="group" aria-label="Puck actions"><button class="v60-float-button primary" data-v60-action="pass" type="button">Pass</button><button class="v60-float-button shot" data-v60-action="shoot" type="button">Shoot</button></div>`;
+  if((ui.selectedType==="puck"||ui.selectedType==="additionalPuck")&&v60PuckCanBeDirected())return `<div class="v60-context-actions" role="group" aria-label="Puck actions"><button class="v60-float-button primary" data-v60-action="pass" type="button">Pass</button><button class="v60-float-button shot" data-v60-action="shoot" type="button">Shoot</button></div>`;
   return""
 }
 
@@ -3070,7 +3071,7 @@ function v60RenderCancel(){
 function v60RenderShotPanel(){
   const panel=$("#v60ShotPanel");if(!panel)return;
   if(ui.v60Mode?.type!=="shot"){panel.hidden=true;return}
-  const anchor=$("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]");if(!anchor){panel.hidden=true;return}
+  const anchor=v7PuckActionAnchor();if(!anchor){panel.hidden=true;return}
   const power=clamp(Number(ui.v60Mode.power)||7,1,10),output=panel.querySelector("output"),slider=panel.querySelector("input");
   if(slider&&document.activeElement!==slider)slider.value=String(power);if(output)output.textContent=`${Math.round(power*10)}%`;
   v60PlaceFloating(panel,anchor,{gap:14})
@@ -3663,7 +3664,7 @@ v60StartShot=function({editingEventId=null}={}){
 };
 v60RenderShotPanel=function(){
   const panel=$("#v60ShotPanel");if(!panel)return;if(ui.v60Mode?.type!=="shot"||ui.v60Mode.stage!=="power"){panel.hidden=true;return}
-  const anchor=$("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]");if(!anchor){panel.hidden=true;return}
+  const anchor=v7PuckActionAnchor();if(!anchor){panel.hidden=true;return}
   const power=clamp(Number(ui.v60Mode.power)||7,1,10),output=panel.querySelector("output"),slider=panel.querySelector("input"),travel=$("#v61ShotTravel"),built=v60BuildShotPath(v60ModeOrigin(),ui.v60Mode.aim,power);
   if(slider&&document.activeElement!==slider)slider.value=String(power);if(output)output.textContent=`${Math.round(power*10)}%`;if(travel)travel.textContent=`${Math.round(built.distance)} units${built.boardFollow?" · along boards":""}`;v60PlaceFloating(panel,anchor,{gap:15})
 };
@@ -3698,7 +3699,7 @@ v60ContextMarkup=function(){
     const player=playerById(ui.selectedId);if(!player||!state.onIce[player.id])return"";
     return `<div class="v60-context-actions" role="group" aria-label="Actions for ${escapeHtml(player.name)}"><button class="v60-float-button primary" data-v60-action="move" type="button">Move</button><button class="v60-float-button bench" data-v60-action="bench" type="button">Bench</button></div>`
   }
-  if(ui.selectedType==="puck"&&v60PuckCanBeDirected())return `<div class="v60-context-actions" role="group" aria-label="Puck actions"><button class="v60-float-button primary" data-v60-action="pass" type="button">Pass</button><button class="v60-float-button shot" data-v60-action="shoot" type="button">Shoot</button></div>`;
+  if((ui.selectedType==="puck"||ui.selectedType==="additionalPuck")&&v60PuckCanBeDirected())return `<div class="v60-context-actions" role="group" aria-label="Puck actions"><button class="v60-float-button primary" data-v60-action="pass" type="button">Pass</button><button class="v60-float-button shot" data-v60-action="shoot" type="button">Shoot</button></div>`;
   return""
 };
 
@@ -5774,8 +5775,7 @@ function v7EnsureSemanticTimeline(timeline){
   return timeline
 }
 
-/* Additional puck tokens are separate from rink practice equipment.
-   Puck #1 is the existing animated puck; up to 49 more can be positioned. */
+/* All 50 puck tokens are independently simulated and route-capable; none are equipment props. */
 const V7_MAX_PUCKS=50;
 function v7NormalizeAdditionalPucks(items){
   const ids=new Set();
@@ -6167,8 +6167,10 @@ function v7CollisionPath(start,target,collision){
   const end=clampRinkPoint({x:point.x+reflected.x*amount,y:point.y+reflected.y*amount});
   return{path:[start,point,end],end,extraTime:collision.response==="bounce"?.22:.12}
 }
-buildPuckTimeline=function(){
-  const take=activeTake(),events=[...take.events].sort((a,b)=>a.time-b.time||(a.order||0)-(b.order||0)),intervals=[],results=new Map();let cursor=0,mode="loose",holder=null,loose={...state.puckStart};
+buildPuckTimeline=function(puckId="puck"){
+  const puck=puckId==="puck"?state.puckStart:v7AdditionalPuckById(puckId);
+  const start=puck&&Number.isFinite(Number(puck.x))&&Number.isFinite(Number(puck.y))?puck:state.puckStart;
+  const take=activeTake(),events=[...take.events].filter(event=>(event.puckId||"puck")===puckId).sort((a,b)=>a.time-b.time||(a.order||0)-(b.order||0)),intervals=[],results=new Map();let cursor=0,mode="loose",holder=null,loose={x:start.x,y:start.y};
   const addSteady=end=>{if(end>cursor+.0001){intervals.push({start:cursor,end,kind:mode,holder,pos:loose});cursor=end}};
   const requestedDuration=(event,natural)=>{const n=Number(event.travelDuration);return Number.isFinite(n)&&n>.01?clamp(n,.05,30):natural};
   for(const event of events){
@@ -6514,10 +6516,50 @@ function v7ScalePuckArt(){
 }
 
 const renderObjectLayerV682ForV7=renderObjectLayer;
-renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment();v7RenderAdditionalPucks();v7ScalePlayerSymbols()};
+renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipment();v7RenderAdditionalPucks(time);v7ScalePlayerSymbols()};
 
 
 function v7AdditionalPuckById(id){return (state.additionalPucks||[]).find(item=>item.id===id)||null}
+
+/* The old puck's events have no puckId; new pucks carry a stable id through
+   route editing, alternate takes, save/load, undo and cloud persistence. */
+const v7OriginalPuckStateAt=puckStateAt;
+puckStateAt=function(time,timeline){
+ return v7OriginalPuckStateAt(time,timeline||buildPuckTimeline(ui.v7ActivePuckId||"puck"))
+};
+const v7OriginalAddPuckEvent=addPuckEvent;
+addPuckEvent=function(event,opts){
+ const id=ui.v7ActivePuckId||"puck";
+ if(id!=="puck"&&v7AdditionalPuckById(id))event.puckId=id;
+ return v7OriginalAddPuckEvent(event,opts)
+};
+const v7OriginalSelectItem=selectItem;
+selectItem=function(type,id,open=true){
+ if(type==="puck")ui.v7ActivePuckId="puck";
+ else if(type==="additionalPuck"&&v7AdditionalPuckById(id))ui.v7ActivePuckId=id;
+ else if(type==="event")ui.v7ActivePuckId=activeTake().events.find(ev=>ev.id===id)?.puckId||"puck";
+ return v7OriginalSelectItem(type,id,open)
+};
+const v7OriginalEventResult=eventResult;
+eventResult=function(id){
+ const ev=activeTake().events.find(item=>item.id===id);
+ return ev?buildPuckTimeline(ev.puckId||"puck").results.get(id):v7OriginalEventResult(id)
+};
+v60EventOrigin=function(ev){
+ const id=ev?.puckId||"puck",res=buildPuckTimeline(id).results.get(ev?.id),source=res?.path?.[0];
+ if(source&&Number.isFinite(Number(source.x)))return deepClone(source);
+ const ps=puckStateAt(Math.max(0,(Number(ev?.time)||0)-.001),buildPuckTimeline(id));
+ return ps?.pos&&Number.isFinite(Number(ps.pos.x))?deepClone(ps.pos):deepClone(id==="puck"?state.puckStart:v7AdditionalPuckById(id)||state.puckStart)
+};
+function v7PuckActionAnchor(){
+ const id=ui.v7ActivePuckId;
+ if(id&&id!=="puck"){
+  const node=[...document.querySelectorAll("#objectLayer [data-v7-additional-puck-id]")].find(el=>el.dataset.v7AdditionalPuckId===id);
+  if(node)return node
+ }
+ return $("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]")
+}
+
 function v7RefreshAddPuckButton(){
  const btn=$("#v7AddPuckButton");if(!btn)return;
  const count=1+(state.additionalPucks?.length||0),full=count>=V7_MAX_PUCKS;
@@ -6545,22 +6587,28 @@ function v7AddAdditionalPuck(point){
  pushHistory();
  const puck={id:uid("puck"),x:round(p.x,2),y:round(p.y,2)};
  state.additionalPucks=v7NormalizeAdditionalPucks([...(state.additionalPucks||[]),puck]);
- ui.selectedType="additionalPuck";ui.selectedId=puck.id;
+ ui.selectedType="additionalPuck";ui.selectedId=puck.id;ui.v7ActivePuckId=puck.id;ui.v60DirectSelection=true;
  v7CancelAdditionalPuckPlacement();syncActiveVariation();renderAll();scheduleSave();
  return puck
 }
 function v7DeleteAdditionalPuck(id){
  if(!v7AdditionalPuckById(id))return false;
  pushHistory();state.additionalPucks=state.additionalPucks.filter(p=>p.id!==id);
+ for(const take of state.timeline?.puckTakes||[])take.events=take.events.filter(ev=>ev.puckId!==id);
+ if(ui.v7ActivePuckId===id)ui.v7ActivePuckId="puck";
  if(ui.selectedType==="additionalPuck"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;closeRight({clearSelection:true})}
  syncActiveVariation();renderAll();scheduleSave();return true
 }
-function v7RenderAdditionalPucks(){
+function v7RenderAdditionalPucks(time=ui.playhead){
  const layer=$("#objectLayer");if(!layer)return;
  const r=round(v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckRadius,2);
  for(const [index,item] of (state.additionalPucks||[]).entries()){
+  const timeline=buildPuckTimeline(item.id),ps=puckStateAt(time,timeline);
+  const pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:item;
+  const flight=v7PuckLiftAt(ps.interval,time),lift=flight?.lift||0;
   const group=svgEl("g",{"data-v7-additional-puck-id":item.id,role:"button",tabindex:"0",
-   "aria-label":"Puck "+(index+2),transform:"translate("+round(item.x,2)+" "+round(item.y,2)+")",style:"cursor:grab"});
+   "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y-lift,2)+")",style:"cursor:grab"});
+  if(ps.spin&&ui.playing)group.classList.add("puck-spin");
   group.append(svgEl("circle",{r:17,fill:"transparent","pointer-events":"all"}));
   group.append(svgEl("ellipse",{cx:0,cy:1,rx:r*1.35,ry:r,fill:"#0a0c0e",stroke:"#d9e7eb","stroke-width":.75,"pointer-events":"none"}));
   group.append(svgEl("path",{d:"M"+round(-r*.5,2)+" 0 Q0 "+round(-r*.9,2)+" "+round(r*.5,2)+" 0",fill:"none",stroke:"#87949b","stroke-width":.6,"pointer-events":"none"}));
@@ -6580,25 +6628,86 @@ function v7RenderAdditionalPuckInspector(){
  if(!root||!item){ui.selectedType=null;return renderInspector()}
  const index=state.additionalPucks.findIndex(p=>p.id===item.id)+2;
  title.textContent="Puck "+index;sub.textContent="Individual puck · "+(state.additionalPucks.length+1)+"/"+V7_MAX_PUCKS+" on ice";
- root.innerHTML='<div class="identity-card"><div class="identity-token puck">●</div><div><strong>Puck '+index+'</strong><small>Move this puck independently on the ice.</small></div></div>'+
+ root.innerHTML='<div class="identity-card"><div class="identity-token puck">●</div><div><strong>Puck '+index+'</strong><small>Independently animated pass and shot routes.</small></div></div>'+
+  '<section class="inspector-section"><h3>Actions at '+fmtTime(ui.playhead)+'</h3><p>Pass or shoot this puck using the same aiming, speed and power tools as the original puck.</p><div class="button-row"><button class="btn small primary" id="v7ExtraPuckPass" '+(puckStateAt(ui.playhead,buildPuckTimeline(item.id)).mode==="travel"?"disabled":"")+'>Pass</button><button class="btn small primary" id="v7ExtraPuckShoot" '+(puckStateAt(ui.playhead,buildPuckTimeline(item.id)).mode==="travel"?"disabled":"")+'>Shoot</button></div></section>'+
   '<section class="inspector-section"><h3>Position</h3><div class="range-label"><span>X axis</span><output id="v7ExtraPuckXOut">'+Math.round(item.x)+'</output></div>'+
   '<input id="v7ExtraPuckX" type="range" min="'+rinkBounds().minX+'" max="'+rinkBounds().maxX+'" step="1" value="'+item.x+'" style="width:100%">'+
   '<div class="range-label"><span>Y axis</span><output id="v7ExtraPuckYOut">'+Math.round(item.y)+'</output></div>'+
   '<input id="v7ExtraPuckY" type="range" min="'+rinkBounds().minY+'" max="'+rinkBounds().maxY+'" step="1" value="'+item.y+'" style="width:100%"></section>'+
   '<section class="inspector-section"><button class="btn danger" id="v7DeleteExtraPuck">Remove puck</button></section>'
 }
+
+/* Reuse original route geometry and timeline styling for every extra puck. */
+const v7PrimaryRenderRoutes=renderRoutes;
+renderRoutes=function(time){
+ v7PrimaryRenderRoutes(time);
+ if(!state.display.routes||state.display.routeMode==="off")return;
+ const layer=$("#routeLayer");if(!layer)return;
+ for(const puck of state.additionalPucks||[]){
+  const timeline=buildPuckTimeline(puck.id);
+  for(const segment of timeline.intervals){
+   if(segment.kind!=="travel")continue;
+   if(state.display.routeMode==="ahead"&&time>segment.end)continue;
+   let points=segment.path;
+   if(state.display.routeMode==="ahead"&&time>=segment.start&&time<=segment.end){
+    const progress=(time-segment.start)/Math.max(.001,segment.end-segment.start),idx=Math.floor(progress*(points.length-1));
+    points=[pointAtPolyline(points,progress),...points.slice(idx+1)]
+   }
+   const shot=segment.motion==="shot";
+   layer.append(svgEl("path",{d:pathD(points),class:shot?"route-path v61-shot-path-flow":"route-path puck-pass-route",stroke:shot?"#e12d40":"#111315","stroke-dasharray":shot?null:segment.sauce?"14 7 4 7":"11 8"}));
+   v61AppendOpenArrow(layer,points,{color:shot?"#d92b3e":"#111315",width:2.6,size:11})
+  }
+ }
+};
+const v7PrimaryRenderTimeline=renderTimeline;
+renderTimeline=function(){
+ const result=v7PrimaryRenderTimeline(),grid=$("#timelineGrid"),main=grid?.querySelector("[data-select-puck]")?.closest(".track-row");
+ if(!main)return result;
+ let anchor=main;const secW=timelinePx();
+ for(const [i,puck] of (state.additionalPucks||[]).entries()){
+  const pt=buildPuckTimeline(puck.id),row=document.createElement("div");
+  row.className="track-row v7-additional-puck-track";
+  const label=document.createElement("div");label.className="track-label";label.dataset.selectAdditionalPuck=puck.id;
+  label.innerHTML='<span class="track-dot" style="background:#111"></span><strong>Puck '+(i+2)+'</strong>';
+  const lane=document.createElement("div");lane.className="track-lane puck-track";lane.dataset.scrubLane="1";lane.dataset.track="puck-"+puck.id;
+  for(const ev of pt.events){
+   const result=pt.results.get(ev.id),chip=document.createElement("button");chip.dataset.eventId=ev.id;
+   chip.className="puck-event "+ev.type+(result?.valid===false?" invalid":"")+(ui.selectedType==="event"&&ui.selectedId===ev.id?" selected":"");
+   chip.style.left=(ev.time*secW)+"px";
+   chip.textContent=ev.type==="passSpace"?"Pass → ice":ev.type==="pass"?"Pass → "+(playerById(ev.targetId)?.name||"player"):ev.type==="shot"?"Shot":ev.type==="possess"?"Possession":ev.type;
+   chip.title=result?.reason||chip.textContent;lane.append(chip);
+   if(result?.arrival&&result.arrival>ev.time){
+    const span=document.createElement("span");span.className="travel-span";
+    span.style.left=(ev.time*secW)+"px";span.style.width=Math.max(2,(Math.min(result.arrival,state.timeline.duration)-ev.time)*secW)+"px";lane.append(span)
+   }
+  }
+  const head=document.createElement("span");head.className="playhead-line";head.dataset.playheadLine="";
+  lane.append(head);row.append(label,lane);anchor.after(row);anchor=row
+ }
+ updateTimelinePlayhead();return result
+};
+function v7SelectAdditionalPuckFromTrack(event){
+ const label=event.target.closest?.("[data-select-additional-puck]");if(!label)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ ui.v7ActivePuckId=label.dataset.selectAdditionalPuck;
+ ui.selectedType="additionalPuck";ui.selectedId=ui.v7ActivePuckId;ui.v60DirectSelection=false;
+ renderTimeline();renderInspector();renderFrame(ui.playhead)
+}
+
 function v7SetupAdditionalPuckEvents(){
  const svg=$("#rinkSvg");if(!svg||svg.dataset.v7AdditionalPuckEvents)return;svg.dataset.v7AdditionalPuckEvents="1";
+ $("#timelineGrid")?.addEventListener("pointerdown",v7SelectAdditionalPuckFromTrack,true);
  svg.addEventListener("pointerdown",event=>{
   if(event.button!==undefined&&event.button!==0)return;
   if(ui.v7AdditionalPuckPlacement){
    event.preventDefault();event.stopImmediatePropagation();v7AddAdditionalPuck(svgPoint(event));return
   }
+  if(ui.v60Mode||ui.targetMode)return;
   const node=event.target.closest?.("[data-v7-additional-puck-id]");if(!node||ui.tool!=="select")return;
   event.preventDefault();event.stopImmediatePropagation();
   const id=node.dataset.v7AdditionalPuckId,item=v7AdditionalPuckById(id);if(!item)return;
   if(event.target.closest?.("[data-v7-additional-remove]")){v7DeleteAdditionalPuck(id);return}
-  ui.selectedType="additionalPuck";ui.selectedId=id;openRight();renderInspector();
+  ui.selectedType="additionalPuck";ui.selectedId=id;ui.v7ActivePuckId=id;ui.v60DirectSelection=true;openRight();renderInspector();
   ui.v7AdditionalPuckDrag={id,pointerId:event.pointerId,start:svgPoint(event),changed:false};
   try{svg.setPointerCapture(event.pointerId)}catch{}
   renderFrame(ui.playhead)
@@ -6633,7 +6742,10 @@ function v7SetupAdditionalPuckEvents(){
   syncActiveVariation();renderFrame(ui.playhead);scheduleSave()
  });
  root?.addEventListener("click",event=>{
-  if(ui.selectedType==="additionalPuck"&&event.target.closest("#v7DeleteExtraPuck"))v7DeleteAdditionalPuck(ui.selectedId)
+  if(ui.selectedType!=="additionalPuck")return;
+  if(event.target.closest("#v7DeleteExtraPuck"))v7DeleteAdditionalPuck(ui.selectedId);
+  else if(event.target.closest("#v7ExtraPuckPass")){ui.v7ActivePuckId=ui.selectedId;v60StartPass()}
+  else if(event.target.closest("#v7ExtraPuckShoot")){ui.v7ActivePuckId=ui.selectedId;v60StartShot()}
  });
  window.addEventListener("keydown",event=>{
   if(event.key==="Escape"&&ui.v7AdditionalPuckPlacement){v7CancelAdditionalPuckPlacement();return}
@@ -7052,6 +7164,11 @@ Object.assign(window.BOTD_TEST,{
   maxPucks:()=>V7_MAX_PUCKS,
   additionalPucks:()=>deepClone(state.additionalPucks||[]),
   addAdditionalPuck:point=>deepClone(v7AddAdditionalPuck(point||{x:500,y:300})),
+  puckTimeline:id=>{const pt=buildPuckTimeline(id||"puck");return{events:deepClone(pt.events),intervals:deepClone(pt.intervals),results:[...pt.results]}},
+  puckAt:(id,time)=>deepClone(puckStateAt(time??ui.playhead,buildPuckTimeline(id||"puck"))),
+  passFromPuckToSpace:(id,target,time)=>{ui.v7ActivePuckId=id;return v60AddPassToSpace(target,time??ui.playhead)},
+  passFromPuckToPlayer:(id,playerId,time)=>{ui.v7ActivePuckId=id;return addPass(playerId,time??ui.playhead)},
+  shootFromPuck:(id,target,time)=>{ui.v7ActivePuckId=id;return addShot(target,time??ui.playhead)},
   deleteAdditionalPuck:id=>v7DeleteAdditionalPuck(id),
   addEquipment:(type,point,overrides)=>deepClone(v7AddEquipment(type,point||{x:500,y:300},overrides||{})),
   deleteEquipment:id=>v7DeleteEquipment(id),
