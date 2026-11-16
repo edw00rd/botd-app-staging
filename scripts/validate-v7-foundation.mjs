@@ -109,7 +109,7 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  const extra=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
                        app.indexOf("function v7SetEquipmentPlacement(",app.indexOf("function v7SetupAdditionalPuckEvents()")));
  const props=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
-                       app.indexOf("function v7SetupInspectorEvents()",app.indexOf("function v7SetupEquipmentEvents()")));
+                       app.indexOf("/* Shot collision options are attached",app.indexOf("function v7SetupEquipmentEvents()")));
  assert.ok(extra.includes('ui.pendingTap=null;v7AddAdditionalPuck(svgPoint(event))'),
    "New puck placement must not be deselected by the legacy pointerup");
  assert.match(extra,/const id=node.dataset.v7AdditionalPuckId[\s\S]*?ui.pendingTap=null;[\s\S]*?ui.selectedType="additionalPuck"/,
@@ -126,6 +126,43 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
 }
 
 
+
+
+/* Rink equipment and added pucks expose direct on-ice removal, never the dead
+   right-drawer equipment inspector. Puck Director remains a working modal. */
+{
+ const start=app.indexOf("function v7RinkRemoveControl("),
+       end=app.indexOf("function v7EquipmentSvg(",start);
+ assert.ok(start>0&&end>start,"Shared rink remove control missing");
+ const env={round:(value,digits)=>Number(value.toFixed(digits)),
+  svgEl:(tag,attrs)=>({tag,attrs,children:[],append(...children){this.children.push(...children)}})};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.make=v7RinkRemoveControl;",env,{timeout:2000});
+ const puck=env.make("puck123","additionalPuck"),equipment=env.make("equipment123","equipment",{x:30,y:20});
+ assert.equal(puck.attrs["data-v7-remove-additional-puck"],"puck123");
+ assert.equal(equipment.attrs["data-v7-remove-equipment"],"equipment123");
+ assert.equal(equipment.attrs.role,"button");
+ assert.equal(equipment.children[0].tag,"circle");
+ assert.equal(equipment.children[1].tag,"path");
+ const equipmentRender=app.slice(app.indexOf("function v7RenderEquipment()"),
+   app.indexOf("/* V7 on-ice visual scale.",app.indexOf("function v7RenderEquipment()")));
+ assert.ok(equipmentRender.includes("if(selected&&!selected.goalSide)"),"Permanent goal nets must be protected");
+ assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
+ const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
+   app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
+ assert.ok(puckRender.includes('v7RinkRemoveControl(item.id,"additionalPuck"'),"Puck 2+ must show minus");
+ const equipmentEvents=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
+   app.indexOf("/* Shot collision options are attached",app.indexOf("function v7SetupEquipmentEvents()")));
+ const puckEvents=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
+   app.indexOf("function v7SetEquipmentPlacement(",app.indexOf("function v7SetupAdditionalPuckEvents()")));
+ assert.ok(equipmentEvents.includes('v7DeleteEquipment(remove.dataset.v7RemoveEquipment)'),"Equipment minus must delete");
+ assert.ok(puckEvents.includes('v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)'),"Added puck minus must delete");
+ assert.ok(equipmentEvents.includes('v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck)'),"Keyboard minus must work for pucks");
+ assert.ok(!equipmentEvents.includes("openRight()"),"Equipment selection must not call hidden drawer");
+ assert.ok(!app.includes("function v7RenderEquipmentInspector"),"Dead equipment panel still present");
+ assert.ok(!app.includes("function v7SetupInspectorEvents"),"Dead equipment inspector handlers still present");
+ assert.ok(!app.includes("v7DeleteObjectBtn"),"Hidden delete equipment button still present");
+ assert.ok(app.includes("function v7OpenPuckDirector()"),"Keep functional Puck Director");
+}
 
 /* The reduced bench footprint must free height for the ResizeObserver-fitted rink. */
 {
