@@ -176,7 +176,7 @@ const hitOnReentry=ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce,goal
 assert.equal(hitOnReentry?.objectId,leftNet.id,"Same net must collide after the puck has exited and reentered");
 // Run a real pass-to-space event through the current timeline logic, not
 // just the collision helper: the puck must actually arrive outside the net.
-const timelineStart=app.lastIndexOf("buildPuckTimeline=function(puckId="puck"){");
+const timelineStart=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){');
 const timelineEnd=app.indexOf("/* A goal is",timelineStart);
 assert.ok(timelineStart>0&&timelineEnd>timelineStart);
 const puckTake={id:"test-take",name:"Test route",events:[{id:"pass-out",type:"passSpace",time:0,
