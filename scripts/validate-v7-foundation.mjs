@@ -33,7 +33,7 @@ for(const legacyMarker of [
   'id="toolbarPlayback"',
 ]) assert.ok(app.includes(legacyMarker),`Legacy clipboard capability missing: ${legacyMarker}`);
 
-const types=["cone","tire","bumper","divider","pad","puck","puckPile","stick","rebounder","net"];
+const types=["cone","tire","bumper","divider","pad","stick","rebounder","net"];
 for(const type of types)assert.ok(new RegExp(`\\b${type}:\\s*\\{`).test(app),`Missing equipment type: ${type}`);
 
 for(const marker of [
@@ -42,12 +42,40 @@ for(const marker of [
   'response:"bounce"',
   'response:"stop"',
   'response:"soft_block"',
-  "Take a usable puck",
-  "Use as active puck",
+  "function v7AddAdditionalPuck",
+  "function v7DeleteAdditionalPuck",
+  "function v7RenderAdditionalPucks",
+  "function v7NormalizeAdditionalPucks",
   "Crease radius =",
   "v7ObjectRotation",
   "v7ObjectLength",
 ]) assert.ok(app.includes(marker),`Missing interactive object marker: ${marker}`);
+
+
+/* Multiple pucks are genuine saved puck tokens, never equipment props. */
+const equipmentCatalog=app.slice(app.indexOf("const V7_RINK_OBJECT_TYPES="),app.indexOf("const V7_EQUIPMENT_TYPES="));
+assert.doesNotMatch(equipmentCatalog,/\bpuckPile\s*:/);
+assert.doesNotMatch(equipmentCatalog,/\bpuck\s*:/);
+for(const forbidden of ["v7TakePuckFromPile","v7UseSparePuck","v7ObjectQuantity","Take a usable puck","Use as active puck"])
+ assert.ok(!app.includes(forbidden),"Legacy puck dispenser/conversion is still present: "+forbidden);
+assert.ok(app.includes('const V7_MAX_PUCKS=50;'));
+assert.ok(app.includes('state.additionalPucks=v7NormalizeAdditionalPucks'));
+assert.ok(app.includes('data-v7-additional-puck-id'));
+assert.ok(app.includes('puckBtn.textContent="+ Puck"'));
+{
+ const start=app.indexOf("const V7_MAX_PUCKS=50;"),end=app.indexOf("function v7EnsurePlatformState(",start);
+ assert.ok(start>0&&end>start,"Additional puck normalizer must precede platform state");
+ const scope={
+   uid:()=>String(Math.random()),
+   round:(v,d)=>Number(v.toFixed(d)),
+   clamp:(x,a,b)=>Math.max(a,Math.min(b,x))
+ };
+ vm.runInNewContext(app.slice(start,end)+"\nthis.normalize=v7NormalizeAdditionalPucks;",scope,{timeout:2000});
+ const fifty=Array.from({length:55},(_,i)=>({id:"p"+i,x:i*9,y:300}));
+ assert.equal(scope.normalize(fifty).length,49,"Original puck + 49 additional = 50 max");
+ assert.equal(scope.normalize([{id:"duplicate",x:40,y:50},{id:"duplicate",x:70,y:80}]).length,1);
+ assert.equal(scope.normalize([{id:"bad",x:"oops",y:300}]).length,0);
+}
 
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf("buildPuckTimeline=function(){"));
