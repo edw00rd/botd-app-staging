@@ -6623,12 +6623,12 @@ function v7PuckActionAnchor(){
 }
 
 function v7RefreshAddPuckButton(){
- const btn=$("#v7AddPuckButton");if(!btn)return;
+ const btn=document.querySelector("#v7EquipmentDialog [data-v7-add-puck]");if(!btn)return;
  const count=1+(state.additionalPucks?.length||0),full=count>=V7_MAX_PUCKS;
  btn.disabled=full;
- btn.title="Add puck ("+count+"/"+V7_MAX_PUCKS+" pucks on ice)";
+ btn.title="Add a puck ("+count+"/"+V7_MAX_PUCKS+" pucks on ice)";
  btn.setAttribute("aria-label",btn.title);
- btn.classList.toggle("active",!!ui.v7AdditionalPuckPlacement)
+ btn.querySelector("span").textContent=count+"/"+V7_MAX_PUCKS+" on ice"
 }
 function v7CancelAdditionalPuckPlacement(){
  ui.v7AdditionalPuckPlacement=false;
@@ -6639,7 +6639,7 @@ function v7BeginAdditionalPuckPlacement(){
  v7CancelEquipmentPlacement();
  ui.v7AdditionalPuckPlacement=true;
  v7RefreshAddPuckButton();
- toast("Tap the ice to place another puck.",2400)
+ toast("Tap the ice to place a puck.",2400)
 }
 function v7AddAdditionalPuck(point){
  if((state.additionalPucks?.length||0)>=V7_MAX_PUCKS-1){
@@ -6873,15 +6873,13 @@ function v7PrepareEquipmentUI(){
   if(commandLeft){
     const btn=document.createElement("button");btn.type="button";btn.id="v7EquipmentBtn";btn.className="tool-btn";btn.title="Rink objects";btn.setAttribute("aria-label","Rink objects");btn.textContent="◇";
     commandLeft.insertBefore(btn,separator||null);
-    btn.addEventListener("click",()=>{v7CancelAdditionalPuckPlacement();$("#v7EquipmentDialog")?.showModal()});
-    const puckBtn=document.createElement("button");puckBtn.type="button";puckBtn.id="v7AddPuckButton";puckBtn.className="tool-btn";puckBtn.textContent="+ Puck";
-    puckBtn.addEventListener("click",v7BeginAdditionalPuckPlacement);
-    commandLeft.insertBefore(puckBtn,separator||null);
+    btn.addEventListener("click",()=>{v7CancelAdditionalPuckPlacement();v7RefreshAddPuckButton();$("#v7EquipmentDialog")?.showModal()});
   }
   const dialog=document.createElement("dialog");dialog.id="v7EquipmentDialog";
-  dialog.innerHTML='<div class="dialog-head"><h2>Rink Objects</h2><p>Place physical drill objects without changing the basic clipboard workflow.</p></div><div class="dialog-body"><div class="v7-equipment-grid">'+Object.entries(V7_RINK_OBJECT_TYPES).map(function(entry){if(entry[0]==="net")return Object.entries(V7_NET_SIZES).map(([id,preset])=>'<button type="button" class="v7-equipment-choice" data-v7-equipment="net" data-v7-net-preset="'+id+'"><strong>'+preset.label+' net</strong><span>'+preset.heightFeet+' × '+preset.widthFeet+' ft</span></button>').join("");return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Objects are top-down, rink-relative, draggable, and individually configurable. Collidable objects affect puck travel.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
+  dialog.innerHTML='<div class="dialog-head"><h2>Rink Objects</h2><p>Add pucks, nets, and other objects used during drills and plays.</p></div><div class="dialog-body"><div class="v7-equipment-grid"><button type="button" class="v7-equipment-choice" data-v7-add-puck><strong>Puck</strong><span>1/50 on ice</span></button>'+Object.entries(V7_RINK_OBJECT_TYPES).map(function(entry){if(entry[0]==="net")return Object.entries(V7_NET_SIZES).map(([id,preset])=>'<button type="button" class="v7-equipment-choice" data-v7-equipment="net" data-v7-net-preset="'+id+'"><strong>'+preset.label+' net</strong><span>'+preset.heightFeet+' × '+preset.widthFeet+' ft</span></button>').join("");return '<button type="button" class="v7-equipment-choice" data-v7-equipment="'+entry[0]+'"><strong>'+escapeHtml(entry[1].label)+'</strong><span>'+escapeHtml(entry[1].short)+'</span></button>'}).join("")+'</div><p class="v7-equipment-help">Objects are top-down, rink-relative, draggable, and individually configurable. Collidable objects affect puck travel.</p></div><div class="dialog-actions"><button class="btn" type="button" data-v7-equipment-close>Cancel</button></div>';
   document.body.append(dialog);
   dialog.addEventListener("click",event=>{
+    if(event.target.closest("[data-v7-add-puck]")){if(event.target.closest("button")?.disabled)return;dialog.close();v7BeginAdditionalPuckPlacement();return}
     const choice=event.target.closest("[data-v7-equipment]");
     if(choice){const type=choice.dataset.v7Equipment;dialog.close();v7SetEquipmentPlacement(type,choice.dataset.v7NetPreset||"pro")}
     if(event.target.closest("[data-v7-equipment-close]"))dialog.close()
