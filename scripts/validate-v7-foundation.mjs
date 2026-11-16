@@ -46,9 +46,9 @@ for(const marker of [
   "function v7DeleteAdditionalPuck",
   "function v7RenderAdditionalPucks",
   "function v7NormalizeAdditionalPucks",
-  "Crease radius =",
-  "v7ObjectRotation",
-  "v7ObjectLength",
+  "function v7RinkRemoveControl",
+  "data-v7-object-handle",
+  "function v7NudgeEquipment",
 ]) assert.ok(app.includes(marker),`Missing interactive object marker: ${marker}`);
 
 
