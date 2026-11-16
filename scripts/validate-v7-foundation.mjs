@@ -61,7 +61,11 @@ for(const forbidden of ["v7TakePuckFromPile","v7UseSparePuck","v7ObjectQuantity"
 assert.ok(app.includes('const V7_MAX_PUCKS=50;'));
 assert.ok(app.includes('state.additionalPucks=v7NormalizeAdditionalPucks'));
 assert.ok(app.includes('data-v7-additional-puck-id'));
-assert.ok(app.includes('puckBtn.textContent="+ Puck"'));
+assert.ok(app.includes('data-v7-add-puck'),"Puck placement missing from Rink Objects");
+assert.ok(app.includes('dialog.close();v7BeginAdditionalPuckPlacement()'),"Rink menu must initiate puck placement");
+assert.ok(!app.includes('id="v7AddPuckButton"'),"Redundant + Puck toolbar button must be removed");
+assert.ok(app.includes('state.puckStart={x:500,y:300};'),"New must load the primary puck at center ice");
+assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble must remain intact");
 {
  const start=app.indexOf("const V7_MAX_PUCKS=50;"),end=app.indexOf("function v7EnsurePlatformState(",start);
  assert.ok(start>0&&end>start,"Additional puck normalizer must precede platform state");
@@ -75,6 +79,20 @@ assert.ok(app.includes('puckBtn.textContent="+ Puck"'));
  assert.equal(scope.normalize(fifty).length,49,"Original puck + 49 additional = 50 max");
  assert.equal(scope.normalize([{id:"duplicate",x:40,y:50},{id:"duplicate",x:70,y:80}]).length,1);
  assert.equal(scope.normalize([{id:"bad",x:"oops",y:300}]).length,0);
+}
+
+// No special lightweight puck controller: every puck shares the full Puck Director.
+{
+ const section=app.slice(app.indexOf("function renderInspectorBase("),app.indexOf("function setPlayhead(",app.indexOf("function renderInspectorBase(")));
+ assert.ok(section.includes('if(ui.selectedType==="puck"||ui.selectedType==="additionalPuck")'),"Shared puck inspector missing");
+ for(const marker of ['id="addPossessionBtn"','id="dropPuckBtn"','id="puckTakeSelect"','id="puckGlowCheck"','id="clearPuckTakeBtn"','id="v7PuckX"','id="v7PuckY"']){
+  assert.ok(section.includes(marker),"Shared Puck Director control missing: "+marker);
+ }
+ assert.ok(app.includes("setGlowStyle(group,item.glow"),"Added puck glow must use the default renderer settings");
+ assert.ok(app.includes("glow:v7NormalizePuckGlow(item.glow)"),"Added puck glow must survive save/load");
+ assert.ok(app.includes('v7SelectedPuckGlow().enabled=event.target.checked'),"Glow controls must work on any puck");
+ assert.ok(app.includes('function clearActiveTake(){const id=ui.v7ActivePuckId'),"Clearing one puck must preserve other pucks' actions");
+ assert.ok(!app.includes("function v7RenderAdditionalPuckInspector"),"Duplicated puck inspector must not remain");
 }
 
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
