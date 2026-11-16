@@ -1736,12 +1736,12 @@ function addPossession(targetId,time=ui.playhead){if(!state.onIce[targetId])retu
 function addPass(targetId,time=ui.playhead){const ps=puckStateAt(time);if(ps.mode!=="attached")return toast("The puck must be possessed at the selected time before it can be passed.");if(targetId===ps.holder)return toast("Choose a different receiver.");return addPuckEvent({type:"pass",targetId,time,speed:ui.puckOptions.passSpeed,sauce:ui.puckOptions.sauce,ignoreDefense:ui.puckOptions.passIgnore})}
 function addShot(target,time=ui.playhead){return addPuckEvent({type:"shot",target:clampRinkPoint(target),time,power:ui.puckOptions.shotPower,ignoreDefense:ui.puckOptions.shotIgnore})}
 function addDrop(time=ui.playhead){const ps=puckStateAt(time);if(ps.mode!=="attached")return toast("The puck is already loose.");return addPuckEvent({type:"drop",time})}
-function newPuckTake({duplicate=false,name=null}={}){pushHistory();const base=activeTake(),take={id:uid("take"),name:name||`Puck Route ${String.fromCharCode(65+state.timeline.puckTakes.length)}`,events:duplicate?deepClone(base.events).map(e=>({...e,id:uid("pe")})):[]};state.timeline.puckTakes.push(take);state.timeline.activeTakeId=take.id;ui.selectedType="puck";ui.selectedId="puck";renderAll();return take}
+function newPuckTake({duplicate=false,name=null}={}){const puckId=ui.v7ActivePuckId||"puck";pushHistory();const base=activeTake(),take={id:uid("take"),name:name||`Puck Route ${String.fromCharCode(65+state.timeline.puckTakes.length)}`,events:duplicate?deepClone(base.events).map(e=>({...e,id:uid("pe")})):[]};state.timeline.puckTakes.push(take);state.timeline.activeTakeId=take.id;v7SelectExistingPuck(puckId);renderAll();return take}
 function deleteActiveTake(){if(state.timeline.puckTakes.length<=1)return;pushHistory();const id=state.timeline.activeTakeId;state.timeline.puckTakes=state.timeline.puckTakes.filter(t=>t.id!==id);state.timeline.activeTakeId=state.timeline.puckTakes[0].id;renderAll()}
-function clearActiveTake(){if(!activeTake().events.length)return;pushHistory();activeTake().events=[];ui.selectedType="puck";ui.selectedId="puck";ui.playhead=0;renderAll();toast("Active puck route cleared. Player movement clips were kept.")}
-function startLiveDirect({newTake=false,fromStart=false}={}){if(newTake)newPuckTake({duplicate:false});if(fromStart)ui.playhead=0;ui.directPuck=true;ui.targetMode=null;ui.tool="select";updateToolButtons();$("#liveHud").classList.add("active");selectItem("puck","puck",true);if(!ui.playing)togglePlayback();toast("Live Puck Director is active. Tap players for possession or passes; tap open ice for a shot.",3400)}
-function handleDirectPlayer(playerId){const ps=puckStateAt(ui.playhead);if(ps.mode==="travel")return toast("The puck is still traveling. Wait for it to arrive or pause and drag the prior event.");if(ps.mode==="attached"){if(ps.holder===playerId)return toast(`${playerById(playerId).name} already has the puck.`);addPass(playerId,ui.playhead)}else addPossession(playerId,ui.playhead);ui.selectedType="puck";ui.selectedId="puck";renderInspector();renderTimeline();renderFrame(ui.playhead)}
-function handleDirectIce(point){const ps=puckStateAt(ui.playhead);if(ps.mode==="travel")return toast("The puck is still traveling. Wait for it to arrive before adding another route choice.");addShot(point,ui.playhead);ui.selectedType="puck";ui.selectedId="puck";renderInspector();renderTimeline();renderFrame(ui.playhead)}
+function clearActiveTake(){const id=ui.v7ActivePuckId||"puck";if(!activeTake().events.some(ev=>(ev.puckId||"puck")===id))return;pushHistory();activeTake().events=activeTake().events.filter(ev=>(ev.puckId||"puck")!==id);v7SelectExistingPuck(id);ui.playhead=0;renderAll();toast("Selected puck route cleared. Other puck routes and player movements were kept.")}
+function startLiveDirect({newTake=false,fromStart=false}={}){const id=ui.v7ActivePuckId||"puck";if(newTake)newPuckTake({duplicate:false});if(fromStart)ui.playhead=0;ui.directPuck=true;ui.targetMode=null;ui.tool="select";updateToolButtons();$("#liveHud").classList.add("active");selectItem(id==="puck"?"puck":"additionalPuck",id,true);if(!ui.playing)togglePlayback();toast("Live Puck Director is active. Tap players for possession or passes; tap open ice for a shot.",3400)}
+function handleDirectPlayer(playerId){const ps=puckStateAt(ui.playhead);if(ps.mode==="travel")return toast("The puck is still traveling. Wait for it to arrive or pause and drag the prior event.");if(ps.mode==="attached"){if(ps.holder===playerId)return toast(`${playerById(playerId).name} already has the puck.`);addPass(playerId,ui.playhead)}else addPossession(playerId,ui.playhead);v7SelectExistingPuck(ui.v7ActivePuckId);renderInspector();renderTimeline();renderFrame(ui.playhead)}
+function handleDirectIce(point){const ps=puckStateAt(ui.playhead);if(ps.mode==="travel")return toast("The puck is still traveling. Wait for it to arrive before adding another route choice.");addShot(point,ui.playhead);v7SelectExistingPuck(ui.v7ActivePuckId);renderInspector();renderTimeline();renderFrame(ui.playhead)}
 function changeView(next){if(next===state.view)return;pushHistory();const old=state.view;state.view=next;const mapPoint=p=>old==="whole"&&next==="half"?{x:clamp(50+p.x*.5,26,574),y:clamp(40+p.y*1.05,26,674)}:{x:clamp((p.x-50)*2,26,974),y:clamp((p.y-40)/1.05,26,574)};for(const id of Object.keys(state.onIce))state.onIce[id]=mapPoint(state.onIce[id]);state.puckStart=mapPoint(state.puckStart);for(const c of state.timeline.movements)c.points=c.points.map(mapPoint);for(const take of state.timeline.puckTakes)for(const e of take.events)if(e.target)e.target=mapPoint(e.target);renderAll();toast(`${next==="half"?"Half":"Whole"} Ice selected.`)}
 function svgPoint(event){const svg=$("#rinkSvg"),pt=svg.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;const m=svg.getScreenCTM();if(!m)return{x:0,y:0};const q=pt.matrixTransform(m.inverse());return clampRinkPoint({x:q.x,y:q.y})}
 function renderMovePreview(){const layer=$("#previewLayer");layer.innerHTML="";const rec=ui.recordingMove;if(rec?.started&&rec.points.length>1){layer.append(svgEl("path",{d:pathD(rec.points),class:"preview-path"}));const end=rec.points.at(-1);layer.append(svgEl("circle",{cx:end.x,cy:end.y,r:9,fill:"none",stroke:"#f59e0b","stroke-width":3}))}}
@@ -1815,7 +1815,7 @@ function setupInspectorEvents(){
     if(event.target.id==="deleteClipBtn"){const clip=state.timeline.movements.find(c=>c.id===ui.selectedId),playerId=clip?.playerId;pushHistory();state.timeline.movements=state.timeline.movements.filter(c=>c.id!==ui.selectedId);if(playerId)selectItem("player",playerId,true);else closeRight({clearSelection:true});renderAll();return}
     if(event.target.id==="liveDirectBtn"){if(ui.directPuck)stopPlayback({keepDirect:false});else startLiveDirect({newTake:false});return}if(event.target.id==="newLiveTakeBtn"){startLiveDirect({newTake:true,fromStart:true});return}if(event.target.id==="duplicateTakeBtn"){newPuckTake({duplicate:true});return}if(event.target.id==="deleteTakeBtn"){deleteActiveTake();return}
     if(event.target.id==="addPossessionBtn"){if(ui.possessionTargetId)addPossession(ui.possessionTargetId,ui.playhead);return}if(event.target.id==="passTargetBtn"){ui.targetMode={type:"pass"};return toast(t("passTap"))}if(event.target.id==="shotTargetBtn"){ui.targetMode={type:"shot"};return toast(t("shootTap"))}if(event.target.id==="dropPuckBtn"){addDrop(ui.playhead);return}if(event.target.id==="clearPuckTakeBtn"){clearActiveTake();return}
-    if(event.target.id==="previewEventBtn"){const ev=activeTake().events.find(x=>x.id===ui.selectedId);if(ev)setPlayhead(ev.time);return}if(event.target.id==="retargetShotBtn"){ui.targetMode={type:"retarget",eventId:ui.selectedId};return toast(t("retargetShot"))}if(event.target.id==="deleteEventBtn"){pushHistory();activeTake().events=activeTake().events.filter(x=>x.id!==ui.selectedId);ui.selectedType="puck";ui.selectedId="puck";renderAll();return}
+    if(event.target.id==="previewEventBtn"){const ev=activeTake().events.find(x=>x.id===ui.selectedId);if(ev)setPlayhead(ev.time);return}if(event.target.id==="retargetShotBtn"){ui.targetMode={type:"retarget",eventId:ui.selectedId};return toast(t("retargetShot"))}if(event.target.id==="deleteEventBtn"){const ev=activeTake().events.find(x=>x.id===ui.selectedId),id=ev?.puckId||"puck";pushHistory();activeTake().events=activeTake().events.filter(x=>x.id!==ui.selectedId);v7SelectExistingPuck(id);renderAll();return}
   });
   root.addEventListener("input",event=>{const id=event.target.id;
     if(id==="clipStartRange"){const clip=state.timeline.movements.find(x=>x.id===ui.selectedId);if(clip){clip.start=Number(event.target.value);$("#clipStartOut").textContent=fmtTime(clip.start);renderTimeline();renderFrame(ui.playhead)}}
@@ -5956,6 +5956,7 @@ newBoard=function(){
   state.ice=v7NormalizeIce({profile:"nhl"});
   state.equipment=v7NormalizeEquipmentList([]);
   state.additionalPucks=[];
+  state.puckStart={x:500,y:300};
   ui.v7ActivePuckId="puck";
   v7CancelAdditionalPuckPlacement();
   v7IceSyncGoalObjects();
@@ -6776,21 +6777,22 @@ function v7SetupAdditionalPuckEvents(){
  svg.addEventListener("pointerup",finish,true);svg.addEventListener("pointercancel",finish,true);
  const root=$("#inspectorContent");
  root?.addEventListener("pointerdown",event=>{
-  if(ui.selectedType==="additionalPuck"&&event.target.matches('input[type="range"]'))pushHistory()
+  if((ui.selectedType==="puck"||ui.selectedType==="additionalPuck")&&
+      event.target.matches("#v7PuckX,#v7PuckY"))pushHistory()
  });
  root?.addEventListener("input",event=>{
-  if(ui.selectedType!=="additionalPuck")return;
-  const item=v7AdditionalPuckById(ui.selectedId);if(!item)return;
-  if(event.target.id==="v7ExtraPuckX"){item.x=Number(event.target.value);$("#v7ExtraPuckXOut").textContent=Math.round(item.x)}
-  else if(event.target.id==="v7ExtraPuckY"){item.y=Number(event.target.value);$("#v7ExtraPuckYOut").textContent=Math.round(item.y)}
-  else return;
-  syncActiveVariation();renderFrame(ui.playhead);scheduleSave()
+  if(ui.selectedType!=="puck"&&ui.selectedType!=="additionalPuck")return;
+  const axis=event.target.id==="v7PuckX"?"x":event.target.id==="v7PuckY"?"y":null;
+  if(!axis)return;
+  const id=v7SelectedPuckId();
+  if(v7SetPuckStartPosition(id,axis,event.target.value)){
+    const label=$("#v7Puck"+axis.toUpperCase()+"Out");
+    if(label)label.textContent=Math.round(v7PuckStartPosition(id)?.[axis]||0)
+  }
  });
  root?.addEventListener("click",event=>{
   if(ui.selectedType!=="additionalPuck")return;
-  if(event.target.closest("#v7DeleteExtraPuck"))v7DeleteAdditionalPuck(ui.selectedId);
-  else if(event.target.closest("#v7ExtraPuckPass")){ui.v7ActivePuckId=ui.selectedId;v60StartPass()}
-  else if(event.target.closest("#v7ExtraPuckShoot")){ui.v7ActivePuckId=ui.selectedId;v60StartShot()}
+  if(event.target.closest("#v7DeleteExtraPuck"))v7DeleteAdditionalPuck(ui.selectedId)
  });
  window.addEventListener("keydown",event=>{
   if(event.key==="Escape"&&ui.v7AdditionalPuckPlacement){v7CancelAdditionalPuckPlacement();return}
