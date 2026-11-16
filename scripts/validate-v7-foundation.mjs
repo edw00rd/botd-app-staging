@@ -126,6 +126,25 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
 }
 
 
+
+/* The reduced bench footprint must free height for the ResizeObserver-fitted rink. */
+{
+ const start=app.lastIndexOf('<style id="v682WorkspacePolishStyles">'),
+       end=app.indexOf("</style>",start),
+       style=app.slice(start,end);
+ assert.ok(start>0&&end>start,"Workspace CSS missing");
+ for(const marker of [
+  ".bench-rack.team-benches","min-height:56px;max-height:56px",
+  ".bench-rack.team-benches .bench-token.bench-card",
+  "height:42px;min-height:42px","@media(max-width:640px)",
+  "min-height:100px;max-height:100px"
+ ])assert.ok(style.includes(marker),"Missing compact bench rule: "+marker);
+ assert.ok(app.includes("const ro=new ResizeObserver(entries=>{fitRink();"),
+  "The rink must resize to occupy newly freed bench space");
+ assert.ok(app.includes("body.benches-hidden .bench-rack.team-benches"),
+  "Bench hide/show toggle must still be supported");
+}
+
 /* All pucks must share the same circle geometry, rather than retaining a
    rectangular primary selector from the older editor renderer. */
 {

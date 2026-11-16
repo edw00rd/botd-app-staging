@@ -881,6 +881,66 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
 /* Version 6.8.2 step 3A.6 — nested Glow/Blink controls and tablet label restoration. */
 @media(min-width:721px) and (max-width:1180px){.command-right .route-toggle span{display:inline!important}}
 @media(prefers-reduced-motion:reduce){.v682-edit-blink .v682-underglow,.rink-status-strip .offside-light.red{animation:none!important}}
+
+/* V7 compact team benches: maximize usable rink height without losing roster access. */
+.bench-drawer{margin-bottom:3px}
+.bench-drawer-toggle{height:26px;min-height:26px;padding:0 8px;gap:6px}
+.bench-rack.team-benches{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:5px;min-height:56px;max-height:56px;padding:3px 4px;
+}
+.bench-rack.team-benches .bench{
+  height:50px;min-height:50px;min-width:0;
+  padding:3px 5px;gap:4px;align-items:center;border-radius:8px;
+}
+.bench-rack.team-benches .bench-label{
+  min-width:62px;max-width:116px;padding:0 6px 0 2px;
+  align-self:stretch;justify-content:center;
+}
+.bench-rack.team-benches .bench-label strong{
+  font-size:10px;line-height:1.1;overflow:hidden;text-overflow:ellipsis;
+}
+.bench-rack.team-benches .bench-label span{font-size:8px;margin-top:1px}
+.bench-rack.team-benches .bench-token.bench-card{
+  flex:0 0 clamp(122px,10.5vw,158px);width:auto;
+  height:42px;min-height:42px;gap:5px;padding:3px 5px;
+  border-radius:8px;box-shadow:0 1px 3px rgba(24,55,78,.1);
+}
+.bench-rack.team-benches .bench-piece{
+  width:29px;height:29px;flex-basis:29px;border-width:3px;
+  font-size:9px;box-shadow:none;
+}
+.bench-rack.team-benches .bench-card.goalie .bench-piece{
+  width:27px;height:34px;flex-basis:27px;
+}
+.bench-rack.team-benches .bench-card.staff .bench-piece{
+  width:35px;height:27px;flex-basis:35px;
+}
+.bench-rack.team-benches .bench-card-copy{gap:0;line-height:1.05}
+.bench-rack.team-benches .bench-card-copy strong{font-size:10px}
+.bench-rack.team-benches .bench-card-copy small{font-size:8px}
+.bench-rack.team-benches .bench-card-copy em{
+  font-size:7.5px;padding:1px 3px;line-height:1.1;
+}
+@media(max-width:640px){
+  /* Keep both teams in two short horizontally scrollable rows on phones. */
+  .bench-rack.team-benches{
+    grid-template-columns:minmax(0,1fr);
+    min-height:100px;max-height:100px;gap:4px;padding:3px;
+  }
+  .bench-rack.team-benches .bench{
+    height:45px;min-height:45px;padding:2px 4px;
+  }
+  .bench-rack.team-benches .bench-token.bench-card{
+    height:39px;min-height:39px;flex-basis:132px;
+  }
+  .bench-rack.team-benches .bench-label{min-width:56px}
+}
+@media(max-width:400px){
+  .bench-rack.team-benches .bench-label{min-width:48px}
+  .bench-rack.team-benches .bench-token.bench-card{flex-basis:120px}
+}
+
 </style>
 
 </head>
