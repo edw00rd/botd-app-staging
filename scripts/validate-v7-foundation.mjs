@@ -125,6 +125,33 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
    "Added-puck selection must enable the normal Pass/Shoot/Puck Director actions");
 }
 
+
+/* All pucks must share the same circle geometry, rather than retaining a
+   rectangular primary selector from the older editor renderer. */
+{
+ const a=app.indexOf("function v7PuckSelectionRing(radius)"),
+       b=app.indexOf("function v7ScalePuckArt()",a);
+ assert.ok(a>0&&b>a,"Shared V7 puck selection factory is missing");
+ const context={svgEl:(tag,attributes)=>({tag,attributes})};
+ vm.runInNewContext(app.slice(a,b)+"\nthis.makeRing=v7PuckSelectionRing;",context,{timeout:2000});
+ const one=context.makeRing(7),two=context.makeRing(7);
+ assert.equal(one.tag,"circle","Puck selector should be round");
+ assert.equal(one.attributes.r,12);
+ assert.equal(one.attributes.class,"selection-ring puck-select");
+ assert.deepEqual(one,two,"Selection rings must have identical geometry");
+ const primary=app.slice(b,app.indexOf("const renderObjectLayerV682ForV7=",b));
+ const added=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
+                       app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
+ assert.ok(primary.includes('outer.querySelectorAll(".puck-select").forEach(ring=>ring.remove())'),
+   "The legacy rectangle must be removed every frame");
+ assert.ok(primary.includes('outer.append(v7PuckSelectionRing(r))'),
+   "Puck 1 must use the shared circle");
+ assert.ok(added.includes('group.append(v7PuckSelectionRing(r))'),
+   "Added pucks must use the shared circle");
+ assert.ok(!primary.includes('ring.setAttribute("transform","scale('),
+   "Primary selection indicator must not use a special scale");
+}
+
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
 const v7Shot=v7Timeline.slice(v7Timeline.indexOf('if(event.type==="shot"){'),v7Timeline.indexOf("function v7EquipmentSvg"));

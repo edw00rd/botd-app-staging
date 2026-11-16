@@ -6541,6 +6541,11 @@ function v7ScalePlayerSymbols(){
  }
  $("#targetLayer")?.querySelectorAll(".timeline-player-focus-ring").forEach(ring=>ring.setAttribute("r",String(round(m.skaterDiameter*.95,2))));
 }
+/* Shared circular selection marker for Puck 1 and all added pucks. */
+function v7PuckSelectionRing(radius){
+ return svgEl("circle",{class:"selection-ring puck-select",
+  r:Math.max(radius*1.7,12),fill:"none","pointer-events":"none"});
+}
 function v7ScalePuckArt(){
  const outer=$("#puckLayer [data-puck]");if(!outer)return;
  const m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(m.puckRadius,2);
@@ -6558,7 +6563,10 @@ function v7ScalePuckArt(){
   outer.insertBefore(svgEl("circle",{class:"v7-puck-discovery-halo",r:14,fill:"none",stroke:"#21d4ff","stroke-width":2.4,"pointer-events":"none"}),art)
  }else if(!visible)outer.querySelector(".v7-puck-discovery-halo")?.remove();
  for(const glow of outer.querySelectorAll(".v682-underglow"))glow.setAttribute("transform","scale("+round(r/11,3)+")");
- for(const ring of outer.querySelectorAll(".puck-select"))ring.setAttribute("transform","scale("+round(r/10,3)+")");
+ // The legacy primary-puck layer draws a rounded rectangle. Replace it
+ // with the same circular indicator used by every rink-object puck.
+ outer.querySelectorAll(".puck-select").forEach(ring=>ring.remove());
+ if(ui.selectedType==="puck")outer.append(v7PuckSelectionRing(r));
  for(const shadow of [...outer.children].filter(n=>n.tagName?.toLowerCase()==="ellipse"))shadow.setAttribute("transform","scale("+round(r/11,3)+")");
  outer.querySelector(".v7-puck-hitbox")?.remove();
  const hit=svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"});
@@ -6678,7 +6686,7 @@ function v7RenderAdditionalPucks(time=ui.playhead){
   disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
   disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":.45,"pointer-events":"none"}));
   group.append(disc);
-  if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id)group.append(svgEl("circle",{class:"selection-ring puck-select",r:Math.max(r*1.7,12),fill:"none","pointer-events":"none"}));
+  if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id)group.append(v7PuckSelectionRing(r));
   layer.append(group)
  }
  v7RefreshAddPuckButton()
