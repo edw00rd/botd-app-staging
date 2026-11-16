@@ -202,7 +202,7 @@ const netA={id:"left",type:"net",x:100,y:200,rotation:0,scale:1,geometry:{length
 const netB={id:"right",type:"net",x:500,y:200,rotation:0,scale:1,geometry:{length:19.2,width:28.8}};
 const lampCtx={v7WorldToLocal:(net,p)=>({x:p.x-net.x,y:p.y-net.y}),
  v7GoalNets:()=>[netA,netB],
- $:()=>[],window:{matchMedia:()=>({matches:false})},
+ [String.fromCharCode(36,36)]:()=>[],window:{matchMedia:()=>({matches:false})},
  performance:{now:()=>100},requestAnimationFrame:()=>77,cancelAnimationFrame:()=>{},
  puckStateAt:()=>({pos:{x:100,y:200}}),buildPuckTimeline:()=>({}),ui:{playhead:0}};
 vm.runInNewContext(app.slice(liveStart,liveEnd)+
