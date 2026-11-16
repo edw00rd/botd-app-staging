@@ -135,12 +135,15 @@ assert.equal(ctx.goalResultForShot({x:300,y:300},{x:40,y:300})?.goal,true);
 assert.equal(ctx.goalResultForShot({x:300,y:390},{x:40,y:390})?.goal,false);
 
 for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"Mini Goal"',
-  'v7GoalFlashes.set(netId,performance.now()+3500)',
-  'data-v7-net-visual','data-v7-net-red','v7NetSizeSelect',
-  'data-v7-net-preset','v7TriggerGoalLight(interval.netId)',
-  '$("#', 'v7ApplyNetGoalFlash(netArt,performance.now())',
+  'function v7PuckInsideNet(net,point)','function v7SyncGoalNetOccupancy(puckPosition)',
+  'v7GoalFlashes.set(id,true)','data-v7-net-visual','data-v7-net-red',
+  'v7NetSizeSelect','data-v7-net-preset',
+  'v7ApplyNetGoalFlash(netArt,performance.now())',
+  'v7SyncGoalNetOccupancy(output?.ps?.pos)',
   '$("#goalBanner").classList.remove("active")'
-].filter(marker=>marker!=='$("#'))assert.ok(app.includes(marker),"Missing 3.5 second goal animation/preset: "+marker);
+])assert.ok(app.includes(marker),"Missing occupancy-based goal flash marker: "+marker);
+assert.ok(!app.includes("performance.now()+3500"),"A fixed 3.5-second timer must not control a scored goal");
+assert.ok(app.includes('for(const node of $("[data-v7-net-visual]"))'),"Net flashing must iterate ALL net nodes");
 assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");
 assert.ok(!app.includes('data-v7-goal-bulb'),"Standalone bulb must be gone");
 assert.ok(app.indexOf('pro:Object.freeze({label:"Regulation Goal"')<app.indexOf('medium:Object.freeze({label:"Cross-Ice Goal"'),
@@ -149,6 +152,74 @@ assert.ok(app.includes('netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPres
   "Nets without a preset must default to regulation size");
 const playback=app.slice(app.indexOf("tick=function(ts){"),app.indexOf("function v64RaySegmentHit("));
 assert.ok(!playback.includes("goalSiren()"),"Scoring must not play a separate siren");
+
+
+/* Goalies spawn on the new real crease instead of inside the legacy goal. */
+const goalieA=app.indexOf("function v7DefaultGoalieCreasePosition(");
+const goalieB=app.indexOf("/* Regulation goals",goalieA);
+assert.ok(goalieA>0&&goalieB>goalieA);
+assert.ok(app.includes('if(p?.role==="goalie")return v7DefaultGoalieCreasePosition(teamId,index)'));
+const goalieContext={state:{ice:{creaseRadius:6}},V7_ICE_PROFILES:{nhl:{creaseRadius:6}},
+ v7IceGeometry:()=>({goalLeft:72.8,goalRight:927.2,scale:4.8}),round};
+vm.runInNewContext(app.slice(goalieA,goalieB)+
+ '\nthis.left=v7DefaultGoalieCreasePosition("A",0);this.right=v7DefaultGoalieCreasePosition("B",0);',
+ goalieContext,{timeout:1500});
+assert.ok(Math.abs(goalieContext.left.x-87.2)<.001,"Left goalie not centered within crease");
+assert.ok(Math.abs(goalieContext.right.x-912.8)<.001,"Right goalie not centered within crease");
+assert.equal(goalieContext.left.y,300);
+assert.equal(goalieContext.right.y,300);
+
+/* Skater and goalie jersey numbers share centered SVG text geometry. */
+const playerScale=app.slice(app.indexOf("function v7ScalePlayerSymbols("),app.indexOf("function v7ScalePuckArt("));
+for(const marker of ['n.setAttribute("x","0")','n.setAttribute("y","0")','n.setAttribute("dy",".08em")',
+ 'n.setAttribute("text-anchor","middle")','n.setAttribute("dominant-baseline","central")',
+ 'n.style.fontFamily="Arial,Helvetica,sans-serif"'])
+ assert.ok(playerScale.includes(marker),"Number centering regression: "+marker);
+
+/* The center-puck attention cue is delayed, one-shot, and only after New. */
+for(const marker of ['function v7SchedulePuckDiscovery()',
+ 'v7PuckDiscoveryPending=setTimeout','v7PuckDiscoveryActive=true',
+ 'v7PuckDiscoveryStopTimer=setTimeout','v7SchedulePuckDiscovery()',
+ '.v7-puck-discovery-art','pointerdown",v7StopPuckDiscovery,true'])
+ assert.ok(app.includes(marker),"Puck discovery regression: "+marker);
+const eligibleStart=app.indexOf("function v7PuckDiscoveryEligible(");
+const eligibleEnd=app.indexOf("function v7SchedulePuckDiscovery(",eligibleStart);
+const eligibleCtx={state:{puckStart:{x:500,y:300},onIce:{},
+ timeline:{movements:[]}},ui:{playing:false,playhead:0,selectedType:null},
+ activeTake:()=>({events:[]})};
+vm.runInNewContext(app.slice(eligibleStart,eligibleEnd)+"\nthis.check=v7PuckDiscoveryEligible",eligibleCtx,{timeout:1500});
+assert.equal(eligibleCtx.check(),true,"New blank rink should show puck attention");
+eligibleCtx.state.onIce["A_1"]={x:100,y:200};
+assert.equal(eligibleCtx.check(),false,"Played or populated rink should not show puck attention");
+eligibleCtx.state.onIce={};eligibleCtx.state.puckStart={x:530,y:300};
+assert.equal(eligibleCtx.check(),false,"Relocated puck should not show center attention");
+
+/* Occupancy, including every configured net, governs blinking indefinitely. */
+const liveStart=app.indexOf("const v7GoalFlashes=new Map();");
+const liveEnd=app.indexOf("function v7EquipmentSvg(",liveStart);
+assert.ok(liveStart>0&&liveEnd>liveStart);
+const netA={id:"left",type:"net",x:100,y:200,rotation:0,scale:1,geometry:{length:19.2,width:28.8}};
+const netB={id:"right",type:"net",x:500,y:200,rotation:0,scale:1,geometry:{length:19.2,width:28.8}};
+const lampCtx={v7WorldToLocal:(net,p)=>({x:p.x-net.x,y:p.y-net.y}),
+ v7GoalNets:()=>[netA,netB],
+ $:()=>[],window:{matchMedia:()=>({matches:false})},
+ performance:{now:()=>100},requestAnimationFrame:()=>77,cancelAnimationFrame:()=>{},
+ puckStateAt:()=>({pos:{x:100,y:200}}),buildPuckTimeline:()=>({}),ui:{playhead:0}};
+vm.runInNewContext(app.slice(liveStart,liveEnd)+
+ '\nthis.sync=v7SyncGoalNetOccupancy;this.contains=v7PuckInsideNet;this.active=()=>[...v7GoalFlashes.keys()]',
+ lampCtx,{timeout:1500});
+assert.equal(lampCtx.contains(netA,{x:100,y:200}),true,"Center net occupancy");
+assert.equal(lampCtx.contains(netA,{x:112,y:200}),false,"Puck in front of goal must not blink");
+assert.equal(lampCtx.contains(netA,{x:100,y:240}),false,"Puck wide of goal must not blink");
+lampCtx.sync({x:100,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["left"],"Left goal should blink while occupied");
+lampCtx.sync({x:100,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["left"],"Goal flash must persist until puck leaves");
+lampCtx.sync({x:500,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["right"],"Blink must move to the occupied net");
+lampCtx.sync({x:250,y:250});
+assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leaves");
+
 // Both crease profiles must preserve the 6ft radius; NHL has 4.5ft sides.
 {
   const a=app.indexOf("function v7CreasePath("),b=app.indexOf("function v7ApplyCreaseProfile(",a);

@@ -749,6 +749,12 @@ body{grid-template-rows:minmax(0,1fr) var(--toolbar-h) var(--timeline-h)}
 .video-export-dialog .video-export-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:16px}
 .video-export-dialog .video-export-actions a{display:inline-flex;align-items:center;text-decoration:none}
 .video-export-dialog [hidden]{display:none!important}
+@keyframes v7PuckFindWobble{0%,100%{transform:translateX(0) rotate(0deg) scale(1)}15%{transform:translateX(-5px) rotate(-16deg) scale(2.6)}35%{transform:translateX(5px) rotate(16deg) scale(2.9)}55%{transform:translateX(-4px) rotate(-11deg) scale(2.7)}75%{transform:translateX(4px) rotate(10deg) scale(2.5)}}
+@keyframes v7PuckFindHalo{0%{transform:scale(.5);opacity:.08}38%{transform:scale(1.2);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+.v7-puck-discovery-art{transform-box:fill-box;transform-origin:center;animation:v7PuckFindWobble .7s ease-in-out 5}
+.v7-puck-discovery-halo{transform-box:fill-box;transform-origin:center;pointer-events:none;animation:v7PuckFindHalo .85s ease-out infinite}
+@media(prefers-reduced-motion:reduce){.v7-puck-discovery-art{animation:none;transform:scale(2.2)}.v7-puck-discovery-halo{animation:none;opacity:.75}}
+
 @media(max-width:800px){#exportVideoBtn{min-width:34px;width:34px;padding:0;font-size:15px}#exportVideoBtn span{display:none}}
 </style>
 
@@ -2841,8 +2847,8 @@ newBoard=function(){newBoardV58ForV59();state.halfSide="right";state.coordinateS
 
 createCanonicalLineup=function(){return deepClone(DEFAULT_WHOLE_LINEUP)};
 setupPositionFor=function(teamId,index=0,playerId=null){
-  const p=playerId?playerById(playerId):null;if(playerId&&DEFAULT_WHOLE_LINEUP[playerId])return deepClone(DEFAULT_WHOLE_LINEUP[playerId]);
-  if(p?.role==="goalie")return teamId==="A"?{x:62,y:300+index*34}:{x:938,y:300+index*34};
+  const p=playerId?playerById(playerId):null;if(playerId&&DEFAULT_WHOLE_LINEUP[playerId]&&p?.role!=="goalie")return deepClone(DEFAULT_WHOLE_LINEUP[playerId]);
+  if(p?.role==="goalie")return v7DefaultGoalieCreasePosition(teamId,index);
   if(p?.role==="coach"||p?.role==="manager")return teamId==="A"?{x:p.role==="coach"?455:390,y:64}:{x:p.role==="coach"?545:610,y:64};
   const slots=teamId==="A"?[{x:465,y:300},{x:465,y:210},{x:465,y:390},{x:380,y:235},{x:380,y:365}]:[{x:535,y:300},{x:535,y:390},{x:535,y:210},{x:620,y:235},{x:620,y:365}];
   return slots[index]||(teamId==="A"?{x:250+(index%4)*55,y:120+Math.floor(index/4)*55}:{x:750-(index%4)*55,y:120+Math.floor(index/4)*55})
@@ -5732,6 +5738,13 @@ function v7NormalizeEquipmentItem(item){
 function v7NormalizeEquipmentList(items){
   return(Array.isArray(items)?items:[]).map(v7NormalizeEquipmentItem).filter(Boolean)
 }
+/* New goalies spawn halfway into their calibrated six-foot crease. */
+function v7DefaultGoalieCreasePosition(teamId,index=0){
+ const g=v7IceGeometry(state?.ice||V7_ICE_PROFILES.nhl);
+ const left=teamId==="A",line=left?g.goalLeft:g.goalRight;
+ const depth=(Number(state?.ice?.creaseRadius)||6)*g.scale*.5;
+ return{x:round(line+(left?depth:-depth),2),y:round(300+Math.max(0,index)*1.4*g.scale,2)}
+}
 /* Regulation goals are persistent rink objects. Added during legacy play
    migration and variation restores; normal extra nets stay separate. */
 function v7DefaultGoalNet(side){
@@ -5844,6 +5857,36 @@ loadPlay=function(play){
   syncActiveVariation();
   renderAll()
 };
+
+/* Brief, one-time locator only on an untouched New blank ice sheet. */
+let v7PuckDiscoveryPending=0,v7PuckDiscoveryStopTimer=0,v7PuckDiscoverySequence=0,v7PuckDiscoveryActive=false;
+function v7StopPuckDiscovery(){
+ v7PuckDiscoverySequence++;
+ clearTimeout(v7PuckDiscoveryPending);clearTimeout(v7PuckDiscoveryStopTimer);
+ v7PuckDiscoveryPending=0;v7PuckDiscoveryStopTimer=0;v7PuckDiscoveryActive=false;
+ $("#puckLayer [data-v7-puck-art]")?.classList.remove("v7-puck-discovery-art");
+ $("#puckLayer .v7-puck-discovery-halo")?.remove()
+}
+function v7PuckDiscoveryEligible(){
+ const c=state?.puckStart;
+ return !ui.playing&&ui.playhead<.001&&ui.selectedType===null&&
+  !!c&&Math.abs(c.x-500)<.001&&Math.abs(c.y-300)<.001&&
+  Object.keys(state.onIce||{}).length===0&&
+  !(state.timeline?.movements?.length)&&!(activeTake()?.events?.length)
+}
+function v7SchedulePuckDiscovery(){
+ v7StopPuckDiscovery();
+ const sequence=v7PuckDiscoverySequence;
+ v7PuckDiscoveryPending=setTimeout(()=>{
+  v7PuckDiscoveryPending=0;
+  if(sequence!==v7PuckDiscoverySequence||!v7PuckDiscoveryEligible())return;
+  v7PuckDiscoveryActive=true;
+  v7ScalePuckArt();
+  v7PuckDiscoveryStopTimer=setTimeout(()=>{
+   if(sequence===v7PuckDiscoverySequence)v7StopPuckDiscovery()
+  },3600)
+ },1400)
+}
 const newBoardV682ForV7=newBoard;
 newBoard=function(){
   // Let the legacy New operation capture undo history before clearing v7 data.
@@ -5858,7 +5901,8 @@ newBoard=function(){
   if(ui.selectedType==="equipment"){ui.selectedType=null;ui.selectedId=null}
   syncActiveVariation();
   renderAll();
-  scheduleSave()
+  scheduleSave();
+  v7SchedulePuckDiscovery()
 };
 
 function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id)||null}
@@ -6244,31 +6288,51 @@ function v7PrepareCreaseStyleUI(){
   });
   root.append(select);v7ApplyCreaseProfile()
 }
+
+/* Red frame stays blinking for as long as the rendered puck is INSIDE this
+   goal's geometry. Physical occupancy, not a fixed event timer, is authoritative. */
 const v7GoalFlashes=new Map();
 let v7GoalLightAnimationFrame=0;
+function v7PuckInsideNet(net,point){
+ if(!net||net.type!=="net"||!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))return false;
+ const pos=v7WorldToLocal(net,point);
+ const halfDepth=(Number(net.geometry?.length)||26)/2,halfMouth=(Number(net.geometry?.width)||48)/2;
+ return Math.abs(pos.x)<halfDepth-.25&&Math.abs(pos.y)<halfMouth-.5
+}
 function v7ApplyNetGoalFlash(node,now){
-  const active=v7GoalFlashes.has(node.dataset.v7NetVisual);
-  // Reduced-motion users get a steady red highlight instead of blinking.
-  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches||false;
-  const bright=active&&(reduced||Math.floor(now/240)%2===0);
-  node.style.opacity=active&&!bright?".38":"1";
-  for(const part of node.querySelectorAll("[data-v7-net-red]")){
-    const kind=part.getAttribute("data-v7-net-red");
-    const base=kind==="post"?"#e33b42":kind==="line"?"#ee6b6b":"#c43d3d";
-    part.setAttribute(kind==="post"?"fill":"stroke",bright?"#ff2539":base);
-    part.style.filter=bright?"drop-shadow(0 0 5px #ff2539)":"";
-  }
+ const active=v7GoalFlashes.has(node.dataset.v7NetVisual);
+ const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches||false;
+ const bright=active&&(reduced||Math.floor(now/260)%2===0);
+ node.style.opacity="1"; // Blink only red bars; keep net mesh visible.
+ for(const part of node.querySelectorAll("[data-v7-net-red]")){
+  const kind=part.getAttribute("data-v7-net-red");
+  const base=kind==="post"?"#e33b42":kind==="line"?"#ee6b6b":"#c43d3d";
+  part.setAttribute(kind==="post"?"fill":"stroke",bright?"#ff2539":base);
+  part.style.opacity=active&&!bright?".09":"1";
+  part.style.filter=bright?"drop-shadow(0 0 5px #ff2539)":""
+ }
 }
 function v7UpdateGoalLights(){
-  const now=performance.now();
-  for(const [id,endsAt] of v7GoalFlashes)if(now>=endsAt)v7GoalFlashes.delete(id);
-  for(const node of $("[data-v7-net-visual]"))v7ApplyNetGoalFlash(node,now);
-  v7GoalLightAnimationFrame=v7GoalFlashes.size?requestAnimationFrame(v7UpdateGoalLights):0
+ v7GoalLightAnimationFrame=0;
+ const now=performance.now();
+ for(const node of $$("[data-v7-net-visual]"))v7ApplyNetGoalFlash(node,now);
+ if(v7GoalFlashes.size)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
 }
-function v7TriggerGoalLight(netId){
-  if(!netId||v7EquipmentById(netId)?.type!=="net")return;
-  v7GoalFlashes.set(netId,performance.now()+3500);
-  if(!v7GoalLightAnimationFrame)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
+function v7SyncGoalNetOccupancy(puckPosition){
+ const occupied=new Set(v7GoalNets().filter(net=>v7PuckInsideNet(net,puckPosition)).map(net=>net.id));
+ for(const id of [...v7GoalFlashes.keys()])if(!occupied.has(id))v7GoalFlashes.delete(id);
+ for(const id of occupied)if(!v7GoalFlashes.has(id))v7GoalFlashes.set(id,true);
+ for(const node of $$("[data-v7-net-visual]"))v7ApplyNetGoalFlash(node,performance.now());
+ if(v7GoalFlashes.size&&!v7GoalLightAnimationFrame)
+  v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights);
+ else if(!v7GoalFlashes.size&&v7GoalLightAnimationFrame){
+  cancelAnimationFrame(v7GoalLightAnimationFrame);v7GoalLightAnimationFrame=0
+ }
+}
+function v7TriggerGoalLight(_netId){
+ // Preserve the old playback callback, but don't allow it to create
+ // a flash when the puck isn't actually inside a net.
+ v7SyncGoalNetOccupancy(puckStateAt(ui.playhead,buildPuckTimeline()).pos)
 }
 function v7EquipmentSvg(item){
   const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
@@ -6365,7 +6429,14 @@ function v7ScalePlayerSymbols(){
   const scale=p.role==="goalie"?m.goalieScale:(p.role==="coach"||p.role==="manager")?m.staffScale:m.skaterScale;
   const old=(token.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();
   token.setAttribute("transform",(old?old+" ":"")+"scale("+round(scale,4)+")");
-  token.querySelectorAll(".token-number").forEach(n=>{n.style.fontSize=(p.role==="goalie"?25:27)+"px";n.style.strokeWidth="1.15px"});
+  token.querySelectorAll(".token-number").forEach(n=>{
+   n.setAttribute("x","0");n.setAttribute("y","0");n.setAttribute("dy",".08em");
+   n.setAttribute("text-anchor","middle");n.setAttribute("dominant-baseline","central");
+   n.setAttribute("alignment-baseline","middle");
+   n.style.fontFamily="Arial,Helvetica,sans-serif";n.style.fontVariantNumeric="tabular-nums";
+   n.style.fontWeight="850";n.style.fontSize=(p.role==="goalie"?25:27)+"px";
+   n.style.strokeWidth="1.15px";n.style.letterSpacing="0";
+  });
   token.querySelectorAll(".token-role-badge").forEach(b=>{const c=b.querySelector("circle"),t=b.querySelector("text");if(c)c.setAttribute("r","14");if(t)t.style.fontSize="16px"});
   const glow=[...group.children].find(n=>n.classList?.contains("v682-underglow"));
   if(glow)glow.setAttribute("transform","scale("+round(scale,4)+")");
@@ -6386,12 +6457,22 @@ function v7ScalePuckArt(){
  const outer=$("#puckLayer [data-puck]");if(!outer)return;
  const m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(m.puckRadius,2);
  const sprite=[...outer.querySelectorAll("g")].find(node=>[...node.children].some(c=>c.tagName?.toLowerCase()==="rect"&&c.getAttribute("width")==="26"));
- if(sprite)sprite.replaceChildren(
-  svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}),
-  svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
+ if(sprite){
+  sprite.dataset.v7PuckArt="1";
+  sprite.replaceChildren(
+   svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}),
+   svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
+ }
+ const art=sprite||outer.querySelector("[data-v7-puck-art]");
+ const visible=v7PuckDiscoveryActive&&v7PuckDiscoveryEligible();
+ art?.classList.toggle("v7-puck-discovery-art",!!visible);
+ if(visible&&art&&!outer.querySelector(".v7-puck-discovery-halo")){
+  outer.insertBefore(svgEl("circle",{class:"v7-puck-discovery-halo",r:14,fill:"none",stroke:"#21d4ff","stroke-width":2.4,"pointer-events":"none"}),art)
+ }else if(!visible)outer.querySelector(".v7-puck-discovery-halo")?.remove();
  for(const glow of outer.querySelectorAll(".v682-underglow"))glow.setAttribute("transform","scale("+round(r/11,3)+")");
  for(const ring of outer.querySelectorAll(".puck-select"))ring.setAttribute("transform","scale("+round(r/10,3)+")");
  for(const shadow of [...outer.children].filter(n=>n.tagName?.toLowerCase()==="ellipse"))shadow.setAttribute("transform","scale("+round(r/11,3)+")");
+ outer.querySelector(".v7-puck-hitbox")?.remove();
  const hit=svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"});
  const airborne=[...outer.children].find(n=>n.classList?.contains("v7-airborne-puck"));
  if(airborne)outer.insertBefore(hit,airborne);else outer.insertBefore(hit,sprite||null);
@@ -6724,6 +6805,7 @@ const renderFrameV682ForV7=renderFrame;
 renderFrame=function(time=ui.playhead){
   v7ApplyCreaseProfile();
   const output=renderFrameV682ForV7(time);
+  v7SyncGoalNetOccupancy(output?.ps?.pos);
   const now=Number(time),previous=Number(ui.v7PreviousHapticFrame);
   if(ui.playing&&Number.isFinite(previous)&&now>=previous){
     for(const travel of output?.pt?.intervals||[]){
@@ -6792,6 +6874,7 @@ init=function(){
   v7PrepareShotCollisionUI();
   v7SetupEquipmentEvents();
   v7SetupInspectorEvents();
+  $("#rinkSvg")?.addEventListener("pointerdown",v7StopPuckDiscovery,true);
   renderAll()
 };
 Object.assign(window.BOTD_TEST,{
@@ -6814,6 +6897,9 @@ Object.assign(window.BOTD_TEST,{
   netSizes:()=>deepClone(V7_NET_SIZES),
   triggerNetLight:id=>v7TriggerGoalLight(id),
   activeNetLights:()=>[...v7GoalFlashes.keys()],
+  netContainsPuck:(id,point)=>v7PuckInsideNet(v7EquipmentById(id),point),
+  goalieCreaseStart:(team,index=0)=>v7DefaultGoalieCreasePosition(team,index),
+  puckDiscoveryActive:()=>v7PuckDiscoveryActive,
   onIceSymbolMetrics:()=>v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale)
 });
 
