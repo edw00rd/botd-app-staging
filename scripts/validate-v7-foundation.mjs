@@ -244,7 +244,7 @@ for(const required of [
  assert.equal(third.intervals.find(i=>i.motion==="shot")?.start,0);
  assert.ok(second.intervals.some(i=>i.motion==="pass"&&i.start===0));
 }
-for(const control of ["v7ExtraPuckPass","v7ExtraPuckShoot","v7ActivePuckId","v7PuckActionAnchor","data-select-additional-puck"]){
+for(const control of ["v7SelectedPuckId","v7SelectedPuckGlow","v7ActivePuckId","v7PuckActionAnchor","data-select-additional-puck"]){
  assert.ok(app.includes(control),"Additional puck action missing: "+control);
 }
 
