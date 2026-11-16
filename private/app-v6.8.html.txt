@@ -907,7 +907,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
   border-radius:8px;box-shadow:0 1px 3px rgba(24,55,78,.1);
 }
 .bench-rack.team-benches .bench-piece{
-  width:29px;height:29px;flex-basis:29px;border-width:3px;
+  width:29px;height:29px;flex:0 0 29px;border-width:3px;
   font-size:9px;box-shadow:none;
 }
 .bench-rack.team-benches .bench-card.goalie .bench-piece{
