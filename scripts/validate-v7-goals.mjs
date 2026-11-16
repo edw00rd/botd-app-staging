@@ -26,7 +26,8 @@ assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
 assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
 assert.ok(visual.skaterDiameter<goalWidth&&visual.goalieWidth<goalWidth);
 assert.ok(visual.playerHitRadius>visual.skaterDiameter/2&&visual.puckHitRadius>visual.puckRadius);
-assert.ok(app.includes("v7RenderEquipment();v7ScalePlayerSymbols()"));
+assert.ok(app.includes("v7RenderEquipment();v7RenderAdditionalPucks();v7ScalePlayerSymbols()"),
+ "Rink renderer must draw equipment, individual added pucks, and correctly scaled player symbols");
 assert.ok(app.includes("v7ScalePuckArt();return result")&&app.includes("outer.append(shadow,raised);\n  v7ScalePuckArt()"));
 assert.ok(app.includes(".v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]"));
 
