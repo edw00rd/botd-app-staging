@@ -6500,6 +6500,16 @@ function v7RinkRemoveControl(id,kind,point={x:28,y:-27}){
  node.append(svgEl("path",{d:"M-6 0H6",fill:"none",stroke:"#fff","stroke-width":2.8,"stroke-linecap":"round","pointer-events":"none"}));
  return node
 }
+function v7RinkGoalResetControl(id,point){
+ const node=svgEl("g",{class:"v7-rink-reset","data-v7-reset-goal":id,
+   role:"button",tabindex:"0","aria-label":"Reset permanent goal net",
+   transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",style:"cursor:pointer"});
+ node.append(svgEl("circle",{r:14,fill:"#0057b8",stroke:"#fff","stroke-width":2.2,
+  "vector-effect":"non-scaling-stroke","pointer-events":"all"}));
+ const symbol=svgEl("text",{x:0,y:5,"text-anchor":"middle",fill:"#fff","font-size":20,
+  "font-weight":"900","pointer-events":"none"});
+ symbol.textContent="↺";node.append(symbol);return node
+}
 function v7EquipmentSvg(item){
   const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
     "data-equipment-id":item.id,
@@ -6575,6 +6585,11 @@ function v7RenderEquipment(){
       v59ClampVisiblePoint({x:selected.x+30,y:selected.y-27}):
       clampRinkPoint({x:selected.x+30,y:selected.y-27});
     layer.append(v7RinkRemoveControl(selected.id,"equipment",point))
+  }else if(selected?.goalSide){
+    const point=v59ClampVisiblePoint?
+      v59ClampVisiblePoint({x:selected.x+30,y:selected.y-27}):
+      clampRinkPoint({x:selected.x+30,y:selected.y-27});
+    layer.append(v7RinkGoalResetControl(selected.id,point))
   }
 }
 
@@ -6939,6 +6954,11 @@ function v7DeleteEquipment(id){
   if(ui.selectedType==="equipment"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
   syncActiveVariation();renderAll();scheduleSave();return true
 }
+function v7ResetGoalNet(id){
+ const item=v7EquipmentById(id);if(!item?.goalSide)return false;
+ pushHistory();Object.assign(item,v7DefaultGoalNet(item.goalSide));
+ syncActiveVariation();renderAll();scheduleSave();return true
+}
 function v7NudgeEquipment(item,dx,dy){if(!item)return;item.x=round(clamp(item.x+dx,rinkBounds().minX,rinkBounds().maxX),2);item.y=round(clamp(item.y+dy,rinkBounds().minY,rinkBounds().maxY),2)}
 /* The Puck Director modal retains the hidden compatibility event host;
    rink equipment no longer renders a side-panel UI. */
@@ -6989,6 +7009,11 @@ function v7SetupEquipmentEvents(){
     if(remove){
       event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
       v7DeleteEquipment(remove.dataset.v7RemoveEquipment);return
+    }
+    const reset=event.target.closest?.("[data-v7-reset-goal]");
+    if(reset){
+      event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
+      v7ResetGoalNet(reset.dataset.v7ResetGoal);return
     }
     if(ui.v7EquipmentPlacement){
       event.preventDefault();event.stopImmediatePropagation();
@@ -7059,10 +7084,12 @@ function v7SetupEquipmentEvents(){
     if(event.key!=="Enter"&&event.key!==" ")return;
     const eq=event.target.closest?.("[data-v7-remove-equipment]");
     const puck=event.target.closest?.("[data-v7-remove-additional-puck]");
-    if(!eq&&!puck)return;
+    const reset=event.target.closest?.("[data-v7-reset-goal]");
+    if(!eq&&!puck&&!reset)return;
     event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
     if(eq)v7DeleteEquipment(eq.dataset.v7RemoveEquipment);
-    else v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck)
+    else if(puck)v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck);
+    else v7ResetGoalNet(reset.dataset.v7ResetGoal)
   },true);
   window.addEventListener("keydown",event=>{
     const tag=document.activeElement?.tagName?.toLowerCase();if(tag==="input"||tag==="textarea"||tag==="select")return;

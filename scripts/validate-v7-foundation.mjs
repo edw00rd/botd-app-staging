@@ -146,6 +146,7 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  const equipmentRender=app.slice(app.indexOf("function v7RenderEquipment()"),
    app.indexOf("/* V7 on-ice visual scale.",app.indexOf("function v7RenderEquipment()")));
  assert.ok(equipmentRender.includes("if(selected&&!selected.goalSide)"),"Permanent goal nets must be protected");
+ assert.ok(equipmentRender.includes('v7RinkGoalResetControl(selected.id,point)'),"Permanent goal selection needs a reset icon");
  assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
  const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
    app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
@@ -155,6 +156,8 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  const puckEvents=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
    app.indexOf("function v7SetEquipmentPlacement(",app.indexOf("function v7SetupAdditionalPuckEvents()")));
  assert.ok(equipmentEvents.includes('v7DeleteEquipment(remove.dataset.v7RemoveEquipment)'),"Equipment minus must delete");
+ assert.ok(equipmentEvents.includes('v7ResetGoalNet(reset.dataset.v7ResetGoal)'),"On-ice reset must restore permanent goals");
+ assert.ok(app.includes("function v7ResetGoalNet("),"Goal reset must not depend on an invisible inspector");
  assert.ok(puckEvents.includes('v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)'),"Added puck minus must delete");
  assert.ok(equipmentEvents.includes('v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck)'),"Keyboard minus must work for pucks");
  assert.ok(!equipmentEvents.includes("openRight()"),"Equipment selection must not call hidden drawer");
