@@ -6,7 +6,7 @@ const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url
 assert.ok(app.includes("function v7DefaultGoalNet(side)"));
 assert.ok(app.includes("function v7NetGoalCandidate(start,direction,maxDistance)"));
 assert.ok(app.includes("includeGoalNets:false"));
-assert.ok(app.includes("!item.goalSide"),"Ignored-object clearances must exclude goal nets");
+assert.ok(app.includes('item.type!=="net"'),"Ignored-object clearances must exclude all nets");
 assert.ok(!app.includes('d="M49 257h26v86'),"Legacy full-rink grey nets still present");
 assert.ok(!app.includes('d="M258 105V65Q300'),"Legacy half-rink net still present");
 assert.ok(app.includes('state.equipment=v7NormalizeEquipmentList([])'),"New must restore both nets");
@@ -14,11 +14,27 @@ assert.ok(app.includes('if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide)re
 assert.ok(app.includes('data-v7-reset-goal'),"Goal reset control missing");
 assert.ok(app.includes('const impacts=(built?.contacts||[])'),"Board/net impact data must reach haptics");
 
+
+/* Visual footprint is tied to physical rink scale, not the old oversized tokens. */
+const metricsStart=app.indexOf("function v7OnIceSymbolMetrics("),metricsEnd=app.indexOf("function v7ScalePlayerSymbols(",metricsStart);
+assert.ok(metricsStart>0&&metricsEnd>metricsStart);
+const metricScope={};
+vm.runInNewContext(app.slice(metricsStart,metricsEnd)+"\nthis.metrics=v7OnIceSymbolMetrics(4.8)",metricScope,{timeout:1500});
+const visual=metricScope.metrics,goalWidth=6*4.8;
+assert.ok(Math.abs(visual.skaterDiameter-14.4)<.001);
+assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
+assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
+assert.ok(visual.skaterDiameter<goalWidth&&visual.goalieWidth<goalWidth);
+assert.ok(visual.playerHitRadius>visual.skaterDiameter/2&&visual.puckHitRadius>visual.puckRadius);
+assert.ok(app.includes("v7RenderEquipment();v7ScalePlayerSymbols()"));
+assert.ok(app.includes("v7ScalePuckArt();return result")&&app.includes("outer.append(shadow,raised);\n  v7ScalePuckArt()"));
+assert.ok(app.includes(".v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]"));
+
 const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
-  net:{geometry:{length:42,width:22},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"uniform",puckSource:false}},
+  net:{geometry:{length:19.2,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
   cone:{geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},capabilities:{rotatable:false,resize:"uniform",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
@@ -27,13 +43,32 @@ assert.ok(normalizerStart>0&&normalizerEnd>normalizerStart);
 const normContext={V7_RINK_OBJECT_TYPES:types,deepClone,clamp,round,uid:prefix=>prefix+"-test",
   v59ValidPoint:p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y),
   v59CopyPoint:p=>({x:p.x,y:p.y})};
-vm.runInNewContext(app.slice(normalizerStart,normalizerEnd),normContext,{timeout:2000});
+const modelSource=app.slice(app.indexOf("const V7_ICE_M_TO_FT="),app.indexOf("const V7_CREASE_RADIUS_UNITS="));
+assert.ok(modelSource.startsWith("const V7_ICE_M_TO_FT="),"Model source must precede net geometry");
+const presetSource=app.slice(app.indexOf("const V7_NET_SIZES="),app.indexOf("const V7_PUCK_RADIUS="));
+vm.runInNewContext(modelSource+
+  "\nthis.state={ice:v7NormalizeIce({profile:'nhl'})};"+
+  "\nconst V7_CREASE_RADIUS_UNITS=28.8;"+
+  presetSource+"\n"+app.slice(normalizerStart,normalizerEnd)+
+  "\nthis.iceGeometry=v7IceGeometry;this.iceNormalize=v7NormalizeIce;this.icePerimeter=v7IcePerimeter;this.iceCrease=v7IceCreaseOutline;",normContext,{timeout:3000});
 const initial=normContext.v7NormalizeEquipmentList([]);
 assert.equal(initial.length,2,"Fresh play must have two nets");
+const migrated=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:62,y:300,rotation:0,netPreset:"pro"});
+assert.equal(migrated.x,63.2,"Original built-in net should migrate to rink-driven 11ft goal line");
+const custom=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:82,y:295,rotation:15,netPreset:"pro"});
+assert.equal(custom.x,82,"A user-moved net must never migrate unexpectedly");
 assert.deepEqual(Array.from(initial,n=>n.goalSide).sort(),["left","right"]);
 const left=initial.find(n=>n.goalSide==="left"),right=initial.find(n=>n.goalSide==="right");
-assert.equal(left.x,62);assert.equal(left.geometry.width,86);assert.equal(left.rotation,0);
-assert.equal(right.x,938);assert.equal(right.rotation,180);
+assert.equal(left.x,63.2);assert.equal(left.geometry.width,28.8);assert.equal(left.rotation,0);
+assert.equal(left.netPreset,"pro");assert.equal(left.scale,1);assert.equal(left.capabilities.resize,"none");
+for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.8,4]]){
+ const item=normContext.v7NormalizeEquipmentItem({id:name,type:"net",x:500,y:300,netPreset:name,scale:2.5,geometry:{length:110,width:120}});
+ assert.equal(item.geometry.width,width,"Net opening must track 6 ft crease scale");
+ assert.equal(item.geometry.heightFeet,height);
+ assert.equal(item.scale,1,"Net resize must be disabled");
+ assert.equal(item.capabilities.resize,"none");
+}
+assert.equal(right.x,936.8);assert.equal(right.rotation,180);
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);
@@ -60,6 +95,7 @@ function raySegment(start,direction,maxDistance,a,b){
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const ctx={
   state:{equipment:structuredClone(initial)},v7LocalToWorld:toWorld,v7WorldToLocal:toLocal,v7RotatePoint:rotate,
+  v7NetPostRadius:item=>Math.max(1.8,3.6*(Number(item.geometry?.width)||48)/48),
   v64RaySegmentHit:raySegment,v64GoalCandidate:null,goalResultForShot:null,v64NearestShotSurface:null,
   v64Unit:p=>{const n=Math.hypot(p.x,p.y)||1;return{x:p.x/n,y:p.y/n}},
   v60RoundedRinkPerimeter:()=>[{x:10,y:10},{x:990,y:10},{x:990,y:590},{x:10,y:590},{x:10,y:10}],
@@ -71,14 +107,14 @@ const end=app.indexOf("const firstCollisionOnPathV682ForV7",begin);
 assert.ok(begin>0&&end>begin);
 vm.runInNewContext(app.slice(begin,end),ctx,{timeout:2000});
 const leftGoal=ctx.v64GoalCandidate({x:300,y:300},{x:-1,y:0},400);
-assert.equal(leftGoal?.side,"left");assert.ok(Math.abs(leftGoal.entry.x-75)<.01);
-assert.ok(Math.abs(leftGoal.end.x-50)<.01);
+assert.equal(leftGoal?.side,"left");assert.ok(Math.abs(leftGoal.entry.x-72.8)<.01);
+assert.ok(Math.abs(leftGoal.end.x-54.6)<.01);
 const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
-assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-925)<.01);
+assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-927.2)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
 assert.equal(ctx.v64GoalCandidate({x:40,y:300},{x:1,y:0},400),null,"Shooting from behind cannot score");
-assert.equal(ctx.v64GoalCandidate({x:300,y:343},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
-const post=ctx.v64NearestShotSurface({x:300,y:343},{x:-1,y:0},400);
+assert.equal(ctx.v64GoalCandidate({x:300,y:314.4},{x:-1,y:0},400),null,"Crossing a goalpost cannot score");
+const post=ctx.v64NearestShotSurface({x:300,y:314.4},{x:-1,y:0},400);
 assert.equal(post?.surface,"post","Post must have physical collision");
 const back=ctx.v64NearestShotSurface({x:40,y:300},{x:1,y:0},50);
 assert.equal(back?.surface,"back","Back mesh must block shots from behind");
@@ -87,9 +123,211 @@ ctx.state.equipment[0].x=500;ctx.state.equipment[0].rotation=90;
 const rotated=ctx.v64GoalCandidate({x:500,y:400},{x:0,y:-1},200);
 assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
-ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=62;ctx.state.equipment[0].scale=1.5;
-assert.equal(ctx.v64GoalCandidate({x:300,y:355},{x:-1,y:0},400)?.side,"left","Scaling net must resize its scoring mouth");
+ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=63.2;
+ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
+assert.equal(ctx.v64GoalCandidate({x:300,y:307},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
+assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
+const added=normContext.v7NormalizeEquipmentItem({id:"added-net",type:"net",x:450,y:300,netPreset:"little",rotation:0});
+ctx.state.equipment.push(added);
+const extraGoal=ctx.v64GoalCandidate({x:600,y:300},{x:-1,y:0},400);
+assert.equal(extraGoal?.netId,"added-net","Extra nets must score independently");
 assert.equal(ctx.goalResultForShot({x:300,y:300},{x:40,y:300})?.goal,true);
 assert.equal(ctx.goalResultForShot({x:300,y:390},{x:40,y:390})?.goal,false);
 
-console.log("V7 goal regression passed: legacy migration, net ownership, post/back collision, moved/rotated/scaled scoring, front-only entry.");
+
+/* Regression: a loose puck already in a scored goal can pass through its
+   open mouth. It must still collide with mesh and other rink equipment. */
+assert.ok(app.includes("function v7NetOpenMouthEgress(net,start,next)"));
+assert.ok(app.includes("startingNetExits.has(item.id)"));
+assert.ok(app.includes('v60CommitPassToPoint(svgPoint(event));return'),"Pass targeting on an on-ice net must not select the net instead");
+const collisionStart=app.indexOf("function v7EquipmentCollisionAt(");
+const collisionEnd=app.indexOf("/* Detect physical objects crossed",collisionStart);
+assert.ok(collisionStart>0&&collisionEnd>collisionStart);
+vm.runInNewContext(app.slice(collisionStart,collisionEnd),ctx,{timeout:3000});
+ctx.V7_PUCK_RADIUS=2.8;
+ctx.V7_RINK_OBJECT_TYPES={net:{shape:"net"},cone:{shape:"circle"}};
+ctx.pointLerp=(a,b,u)=>({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u});
+ctx.lerp=(a,b,t)=>a+(b-a)*t;
+ctx.clamp=clamp;
+ctx.state.equipment=structuredClone(initial);
+const leftNet=ctx.state.equipment.find(n=>n.goalSide==="left");
+const rightNet=ctx.state.equipment.find(n=>n.goalSide==="right");
+const goalStart={x:leftNet.x,y:300};
+const centerIce={x:350,y:300};
+const rightStart={x:rightNet.x,y:300};
+const rightExit={x:650,y:300};
+assert.ok(ctx.v7NetOpenMouthEgress(leftNet,goalStart,centerIce),"Left net egress must be valid");
+assert.ok(ctx.v7NetOpenMouthEgress(rightNet,rightStart,rightExit),"180-degree right net egress must be valid");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce],0,1),null,"Left-net pass to open ice must exit cleanly");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([rightStart,rightExit],0,1),null,"Right-net pass to open ice must exit cleanly");
+assert.equal(ctx.v7NetOpenMouthEgress(leftNet,goalStart,{x:35,y:300}),false,"Passing through back mesh is not a legal mouth exit");
+assert.equal(ctx.v7NetOpenMouthEgress(leftNet,goalStart,{x:leftNet.x,y:380}),false,"Passing out through side mesh is not a legal mouth exit");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,{x:35,y:300}],0,1)?.objectId,leftNet.id,"Back mesh still blocks");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,{x:leftNet.x,y:380}],0,1)?.objectId,leftNet.id,"Side mesh still blocks");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([{x:350,y:300},goalStart],0,1)?.objectId,leftNet.id,"Entering net from ice still collides");
+const nearPost={x:goalStart.x,y:300};
+assert.equal(ctx.v7NetOpenMouthEgress(leftNet,nearPost,{x:100,y:360}),false,"Passing through a goalpost is blocked");
+ctx.state.equipment.push({id:"blocking-cone",type:"cone",x:220,y:300,rotation:0,scale:1,
+ geometry:{radius:7},physics:{collidable:true,response:"bounce",restitution:.65}});
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce],0,1)?.objectId,"blocking-cone","Other objects still block passes from net");
+ctx.state.equipment=structuredClone(initial);
+const hitOnReentry=ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce,goalStart],0,2);
+assert.equal(hitOnReentry?.objectId,leftNet.id,"Same net must collide after the puck has exited and reentered");
+// Run a real pass-to-space event through the current timeline logic, not
+// just the collision helper: the puck must actually arrive outside the net.
+const timelineStart=app.lastIndexOf("buildPuckTimeline=function(){");
+const timelineEnd=app.indexOf("/* A goal is",timelineStart);
+assert.ok(timelineStart>0&&timelineEnd>timelineStart);
+const puckTake={id:"test-take",name:"Test route",events:[{id:"pass-out",type:"passSpace",time:0,
+ target:centerIce,speed:6,ignoreDefense:true}]};
+ctx.state={equipment:structuredClone(initial),puckStart:goalStart,onIce:{},
+ timeline:{duration:12,puckTakes:[puckTake],activeTakeId:puckTake.id,movements:[]}};
+ctx.activeTake=()=>puckTake;
+ctx.passSpeedUnits=()=>420;
+ctx.clampRinkPoint=p=>p;
+ctx.firstCollisionOnPath=(points,start,end)=>ctx.v7FirstEquipmentCollisionOnPath(points,start,end);
+ctx.buildPuckTimeline=null;
+vm.runInNewContext(app.slice(timelineStart,timelineEnd),ctx,{timeout:3000});
+const simulated=ctx.buildPuckTimeline();
+const passResult=simulated.results.get("pass-out");
+assert.equal(passResult?.valid,true,"Pass event from net must be valid");
+assert.equal(passResult?.collision,null,"Pass-out must not falsely collide at origin");
+assert.ok(Math.abs(passResult.path.at(-1).x-centerIce.x)<.001,"Pass-out must reach selected target");
+assert.ok(simulated.intervals.some(i=>i.kind==="travel"&&i.motion==="pass"&&i.end>i.start+.1),
+ "Pass-out must create an observable travel segment");
+
+for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"Mini Goal"',
+  'function v7PuckInsideNet(net,point)','function v7SyncGoalNetOccupancy(puckPosition)',
+  'v7GoalFlashes.set(id,true)','data-v7-net-visual','data-v7-net-red',
+  'v7NetSizeSelect','data-v7-net-preset',
+  'v7ApplyNetGoalFlash(netArt,performance.now())',
+  'v7SyncGoalNetOccupancy(output?.ps?.pos)',
+  '$("#goalBanner").classList.remove("active")'
+])assert.ok(app.includes(marker),"Missing occupancy-based goal flash marker: "+marker);
+assert.ok(!app.includes("performance.now()+3500"),"A fixed 3.5-second timer must not control a scored goal");
+assert.ok(app.includes('for(const node of '+String.fromCharCode(36,36)+'("[data-v7-net-visual]"))'),"Net flashing must iterate ALL net nodes");
+assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");
+assert.ok(!app.includes('data-v7-goal-bulb'),"Standalone bulb must be gone");
+assert.ok(app.indexOf('pro:Object.freeze({label:"Regulation Goal"')<app.indexOf('medium:Object.freeze({label:"Cross-Ice Goal"'),
+  "Regulation goal must be first in default net selector");
+assert.ok(app.includes('netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPreset)?item.netPreset:"pro"'),
+  "Nets without a preset must default to regulation size");
+const playback=app.slice(app.indexOf("tick=function(ts){"),app.indexOf("function v64RaySegmentHit("));
+assert.ok(!playback.includes("goalSiren()"),"Scoring must not play a separate siren");
+
+
+/* Goalies spawn on the new real crease instead of inside the legacy goal. */
+const goalieA=app.indexOf("function v7DefaultGoalieCreasePosition(");
+const goalieB=app.indexOf("/* Regulation goals",goalieA);
+assert.ok(goalieA>0&&goalieB>goalieA);
+assert.ok(app.includes('if(p?.role==="goalie")return v7DefaultGoalieCreasePosition(teamId,index)'));
+const goalieContext={state:{ice:{creaseRadius:6}},V7_ICE_PROFILES:{nhl:{creaseRadius:6}},
+ v7IceGeometry:()=>({goalLeft:72.8,goalRight:927.2,scale:4.8}),round};
+vm.runInNewContext(app.slice(goalieA,goalieB)+
+ '\nthis.left=v7DefaultGoalieCreasePosition("A",0);this.right=v7DefaultGoalieCreasePosition("B",0);',
+ goalieContext,{timeout:1500});
+assert.ok(Math.abs(goalieContext.left.x-87.2)<.001,"Left goalie not centered within crease");
+assert.ok(Math.abs(goalieContext.right.x-912.8)<.001,"Right goalie not centered within crease");
+assert.equal(goalieContext.left.y,300);
+assert.equal(goalieContext.right.y,300);
+
+/* Skater and goalie jersey numbers share centered SVG text geometry. */
+const playerScale=app.slice(app.indexOf("function v7ScalePlayerSymbols("),app.indexOf("function v7ScalePuckArt("));
+for(const marker of ['n.setAttribute("x","0")','n.setAttribute("y","0")','n.setAttribute("dy",".08em")',
+ 'n.setAttribute("text-anchor","middle")','n.setAttribute("dominant-baseline","central")',
+ 'n.style.fontFamily="Arial,Helvetica,sans-serif"'])
+ assert.ok(playerScale.includes(marker),"Number centering regression: "+marker);
+
+/* The center-puck attention cue is delayed, one-shot, and only after New. */
+for(const marker of ['function v7SchedulePuckDiscovery()',
+ 'v7PuckDiscoveryPending=setTimeout','v7PuckDiscoveryActive=true',
+ 'v7PuckDiscoveryStopTimer=setTimeout','v7SchedulePuckDiscovery()',
+ '.v7-puck-discovery-art','pointerdown",v7StopPuckDiscovery,true'])
+ assert.ok(app.includes(marker),"Puck discovery regression: "+marker);
+const eligibleStart=app.indexOf("function v7PuckDiscoveryEligible(");
+const eligibleEnd=app.indexOf("function v7SchedulePuckDiscovery(",eligibleStart);
+const eligibleCtx={state:{puckStart:{x:500,y:300},onIce:{},
+ timeline:{movements:[]}},ui:{playing:false,playhead:0,selectedType:null},
+ activeTake:()=>({events:[]})};
+vm.runInNewContext(app.slice(eligibleStart,eligibleEnd)+"\nthis.check=v7PuckDiscoveryEligible",eligibleCtx,{timeout:1500});
+assert.equal(eligibleCtx.check(),true,"New blank rink should show puck attention");
+eligibleCtx.state.onIce["A_1"]={x:100,y:200};
+assert.equal(eligibleCtx.check(),false,"Played or populated rink should not show puck attention");
+eligibleCtx.state.onIce={};eligibleCtx.state.puckStart={x:530,y:300};
+assert.equal(eligibleCtx.check(),false,"Relocated puck should not show center attention");
+
+/* Occupancy, including every configured net, governs blinking indefinitely. */
+const liveStart=app.indexOf("const v7GoalFlashes=new Map();");
+const liveEnd=app.indexOf("function v7EquipmentSvg(",liveStart);
+assert.ok(liveStart>0&&liveEnd>liveStart);
+const netA={id:"left",type:"net",x:100,y:200,rotation:0,scale:1,geometry:{length:19.2,width:28.8}};
+const netB={id:"right",type:"net",x:500,y:200,rotation:0,scale:1,geometry:{length:19.2,width:28.8}};
+const lampCtx={v7WorldToLocal:(net,p)=>({x:p.x-net.x,y:p.y-net.y}),
+ v7GoalNets:()=>[netA,netB],
+ [String.fromCharCode(36,36)]:()=>[],window:{matchMedia:()=>({matches:false})},
+ performance:{now:()=>100},requestAnimationFrame:()=>77,cancelAnimationFrame:()=>{},
+ puckStateAt:()=>({pos:{x:100,y:200}}),buildPuckTimeline:()=>({}),ui:{playhead:0}};
+vm.runInNewContext(app.slice(liveStart,liveEnd)+
+ '\nthis.sync=v7SyncGoalNetOccupancy;this.contains=v7PuckInsideNet;this.active=()=>[...v7GoalFlashes.keys()]',
+ lampCtx,{timeout:1500});
+assert.equal(lampCtx.contains(netA,{x:100,y:200}),true,"Center net occupancy");
+assert.equal(lampCtx.contains(netA,{x:112,y:200}),false,"Puck in front of goal must not blink");
+assert.equal(lampCtx.contains(netA,{x:100,y:240}),false,"Puck wide of goal must not blink");
+lampCtx.sync({x:100,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["left"],"Left goal should blink while occupied");
+lampCtx.sync({x:100,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["left"],"Goal flash must persist until puck leaves");
+lampCtx.sync({x:500,y:200});
+assert.deepEqual(Array.from(lampCtx.active()),["right"],"Blink must move to the occupied net");
+lampCtx.sync({x:250,y:250});
+assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leaves");
+
+// Both crease profiles must preserve the 6ft radius; NHL has 4.5ft sides.
+{
+  const a=app.indexOf("function v7CreasePath("),b=app.indexOf("function v7ApplyCreaseProfile(",a);
+  assert.ok(a>0&&b>a,"Crease profile geometry missing");
+  const ctx={V7_CREASE_RADIUS_UNITS:28.8,round};
+  vm.runInNewContext(app.slice(a,b)+"\nthis.path=v7CreasePath;",ctx,{timeout:2000});
+  for(const side of ["left","right","half"]){
+    assert.ok(ctx.path(side,"nhl").includes(" L"),"NHL crease needs straight sides");
+    assert.ok(ctx.path(side,"youth").includes("A28.8 28.8"),"USA/Canada style must use a semicircle");
+  }
+  assert.ok(app.includes("v7PrepareCreaseStyleUI();"),"Crease profile selector must initialize");
+}
+// Ice is a first-class persisted dimensioned object, and each official preset
+// regenerates line, board, crease, and goal geometry from the same parameters.
+{
+  const ice=normContext.iceNormalize({});
+  assert.equal(ice.id,"rink-surface");assert.equal(ice.type,"ice");
+  assert.equal(ice.profile,"nhl","NHL is always the default");
+  assert.equal(ice.length,200);assert.equal(ice.width,85);
+  assert.equal(ice.corner,28);assert.equal(ice.goalInset,11);
+  assert.equal(ice.blueInset,75);assert.equal(ice.faceoffRadius,15);
+  assert.equal(ice.show.trapezoid,true);
+  const geom=normContext.iceGeometry(ice);
+  assert.ok(Math.abs(geom.width/geom.height-200/85)<.00001,"Rink aspect ratio must be true regulation");
+  assert.ok(Math.abs(geom.goalLeft-(geom.x+11*geom.scale))<.00001);
+  assert.ok(Math.abs(geom.blueLeft-(geom.x+75*geom.scale))<.00001);
+  assert.ok(Math.abs(geom.blueRight-(geom.x+125*geom.scale))<.00001);
+  const perimeter=normContext.icePerimeter(ice);
+  assert.ok(perimeter.length>50,"Rounded corner board path must have sufficient precision");
+  assert.ok(normContext.iceCrease("left",ice).includes(" L"),"NHL crease must have straight sides");
+  for(const profile of ["usa","canada","iihf"]){
+    const x=normContext.iceNormalize({profile});
+    assert.equal(x.profile,profile);
+    assert.ok(x.length>160&&x.width>72);
+    assert.ok(normContext.iceCrease("left",x).includes(" A"),"Each standard uses curved crease");
+  }
+  const custom=normContext.iceNormalize({profile:"nhl",custom:true,length:190,width:90,corner:25,blueInset:70});
+  assert.equal(custom.length,190);assert.equal(custom.width,90);
+  assert.equal(custom.corner,25);assert.equal(custom.blueInset,70);
+  assert.ok(app.includes('id="v7IceSettingsBtn"'),"Rink editor button missing");
+  assert.ok(app.includes('data-v7-ice-model'),"Rink must render as its own object");
+  assert.ok(app.includes('v7IcePrepareUI();'),"Rink editor setup missing");
+  assert.ok(app.includes('data-ice-key'),"Rink configuration fields missing");
+  assert.ok(app.includes('option.ice=v7NormalizeIce('),"Per-variation rink persistence missing");
+  assert.ok(app.includes('data-v7-ice-markings'),"Rink markings must be independently drawn");
+  assert.ok(app.includes('v60RoundedRinkPerimeter=function(){return v7IcePerimeter(state.ice)}'),
+    "Puck physics must use actual rink board outline");
+}
+console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

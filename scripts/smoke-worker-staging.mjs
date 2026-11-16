@@ -211,7 +211,9 @@ try {
   assert.equal(health.status, 200);
   const healthPayload = await health.json();
   assert.equal(healthPayload.ok, true);
-  assert.equal(healthPayload.version, "6.8.2-staging-v1");
+  assert.equal(healthPayload.version, "7.0.0-preview.1-staging");
+  assert.equal(healthPayload.previewVersion, "7.0.0-preview.1");
+  assert.equal(healthPayload.release, "6.8.2");
   assert.equal(healthPayload.service, "botd-app-staging");
   assert.equal(healthPayload.mode, "staging-test-only");
   assert.equal(healthPayload.checks.stripeModeSecretKey, true);
