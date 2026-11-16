@@ -200,7 +200,7 @@ assert.ok(simulated.intervals.some(i=>i.kind==="travel"&&i.motion==="pass"&&i.en
 for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"Mini Goal"',
   'function v7PuckInsideNet(net,point)','function v7SyncGoalNetOccupancy(puckPosition)',
   'v7GoalFlashes.set(id,true)','data-v7-net-visual','data-v7-net-red',
-  'v7NetSizeSelect','data-v7-net-preset',
+  'data-v7-net-size','data-v7-net-preset',
   'v7ApplyNetGoalFlash(netArt,performance.now())',
   'v7SyncGoalNetOccupancy([output?.ps?.pos',
   '$("#goalBanner").classList.remove("active")'
@@ -211,6 +211,8 @@ assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");
 assert.ok(!app.includes('data-v7-goal-bulb'),"Standalone bulb must be gone");
 assert.ok(app.indexOf('pro:Object.freeze({label:"Regulation Goal"')<app.indexOf('medium:Object.freeze({label:"Cross-Ice Goal"'),
   "Regulation goal must be first in default net selector");
+assert.ok(app.includes('function v7CycleNetSize(id)'),"Net size changes must be accessible from the rink");
+assert.ok(app.includes('if(item.goalSide)item.iceAnchor=false'),"A custom goal size must not be overwritten by auto-anchoring");
 assert.ok(app.includes('netPreset=isNet&&Object.hasOwn(V7_NET_SIZES,item.netPreset)?item.netPreset:"pro"'),
   "Nets without a preset must default to regulation size");
 const playback=app.slice(app.indexOf("tick=function(ts){"),app.indexOf("function v64RaySegmentHit("));
