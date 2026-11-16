@@ -143,7 +143,7 @@ for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"
   '$("#goalBanner").classList.remove("active")'
 ])assert.ok(app.includes(marker),"Missing occupancy-based goal flash marker: "+marker);
 assert.ok(!app.includes("performance.now()+3500"),"A fixed 3.5-second timer must not control a scored goal");
-assert.ok(app.includes('for(const node of $("[data-v7-net-visual]"))'),"Net flashing must iterate ALL net nodes");
+assert.ok(app.includes('for(const node of '+String.fromCharCode(36,36)+'("[data-v7-net-visual]"))'),"Net flashing must iterate ALL net nodes");
 assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");
 assert.ok(!app.includes('data-v7-goal-bulb'),"Standalone bulb must be gone");
 assert.ok(app.indexOf('pro:Object.freeze({label:"Regulation Goal"')<app.indexOf('medium:Object.freeze({label:"Cross-Ice Goal"'),
