@@ -101,6 +101,30 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
 
 }
 
+
+// Rink-object capture handlers run after the legacy base handler. A simple
+// click must cancel the legacy "empty ice" pending tap before pointerup,
+// while a drag still uses the object-specific interaction state.
+{
+ const extra=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
+                       app.indexOf("function v7SetEquipmentPlacement(",app.indexOf("function v7SetupAdditionalPuckEvents()")));
+ const props=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
+                       app.indexOf("function v7SetupInspectorEvents()",app.indexOf("function v7SetupEquipmentEvents()")));
+ assert.ok(extra.includes('ui.pendingTap=null;v7AddAdditionalPuck(svgPoint(event))'),
+   "New puck placement must not be deselected by the legacy pointerup");
+ assert.match(extra,/const id=node.dataset.v7AdditionalPuckId[\\s\\S]*?ui.pendingTap=null;[\\s\\S]*?ui.selectedType="additionalPuck"/,
+   "A single click on Puck 2 must keep the puck selected");
+ assert.ok(props.includes('ui.pendingTap=null;v7AddEquipment(type,svgPoint(event)'),
+   "Rink-object placement must not be deselected by the legacy pointerup");
+ assert.match(props,/const id=equipmentNode.dataset.equipmentId[\\s\\S]*?ui.pendingTap=null;[\\s\\S]*?ui.selectedType="equipment"/,
+   "A single click on any rink object must preserve its selection");
+ const playerRender=app.slice(app.indexOf("function renderObjectLayer(time)"),app.indexOf("function renderPuckLayer(time)"));
+ assert.ok(playerRender.includes('ui.selectedType==="additionalPuck"||ui.selectedType==="event"'),
+   "Puck 2+ must display the exact same player targeting triangle as Puck 1");
+ assert.ok(extra.includes('ui.v7ActivePuckId=id;ui.v60DirectSelection=true'),
+   "Added-puck selection must enable the normal Pass/Shoot/Puck Director actions");
+}
+
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
 const v7Shot=v7Timeline.slice(v7Timeline.indexOf('if(event.type==="shot"){'),v7Timeline.indexOf("function v7EquipmentSvg"));
