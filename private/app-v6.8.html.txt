@@ -5966,8 +5966,29 @@ function v7EquipmentCollisionAt(item,worldPoint){
     restitution:clamp(Number(item.physics.restitution)||0,0,1)
   }
 }
+
+/* An already-scored puck can leave the goal through its open mouth.
+   The only exemption is the net containing the starting puck, and it expires
+   as soon as the puck is outside that net. Side/back mesh and other objects
+   still use their existing collision rules. */
+function v7NetOpenMouthEgress(net,start,next){
+  if(net?.type!=="net"||!start||!next)return false;
+  const from=v7WorldToLocal(net,start),to=v7WorldToLocal(net,next);
+  const halfDepth=(Number(net.geometry?.length)||26)/2,halfMouth=(Number(net.geometry?.width)||48)/2;
+  if(Math.abs(from.x)>=halfDepth-.25||Math.abs(from.y)>=halfMouth-.5||
+     to.x<=halfDepth+V7_PUCK_RADIUS)return false;
+  const travel=to.x-from.x;
+  if(travel<=.001)return false;
+  const progress=(halfDepth-from.x)/travel;
+  if(progress<=0||progress>=1)return false;
+  const mouthY=from.y+(to.y-from.y)*progress;
+  const postClearance=Math.min(4.5,halfMouth*.13);
+  return Math.abs(mouthY)<halfMouth-postClearance
+}
 function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNets=true){
   let best=null,total=polylineLength(points);if(total<.001)return null;
+  const startingNetExits=new Set(includeGoalNets&&points.length>1
+    ?(state.equipment||[]).filter(item=>v7NetOpenMouthEgress(item,points[0],points[1])).map(item=>item.id):[]);
   let walked=0;
   for(let s=1;s<points.length;s++){
     const a=points[s-1],b=points[s],seg=dist(a,b),steps=Math.max(18,Math.ceil(seg/3));
@@ -5975,6 +5996,12 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNet
       const u=i/steps,along=(walked+seg*u)/total,p=pointLerp(a,b,u);
       for(const item of state.equipment||[]){
         if(item.type==="net"&&!includeGoalNets)continue;
+        if(item.type==="net"&&startingNetExits.has(item.id)){
+          // Do not interpret the puck's starting occupancy as a new collision.
+          const local=v7WorldToLocal(item,p);
+          if(local.x<=(Number(item.geometry?.length)||26)/2+V7_PUCK_RADIUS)continue;
+          startingNetExits.delete(item.id)
+        }
         const hit=v7EquipmentCollisionAt(item,p);
         if(hit&&(!best||along<best.progress)){
           best={...hit,time:lerp(startTime,endTime,along),progress:along};
@@ -6582,6 +6609,12 @@ function v7SetupEquipmentEvents(){
     if(ui.v7EquipmentPlacement){
       event.preventDefault();event.stopImmediatePropagation();
       const type=ui.v7EquipmentPlacement;v7AddEquipment(type,svgPoint(event),type==="net"?{netPreset:ui.v7EquipmentPlacementPreset||"pro"}:{});v7CancelEquipmentPlacement();return
+    }
+    // Clicking a net/prop during open-space pass targeting should choose the
+    // target point, never select or start dragging that rink object.
+    if(ui.v60Mode?.type==="pass"&&equipmentNode&&!event.target.closest?.("[data-player-id],[data-puck]")){
+      event.preventDefault();event.stopImmediatePropagation();
+      v60CommitPassToPoint(svgPoint(event));return
     }
     if(!equipmentNode||ui.tool!=="select")return;
     event.preventDefault();event.stopImmediatePropagation();

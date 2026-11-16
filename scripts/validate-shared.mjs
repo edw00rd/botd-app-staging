@@ -8,7 +8,7 @@ const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
 assert.ok(app.includes('.video-export-dialog [hidden]{display:none!important}'));
 for(const marker of ['id="exportVideoBtn"','function v7ExportVideo()','canvas.captureStream(24)','new MediaRecorder(stream','download.click()','v7VideoFrame(canvas,0)','v7VideoCancelled'])assert.ok(app.includes(marker),`Video export missing: ${marker}`);
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'538bf25839cb47f1623c9382a68234b75cbe4c98ec6d91b183d1facbe0554e72');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c1c2a15201e19c7813a80cb68bb7f78771822da62a7e8578ad5646a16f2e2406');
 assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'16b7ba628c7f023deacf8f577cbe1ea773dc9ec7e87011218ad327109278d11f');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
