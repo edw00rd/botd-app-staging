@@ -5826,6 +5826,7 @@ applyVariation=function(option){
   state.ice=v7NormalizeIce(option?.ice||state?.ice);
   state.equipment=v7NormalizeEquipmentList(option?.equipment);
   state.additionalPucks=v7NormalizeAdditionalPucks(option?.additionalPucks);
+  v7EnsureActivePuckSelection();
   v7EnsureSemanticTimeline(state.timeline)
 };
 
@@ -5865,6 +5866,7 @@ loadPlay=function(play){
   state.ice=v7NormalizeIce(play?.ice||state.ice);
   state.equipment=v7NormalizeEquipmentList(play?.equipment||state.equipment);
   state.additionalPucks=v7NormalizeAdditionalPucks(play?.additionalPucks);
+  v7EnsureActivePuckSelection();
   v7IceSyncGoalObjects();
   v7EnsurePlatformState(state);
   syncActiveVariation();
@@ -5908,6 +5910,7 @@ newBoard=function(){
   state.ice=v7NormalizeIce({profile:"nhl"});
   state.equipment=v7NormalizeEquipmentList([]);
   state.additionalPucks=[];
+  ui.v7ActivePuckId="puck";
   v7CancelAdditionalPuckPlacement();
   v7IceSyncGoalObjects();
   ui.v7EquipmentDrag=null;
@@ -6363,7 +6366,8 @@ function v7UpdateGoalLights(){
  if(v7GoalFlashes.size)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
 }
 function v7SyncGoalNetOccupancy(puckPosition){
- const occupied=new Set(v7GoalNets().filter(net=>v7PuckInsideNet(net,puckPosition)).map(net=>net.id));
+ const positions=Array.isArray(puckPosition)?puckPosition:[puckPosition];
+ const occupied=new Set(v7GoalNets().filter(net=>positions.some(pos=>v7PuckInsideNet(net,pos))).map(net=>net.id));
  for(const id of [...v7GoalFlashes.keys()])if(!occupied.has(id))v7GoalFlashes.delete(id);
  for(const id of occupied)if(!v7GoalFlashes.has(id))v7GoalFlashes.set(id,true);
  for(const node of $$("[data-v7-net-visual]"))v7ApplyNetGoalFlash(node,performance.now());
@@ -6376,7 +6380,7 @@ function v7SyncGoalNetOccupancy(puckPosition){
 function v7TriggerGoalLight(_netId){
  // Preserve the old playback callback, but don't allow it to create
  // a flash when the puck isn't actually inside a net.
- v7SyncGoalNetOccupancy(puckStateAt(ui.playhead,buildPuckTimeline()).pos)
+ v7SyncGoalNetOccupancy([puckStateAt(ui.playhead,buildPuckTimeline()).pos,...(state.additionalPucks||[]).map(item=>puckStateAt(ui.playhead,buildPuckTimeline(item.id)).pos)])
 }
 function v7EquipmentSvg(item){
   const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
@@ -6520,6 +6524,7 @@ renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipm
 
 
 function v7AdditionalPuckById(id){return (state.additionalPucks||[]).find(item=>item.id===id)||null}
+function v7EnsureActivePuckSelection(){if(ui.v7ActivePuckId!=="puck"&&!v7AdditionalPuckById(ui.v7ActivePuckId))ui.v7ActivePuckId="puck"}
 
 /* The old puck's events have no puckId; new pucks carry a stable id through
    route editing, alternate takes, save/load, undo and cloud persistence. */
@@ -6539,6 +6544,17 @@ selectItem=function(type,id,open=true){
  else if(type==="additionalPuck"&&v7AdditionalPuckById(id))ui.v7ActivePuckId=id;
  else if(type==="event")ui.v7ActivePuckId=activeTake().events.find(ev=>ev.id===id)?.puckId||"puck";
  return v7OriginalSelectItem(type,id,open)
+};
+
+const v7OriginalTrackSelection=v67SetTrackSelection;
+v67SetTrackSelection=function(kind,id){
+ if(kind==="puck")ui.v7ActivePuckId="puck";
+ return v7OriginalTrackSelection(kind,id)
+};
+const v7RestoreSnapshotOriginal=restoreSnapshot;
+restoreSnapshot=function(value){
+ const result=v7RestoreSnapshotOriginal(value);
+ v7EnsureActivePuckSelection();return result
 };
 const v7OriginalEventResult=eventResult;
 eventResult=function(id){
@@ -6608,10 +6624,11 @@ function v7RenderAdditionalPucks(time=ui.playhead){
   const flight=v7PuckLiftAt(ps.interval,time),lift=flight?.lift||0;
   const group=svgEl("g",{"data-v7-additional-puck-id":item.id,role:"button",tabindex:"0",
    "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y-lift,2)+")",style:"cursor:grab"});
-  if(ps.spin&&ui.playing)group.classList.add("puck-spin");
   group.append(svgEl("circle",{r:17,fill:"transparent","pointer-events":"all"}));
-  group.append(svgEl("ellipse",{cx:0,cy:1,rx:r*1.35,ry:r,fill:"#0a0c0e",stroke:"#d9e7eb","stroke-width":.75,"pointer-events":"none"}));
-  group.append(svgEl("path",{d:"M"+round(-r*.5,2)+" 0 Q0 "+round(-r*.9,2)+" "+round(r*.5,2)+" 0",fill:"none",stroke:"#87949b","stroke-width":.6,"pointer-events":"none"}));
+  const disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
+  disc.append(svgEl("ellipse",{cx:0,cy:1,rx:r*1.35,ry:r,fill:"#0a0c0e",stroke:"#d9e7eb","stroke-width":.75,"pointer-events":"none"}));
+  disc.append(svgEl("path",{d:"M"+round(-r*.5,2)+" 0 Q0 "+round(-r*.9,2)+" "+round(r*.5,2)+" 0",fill:"none",stroke:"#87949b","stroke-width":.6,"pointer-events":"none"}));
+  group.append(disc);
   if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id){
    group.append(svgEl("circle",{class:"selection-ring",r:14,fill:"none","pointer-events":"none"}));
    const remove=svgEl("g",{"data-v7-additional-remove":item.id,role:"button","aria-label":"Remove puck",style:"cursor:pointer"});
@@ -6820,7 +6837,7 @@ function v7RenderEquipmentInspector(){
     (item.goalSide?'<section class="inspector-section"><p>Permanent goal. Move, rotate, or select a fixed preset; scoring and the individual goal light follow this net.</p><button class="btn small" data-v7-reset-goal>Reset net position</button></section>':'<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>');
 }
 const renderInspectorV682ForV7=renderInspector;
-renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();if(ui.selectedType==="additionalPuck")return v7RenderAdditionalPuckInspector();return renderInspectorV682ForV7()};
+renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();if(ui.selectedType==="additionalPuck")return v7RenderAdditionalPuckInspector();if(ui.selectedType==="event")ui.v7ActivePuckId=activeTake().events.find(e=>e.id===ui.selectedId)?.puckId||"puck";return renderInspectorV682ForV7()};
 
 function v7PrepareEquipmentUI(){
   if($("#v7EquipmentBtn"))return;
@@ -7083,7 +7100,7 @@ const renderFrameV682ForV7=renderFrame;
 renderFrame=function(time=ui.playhead){
   v7ApplyCreaseProfile();
   const output=renderFrameV682ForV7(time);
-  v7SyncGoalNetOccupancy(output?.ps?.pos);
+  v7SyncGoalNetOccupancy([output?.ps?.pos,...(state.additionalPucks||[]).map(item=>puckStateAt(time,buildPuckTimeline(item.id)).pos)]);
   const now=Number(time),previous=Number(ui.v7PreviousHapticFrame);
   if(ui.playing&&Number.isFinite(previous)&&now>=previous){
     for(const travel of output?.pt?.intervals||[]){
@@ -7143,6 +7160,7 @@ const initV682ForV7=init;
 init=function(){
   initV682ForV7();
   state=v7EnsurePlatformState(state);
+  v7EnsureActivePuckSelection();
   if(!Array.isArray(state.equipment))state.equipment=[];
   syncActiveVariation();
   v7PrepareEquipmentUI();
