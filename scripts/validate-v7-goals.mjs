@@ -202,7 +202,7 @@ for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"
   'v7GoalFlashes.set(id,true)','data-v7-net-visual','data-v7-net-red',
   'v7NetSizeSelect','data-v7-net-preset',
   'v7ApplyNetGoalFlash(netArt,performance.now())',
-  'v7SyncGoalNetOccupancy(output?.ps?.pos)',
+  'v7SyncGoalNetOccupancy([output?.ps?.pos',
   '$("#goalBanner").classList.remove("active")'
 ])assert.ok(app.includes(marker),"Missing occupancy-based goal flash marker: "+marker);
 assert.ok(!app.includes("performance.now()+3500"),"A fixed 3.5-second timer must not control a scored goal");
