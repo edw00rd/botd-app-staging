@@ -189,6 +189,47 @@ for(const required of [
   assert.equal(obstructed.timeline.results.get("blocked-space").collision.kind,"object");
   assert.equal(obstructed.timeline.intervals.find(i=>i.eventId==="blocked-space").path.length,3);
 }
+// Each puck must animate its own simultaneous passes/shots, never steal
+// another puck's event stream, and retain a stable origin after save/load.
+{
+ const a=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'),b=app.indexOf("\nfunction v7EquipmentSvg",a);
+ assert.ok(a>0&&b>a);
+ const actions=[
+  {id:"p1-pass",type:"passSpace",time:0,target:{x:260,y:120},speed:6},
+  {id:"p2-pass",puckId:"puck-two",type:"passSpace",time:0,target:{x:470,y:200},speed:6},
+  {id:"p3-shot",puckId:"puck-three",type:"shot",time:0,target:{x:800,y:360},
+   aimVector:{x:1,y:0},power:7}
+ ];
+ const distance=(u,v)=>Math.hypot(u.x-v.x,u.y-v.y);
+ const model={
+  state:{puckStart:{x:100,y:100},additionalPucks:[
+   {id:"puck-two",x:330,y:180},{id:"puck-three",x:510,y:300}],
+   timeline:{duration:12},equipment:[],onIce:{}},
+  activeTake:()=>({events:structuredClone(actions)}),
+  v7AdditionalPuckById:id=>model.state.additionalPucks.find(p=>p.id===id),
+  clamp:(v,a,z)=>Math.min(z,Math.max(a,v)),clampRinkPoint:p=>p,
+  passSpeedUnits:()=>120,shotSpeedUnits:()=>100,dist:distance,
+  polylineLength:points=>points.slice(1).reduce((sum,p,i)=>sum+distance(p,points[i]),0),
+  v60BuildShotPath:source=>({path:[source,{x:source.x+180,y:source.y}],goal:false,boardFollow:false,contacts:[]}),
+  goalResultForShot:()=>({goal:false}),firstCollisionOnPath:()=>null
+ };
+ vm.runInNewContext("var buildPuckTimeline;\n"+app.slice(a,b),model,{timeout:2000});
+ const first=model.buildPuckTimeline(),second=model.buildPuckTimeline("puck-two"),third=model.buildPuckTimeline("puck-three");
+ assert.equal(first.events.length,1);assert.equal(second.events.length,1);assert.equal(third.events.length,1);
+ assert.equal(first.results.has("p2-pass"),false);
+ assert.equal(second.results.has("p1-pass"),false);
+ assert.equal(third.results.has("p2-pass"),false);
+ assert.equal(first.results.get("p1-pass").path[0].x,100);
+ assert.equal(second.results.get("p2-pass").path[0].x,330);
+ assert.equal(second.results.get("p2-pass").path.at(-1).x,470);
+ assert.equal(third.results.get("p3-shot").path[0].x,510);
+ assert.equal(third.intervals.find(i=>i.motion==="shot")?.start,0);
+ assert.ok(second.intervals.some(i=>i.motion==="pass"&&i.start===0));
+}
+for(const control of ["v7ExtraPuckPass","v7ExtraPuckShoot","v7ActivePuckId","v7PuckActionAnchor","data-select-additional-puck"]){
+ assert.ok(app.includes(control),"Additional puck action missing: "+control);
+}
+
 assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction missing");
 
 
