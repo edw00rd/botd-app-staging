@@ -19,6 +19,7 @@ on:
         default: feature/v7-cloud-playbook-foundation
         options:
           - feature/v7-cloud-playbook-foundation
+          - feature/v7-multiple-pucks
           - main
 
 permissions:
