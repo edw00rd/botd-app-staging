@@ -93,6 +93,12 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  assert.ok(app.includes('v7SelectedPuckGlow().enabled=event.target.checked'),"Glow controls must work on any puck");
  assert.ok(app.includes('function clearActiveTake(){const id=ui.v7ActivePuckId'),"Clearing one puck must preserve other pucks' actions");
  assert.ok(!app.includes("function v7RenderAdditionalPuckInspector"),"Duplicated puck inspector must not remain");
+ assert.ok(app.includes('function v7OpenPuckDirector()'),"Advanced puck controls must be accessible from both pucks");
+ assert.ok(app.includes('data-v60-action="director"'),"Shared context menu must open Puck Director");
+ assert.ok(app.includes('v7PreparePuckDirectorDialog()'),"Puck Director dialog must initialize");
+ assert.ok(app.includes('renderInspectorBase();'),"Shared dialog must render the actual Puck Director");
+ assert.ok(app.includes('v7PuckContextMarkupOriginal'),"The original pass/shot context menu must be preserved");
+
 }
 
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
