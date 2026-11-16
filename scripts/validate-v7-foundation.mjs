@@ -112,11 +112,11 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
                        app.indexOf("function v7SetupInspectorEvents()",app.indexOf("function v7SetupEquipmentEvents()")));
  assert.ok(extra.includes('ui.pendingTap=null;v7AddAdditionalPuck(svgPoint(event))'),
    "New puck placement must not be deselected by the legacy pointerup");
- assert.match(extra,/const id=node.dataset.v7AdditionalPuckId[\\s\\S]*?ui.pendingTap=null;[\\s\\S]*?ui.selectedType="additionalPuck"/,
+ assert.match(extra,/const id=node.dataset.v7AdditionalPuckId[\s\S]*?ui.pendingTap=null;[\s\S]*?ui.selectedType="additionalPuck"/,
    "A single click on Puck 2 must keep the puck selected");
  assert.ok(props.includes('ui.pendingTap=null;v7AddEquipment(type,svgPoint(event)'),
    "Rink-object placement must not be deselected by the legacy pointerup");
- assert.match(props,/const id=equipmentNode.dataset.equipmentId[\\s\\S]*?ui.pendingTap=null;[\\s\\S]*?ui.selectedType="equipment"/,
+ assert.match(props,/const id=equipmentNode.dataset.equipmentId[\s\S]*?ui.pendingTap=null;[\s\S]*?ui.selectedType="equipment"/,
    "A single click on any rink object must preserve its selection");
  const playerRender=app.slice(app.indexOf("function renderObjectLayer(time)"),app.indexOf("function renderPuckLayer(time)"));
  assert.ok(playerRender.includes('ui.selectedType==="additionalPuck"||ui.selectedType==="event"'),
