@@ -6867,7 +6867,17 @@ function v7RenderEquipmentInspector(){
     (item.goalSide?'<section class="inspector-section"><p>Permanent goal. Move, rotate, or select a fixed preset; scoring and the individual goal light follow this net.</p><button class="btn small" data-v7-reset-goal>Reset net position</button></section>':'<section class="inspector-section"><button class="btn danger" id="v7DeleteObjectBtn">Delete '+escapeHtml(def.label)+'</button></section>');
 }
 const renderInspectorV682ForV7=renderInspector;
-renderInspector=function(){if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();if(ui.selectedType==="event")ui.v7ActivePuckId=activeTake().events.find(e=>e.id===ui.selectedId)?.puckId||"puck";return renderInspectorV682ForV7()};
+renderInspector=function(){
+ const dialog=$("#v7PuckDirectorDialog");
+ if(dialog?.open&&(ui.selectedType==="puck"||ui.selectedType==="additionalPuck")){
+  const root=$("#inspectorContent");renderInspectorBase();
+  if(root){root.hidden=false;root.setAttribute("aria-hidden","false")}
+  return
+ }
+ if(ui.selectedType==="equipment")return v7RenderEquipmentInspector();
+ if(ui.selectedType==="event")ui.v7ActivePuckId=activeTake().events.find(e=>e.id===ui.selectedId)?.puckId||"puck";
+ return renderInspectorV682ForV7()
+};
 
 function v7PrepareEquipmentUI(){
   if($("#v7EquipmentBtn"))return;
@@ -7184,6 +7194,63 @@ v58OffsideModel=function(teamId){
     {axis:"x",direction:-1,edge:g.blueLeft-g.scale/2}
 };
 
+
+/* The modern editor intentionally hides the legacy right-hand inspector.
+   Reuse its existing first-class Puck Director and delegated event handlers
+   inside one shared modal instead of maintaining two puck-only interfaces.
+   The main toolbar gains no new controls. */
+function v7OpenPuckDirector(){
+ const id=v7SelectedPuckId(),selected=v7SelectExistingPuck(id);
+ const dialog=$("#v7PuckDirectorDialog"),root=$("#inspectorContent");
+ if(!dialog||!root)return false;
+ const mount=dialog.querySelector("[data-v7-puck-director-mount]");
+ if(root.parentNode!==mount)mount.append(root);
+ renderInspectorBase();
+ root.hidden=false;root.setAttribute("aria-hidden","false");
+ dialog.querySelector("[data-v7-puck-director-heading]").textContent=
+   "Puck Director · "+(selected==="puck"?"Puck 1":"Puck "+(state.additionalPucks.findIndex(p=>p.id===selected)+2));
+ if(!dialog.open)dialog.showModal();
+ return true
+}
+function v7PreparePuckDirectorDialog(){
+ if($("#v7PuckDirectorDialog"))return;
+ const dialog=document.createElement("dialog");
+ dialog.id="v7PuckDirectorDialog";dialog.className="v7-puck-director-dialog";
+ dialog.innerHTML='<div class="v7-puck-director-head"><strong data-v7-puck-director-heading>Puck Director</strong><button type="button" data-v7-puck-director-close aria-label="Close puck director">Close</button></div>'+
+  '<div class="v7-puck-director-scroll" data-v7-puck-director-mount></div>';
+ document.body.append(dialog);
+ const style=document.createElement("style");style.textContent=
+  '.v7-puck-director-dialog{width:min(490px,94vw);max-height:85vh;padding:0;border:1px solid #40627a;border-radius:14px;background:#10283e;color:#edf6fb;box-shadow:0 20px 70px #0008}'+
+  '.v7-puck-director-dialog::backdrop{background:#03101dc4}'+
+  '.v7-puck-director-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #36556d}'+
+  '.v7-puck-director-head button{border:1px solid #466479;background:#19334a;color:#fff;border-radius:7px;padding:6px 10px;cursor:pointer}'+
+  '.v7-puck-director-scroll{overflow-y:auto;max-height:calc(85vh - 55px);padding:14px}'+
+  '.v7-puck-director-scroll #inspectorContent{display:block!important;visibility:visible!important;color:#edf6fb;max-height:none!important;overflow:visible}'+
+  '.v7-puck-director-scroll .inspector-section{margin-bottom:14px}';
+ document.head.append(style);
+ dialog.querySelector("[data-v7-puck-director-close]").addEventListener("click",()=>dialog.close());
+ dialog.addEventListener("close",()=>{
+  const root=$("#inspectorContent");
+  if(root){root.hidden=true;root.setAttribute("aria-hidden","true")}
+ });
+ const root=$("#inspectorContent");
+ root?.addEventListener("click",event=>{
+  if(["passTargetBtn","shotTargetBtn","liveDirectBtn","newLiveTakeBtn","retargetShotBtn"].includes(event.target.id))
+   dialog.close()
+ },true);
+ $("#v60ContextMenu")?.addEventListener("click",event=>{
+  if(event.target.closest('[data-v60-action="director"]')){
+   event.preventDefault();v7OpenPuckDirector()
+  }
+ });
+}
+const v7PuckContextMarkupOriginal=v60ContextMarkup;
+v60ContextMarkup=function(){
+ const markup=v7PuckContextMarkupOriginal();
+ if(!markup||(ui.selectedType!=="puck"&&ui.selectedType!=="additionalPuck"))return markup;
+ return markup.replace('</div>','<button class="v60-float-button secondary" data-v60-action="director" type="button">Puck Director</button></div>')
+};
+
 const initV682ForV7=init;
 init=function(){
   initV682ForV7();
@@ -7192,6 +7259,7 @@ init=function(){
   if(!Array.isArray(state.equipment))state.equipment=[];
   syncActiveVariation();
   v7PrepareEquipmentUI();
+  v7PreparePuckDirectorDialog();
   v7PrepareCreaseStyleUI();
   v7IcePrepareUI();
   v7IceSyncGoalObjects();
@@ -7208,6 +7276,7 @@ Object.assign(window.BOTD_TEST,{
   equipmentTypes:()=>deepClone(V7_RINK_OBJECT_TYPES),
   equipment:()=>deepClone(state.equipment||[]),
   maxPucks:()=>V7_MAX_PUCKS,
+  openPuckDirector:()=>v7OpenPuckDirector(),
   additionalPucks:()=>deepClone(state.additionalPucks||[]),
   addAdditionalPuck:point=>deepClone(v7AddAdditionalPuck(point||{x:500,y:300})),
   puckTimeline:id=>{const pt=buildPuckTimeline(id||"puck");return{events:deepClone(pt.events),intervals:deepClone(pt.intervals),results:[...pt.results]}},
