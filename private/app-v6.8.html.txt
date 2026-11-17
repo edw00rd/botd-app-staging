@@ -4625,14 +4625,14 @@ const setGlowStyleV64ForV65=setGlowStyle;
 setGlowStyle=function(node,glow,defaultColor){
   if(!node||!glow?.enabled)return;
   const color=glow.color||defaultColor||"#39D8FF",size=4+(Number(glow.brightness)||65)/8,rate=Math.max(.2,Number(glow.rate)||1.2),timelineTime=Number(glow.timelineTime??ui.playhead)||0,start=Number(glow.start)||0;
-  const puckShadow=node.classList?.contains("puck-disc")?"drop-shadow(2px 4px 2px rgba(0,0,0,.47)) ":"";
+  // No puck shadow unless the puck is actually travelling above the ice.
   const glowFilter=`drop-shadow(0 0 ${size.toFixed(2)}px ${color}) drop-shadow(0 0 ${(size*1.8).toFixed(2)}px ${color})`;
   let phaseOn=true;
   if(glow.blink===true&&ui.playing){
     const phase=((((timelineTime-start)*rate)%1)+1)%1;
     phaseOn=phase<.56
   }
-  const filter=phaseOn?`${puckShadow}${glowFilter}`:(puckShadow.trim()||"none");
+  const filter=phaseOn?glowFilter:"none";
   node.classList.remove("player-glow","puck-glow-static");
   node.classList.add("v65-timeline-glow");
   node.style.setProperty("--glow-color",color);
@@ -5709,6 +5709,11 @@ const V7_RINK_OBJECT_TYPES=Object.freeze({
     geometry:{length:42,width:9},physics:{collidable:true,response:"bounce",restitution:.92},
     capabilities:{rotatable:true,resize:"length",puckSource:false}
   },
+  puckPile:{
+    label:"Puck Pile",short:"PUCKS",shape:"pile",
+    geometry:{radius:12},physics:{collidable:false,response:"none",restitution:0},
+    capabilities:{rotatable:false,resize:"uniform",puckSource:true}
+  },
   net:{
     label:"Extra net",short:"NET",shape:"net",
     geometry:{length:19.2,width:28.8,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
@@ -6500,6 +6505,16 @@ function v7RinkRemoveControl(id,kind,point={x:28,y:-27}){
  node.append(svgEl("path",{d:"M-6 0H6",fill:"none",stroke:"#fff","stroke-width":2.8,"stroke-linecap":"round","pointer-events":"none"}));
  return node
 }
+function v7RinkDispensePuckControl(id,point){
+  const node=svgEl("g",{class:"v7-rink-dispense-puck","data-v7-dispense-puck":id,
+    role:"button",tabindex:"0","aria-label":"Dispense another puck from pile",
+    transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",style:"cursor:pointer"});
+  node.append(svgEl("circle",{r:14,fill:"#087d53",stroke:"#fff","stroke-width":2.2,
+    "vector-effect":"non-scaling-stroke","pointer-events":"all"}));
+  node.append(svgEl("path",{d:"M-6 0H6M0 -6V6",stroke:"#fff","stroke-width":2.8,
+    "stroke-linecap":"round","pointer-events":"none"}));
+  return node
+}
 function v7RinkGoalResetControl(id,point){
  const node=svgEl("g",{class:"v7-rink-reset","data-v7-reset-goal":id,
    role:"button",tabindex:"0","aria-label":"Reset permanent goal net",
@@ -6550,6 +6565,15 @@ function v7EquipmentSvg(item){
     g.append(svgEl("rect",{x:-L/2,y:-W/2,width:L,height:W,rx:2,fill:"#d7e4e9",stroke,"stroke-width":1.7}));
     let d="";for(let x=-L*.38,i=0;x<=L*.38;x+=L*.19,i++)d+=(i?" L":"M")+round(x,1)+" "+(i%2?-W*.28:W*.28);
     g.append(svgEl("path",{d,fill:"none",stroke:red,"stroke-width":1.4}))
+  }else if(item.type==="puckPile"){
+    // Static, non-colliding image of loose pucks.
+    for(const [x,y] of [[-8,-6],[2,-10],[10,-4],[-10,6],[2,7],[0,-1]]){
+      const disc=svgEl("g",{transform:"translate("+x+" "+y+")","pointer-events":"none"});
+      disc.append(svgEl("ellipse",{cy:1.7,rx:6.1,ry:5.5,fill:"#080c10",stroke:"#43515b","stroke-width":.9}));
+      disc.append(svgEl("circle",{cy:-1.2,r:5.2,fill:"#141b20",stroke:"#a2adb4","stroke-width":1}));
+      disc.append(svgEl("path",{d:"M-3 -2Q0 -4 3 -2",fill:"none",stroke:"#46565f","stroke-width":.7}));
+      g.append(disc)
+    }
   }else if(item.type==="net"){
     const L=Number(geo.length)||26,D=Number(geo.width)||48;
     const netArt=svgEl("g",{"data-v7-net-visual":item.id,"pointer-events":"none"});
@@ -6606,6 +6630,12 @@ function v7RenderEquipment(){
       v59ClampVisiblePoint({x:selected.x-30,y:selected.y-27}):
       clampRinkPoint({x:selected.x-30,y:selected.y-27});
     layer.append(v7RinkNetSizeControl(selected.id,point))
+  }
+  if(selected?.type==="puckPile"){
+    const point=v59ClampVisiblePoint?
+      v59ClampVisiblePoint({x:selected.x+30,y:selected.y+27}):
+      clampRinkPoint({x:selected.x+30,y:selected.y+27});
+    layer.append(v7RinkDispensePuckControl(selected.id,point))
   }
 }
 
@@ -6676,7 +6706,7 @@ function v7ScalePuckArt(){
  // with the same circular indicator used by every rink-object puck.
  outer.querySelectorAll(".puck-select").forEach(ring=>ring.remove());
  if(ui.selectedType==="puck")outer.append(v7PuckSelectionRing(r));
- for(const shadow of [...outer.children].filter(n=>n.tagName?.toLowerCase()==="ellipse"))shadow.setAttribute("transform","scale("+round(r/11,3)+")");
+ // Flight shadows stay on ice and should not scale with puck art.
  outer.querySelector(".v7-puck-hitbox")?.remove();
  const hit=svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"});
  const airborne=[...outer.children].find(n=>n.classList?.contains("v7-airborne-puck"));
@@ -6771,6 +6801,24 @@ function v7AddAdditionalPuck(point){
  v7CancelAdditionalPuckPlacement();syncActiveVariation();renderAll();scheduleSave();
  return puck
 }
+function v7DispensePuckFromPile(id){
+  const pile=v7EquipmentById(id);if(pile?.type!=="puckPile")return null;
+  if((state.additionalPucks?.length||0)>=V7_MAX_PUCKS-1){
+    toast("Maximum of 50 total pucks on the ice.");return null
+  }
+  const occupied=[state.puckStart,...(state.additionalPucks||[])];let point=null;
+  for(let ring=0;ring<8&&!point;ring++){
+    const distance=22+ring*13;
+    for(let step=0;step<16;step++){
+      const angle=step*Math.PI/8,raw={x:pile.x+Math.cos(angle)*distance,y:pile.y+Math.sin(angle)*distance};
+      const p=v59ClampVisiblePoint?v59ClampVisiblePoint(raw):clampRinkPoint(raw);
+      if(Math.hypot(p.x-raw.x,p.y-raw.y)<=5&&occupied.every(other=>Math.hypot(p.x-other.x,p.y-other.y)>13)){point=p;break}
+    }
+  }
+  return v7AddAdditionalPuck(point||(v59ClampVisiblePoint?
+    v59ClampVisiblePoint({x:pile.x+28,y:pile.y+20}):
+    clampRinkPoint({x:pile.x+28,y:pile.y+20})))
+}
 function v7DeleteAdditionalPuck(id){
  if(!v7AdditionalPuckById(id))return false;
  pushHistory();state.additionalPucks=state.additionalPucks.filter(p=>p.id!==id);
@@ -6780,28 +6828,34 @@ function v7DeleteAdditionalPuck(id){
  syncActiveVariation();renderAll();scheduleSave();return true
 }
 function v7RenderAdditionalPucks(time=ui.playhead){
- const layer=$("#objectLayer");if(!layer)return;
- const r=round(v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckRadius,2);
- for(const [index,item] of (state.additionalPucks||[]).entries()){
-  const timeline=buildPuckTimeline(item.id),ps=puckStateAt(time,timeline);
-  const pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:item;
-  const flight=v7PuckLiftAt(ps.interval,time),lift=flight?.lift||0;
-  const group=svgEl("g",{"data-v7-additional-puck-id":item.id,role:"button",tabindex:"0",
-   "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y-lift,2)+")",style:"cursor:grab"});
-  setGlowStyle(group,item.glow,"#39D8FF");
-  group.append(svgEl("circle",{r:round(v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckHitRadius,2),fill:"transparent","pointer-events":"all"}));
-  const disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
-  disc.dataset.v7PuckArt="1";
-  disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
-  disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":.45,"pointer-events":"none"}));
-  group.append(disc);
-  if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id){
-    group.append(v7PuckSelectionRing(r));
-    group.append(v7RinkRemoveControl(item.id,"additionalPuck"))
-   }
-  layer.append(group)
- }
- v7RefreshAddPuckButton()
+  const layer=$("#objectLayer");if(!layer)return;
+  const metrics=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(metrics.puckRadius,2);
+  for(const [index,item] of (state.additionalPucks||[]).entries()){
+    const timeline=buildPuckTimeline(item.id),ps=puckStateAt(time,timeline);
+    const pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:item;
+    const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
+    const flight=v7PuckLiftAt(interval,time);
+    const group=svgEl("g",{"data-v7-additional-puck-id":item.id,role:"button",tabindex:"0",
+      "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y,2)+")",style:"cursor:grab"});
+    setGlowStyle(group,item.glow,"#39D8FF");
+    group.append(svgEl("circle",{r:round(metrics.puckHitRadius,2),fill:"transparent","pointer-events":"all"}));
+    if(flight?.lift>.4)group.append(v7PuckAirShadow(flight.lift));
+    const disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
+    disc.dataset.v7PuckArt="1";
+    disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
+    disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
+    if(flight?.lift>.4){
+      const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
+        transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
+      raised.append(disc);group.append(raised)
+    }else group.append(disc);
+    if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id){
+      group.append(v7PuckSelectionRing(r));
+      group.append(v7RinkRemoveControl(item.id,"additionalPuck"))
+    }
+    layer.append(group)
+  }
+  v7RefreshAddPuckButton()
 }
 /* Reuse original route geometry and timeline styling for every extra puck. */
 const v7PrimaryRenderRoutes=renderRoutes;
@@ -7033,6 +7087,11 @@ function v7SetupEquipmentEvents(){
   svg.addEventListener("pointerdown",event=>{
     if(event.button!==undefined&&event.button!==0)return;
     const equipmentNode=event.target.closest?.("[data-equipment-id]");
+    const dispense=event.target.closest?.("[data-v7-dispense-puck]");
+    if(dispense){
+      event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
+      v7DispensePuckFromPile(dispense.dataset.v7DispensePuck);return
+    }
     const remove=event.target.closest?.("[data-v7-remove-equipment]");
     if(remove){
       event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
@@ -7119,11 +7178,13 @@ function v7SetupEquipmentEvents(){
     const puck=event.target.closest?.("[data-v7-remove-additional-puck]");
     const reset=event.target.closest?.("[data-v7-reset-goal]");
     const size=event.target.closest?.("[data-v7-net-size]");
-    if(!eq&&!puck&&!reset&&!size)return;
+    const dispense=event.target.closest?.("[data-v7-dispense-puck]");
+    if(!eq&&!puck&&!reset&&!size&&!dispense)return;
     event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
     if(eq)v7DeleteEquipment(eq.dataset.v7RemoveEquipment);
     else if(puck)v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck);
     else if(reset)v7ResetGoalNet(reset.dataset.v7ResetGoal);
+    else if(dispense)v7DispensePuckFromPile(dispense.dataset.v7DispensePuck);
     else v7CycleNetSize(size.dataset.v7NetSize)
   },true);
   window.addEventListener("keydown",event=>{
@@ -7221,21 +7282,28 @@ v60CommitShot=function(){
 
 /* Lift the puck only while it visually crosses a bypassed object; the puck
    retains its original horizontal position and original shot route. */
+function v7PuckAirShadow(lift){
+  return svgEl("ellipse",{cx:2,cy:4,rx:round(6+lift*.22,2),ry:round(2.8+lift*.08,2),
+    fill:"#17232a",opacity:round(clamp(.24-lift*.004,.1,.24),3),"pointer-events":"none"})
+}
+/* Every puck lifts and casts a shadow only during pass or shot travel. */
 function v7PuckLiftAt(interval,time){
-  if(!interval?.clearances?.length||interval.kind!=="travel")return null;
-  const raw=clamp((time-interval.start)/Math.max(.001,interval.end-interval.start),0,1);
+  if(!interval||interval.kind!=="travel")return null;
+  const start=Number(interval.start),end=Number(interval.end),duration=end-start;
+  if(!Number.isFinite(duration)||duration<=0||time<start||time>end)return null;
+  const raw=clamp((time-start)/duration,0,1);
   const progress=interval.motion==="shot"
     ?1-Math.pow(1-raw,interval.boardFollow?1.58:1.35)
     :interval.motion==="pass"?clamp(raw+.055*Math.sin(Math.PI*raw),0,1):raw;
-  let best=null;
-  for(const item of interval.clearances){
-    const begin=clamp(item.startProgress-.045,0,1),end=clamp(item.endProgress+.045,0,1);
-    if(progress<begin||progress>end||end-begin<.0001)continue;
-    const phase=clamp((progress-begin)/(end-begin),0,1);
+  let best={lift:(interval.motion==="shot"?14:9)*Math.sin(Math.PI*raw),phase:raw};
+  for(const item of interval.clearances||[]){
+    const begin=clamp(item.startProgress-.045,0,1),finish=clamp(item.endProgress+.045,0,1);
+    if(progress<begin||progress>finish||finish-begin<.0001)continue;
+    const phase=clamp((progress-begin)/(finish-begin),0,1);
     const lift=25*Math.sin(Math.PI*phase);
-    if(!best||lift>best.lift)best={lift,phase,objectId:item.objectId}
+    if(lift>best.lift)best={lift,phase,objectId:item.objectId}
   }
-  return best
+  return best.lift>.4?best:null
 }
 const renderPuckLayerV682ForV7=renderPuckLayer;
 renderPuckLayer=function(time,timeline){
@@ -7243,7 +7311,7 @@ renderPuckLayer=function(time,timeline){
   const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
   const flight=v7PuckLiftAt(interval,time),outer=$("#puckLayer [data-puck]");
   if(!flight||flight.lift<.4||!outer){v7ScalePuckArt();return result}
-  const shadow=svgEl("ellipse",{cx:3,cy:6,rx:12+flight.lift*.19,ry:5+flight.lift*.09,fill:"#111820",opacity:round(.27-flight.lift*.004,3),"pointer-events":"none"});
+  const shadow=v7PuckAirShadow(flight.lift);
   const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
     transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
   while(outer.firstChild)raised.append(outer.firstChild);
