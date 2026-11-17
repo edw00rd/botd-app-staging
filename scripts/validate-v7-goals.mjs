@@ -157,7 +157,7 @@ const renderContext={
  $:()=>layer,
  v7EquipmentSvg:()=>({kind:"net-art"}),
  v7RenderNetPlacementGuide:()=>{},
- v7EquipmentById:()=>({id:"scrimmage",type:"net",x:450,y:300,goalSide:null}),
+ v7EquipmentById:()=>({id:"scrimmage",type:"net",x:450,y:300,goalSide:null,capabilities:{rotatable:true}}),
  v59ClampVisiblePoint:p=>p,clampRinkPoint:p=>p,
  v7RinkRemoveControl:()=>({kind:"remove-control"}),
  v7RinkGoalResetControl:()=>({kind:"reset-control"}),
