@@ -374,13 +374,18 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   assert.ok(parts.some(n=>n.tag==="pattern"&&n.attrs.patternTransform==="rotate(45)"),item.id+" diagonal gray diamond mesh");
   assert.ok(parts.some(n=>n.attrs["data-v7-net-mesh"]==="gray"),item.id+" gray net mesh");
   assert.ok(parts.some(n=>n.attrs["data-v7-net-preset"]===item.id),item.id+" preset");
-  assert.equal(parts.filter(n=>n.attrs["data-v7-net-red"]==="post").length,2,item.id+" red posts");
+  assert.equal(parts.filter(n=>n.attrs["data-v7-net-red"]==="post").length,3,item.id+" two red posts and center joint");
+  assert.ok(parts.some(n=>n.tag==="linearGradient"&&String(n.attrs.id).includes("net-tube")),item.id+" glossy tubular red frame");
+  assert.ok(parts.some(n=>n.tag==="radialGradient"&&String(n.attrs.id).includes("net-post")),item.id+" rounded shaded red posts");
+  assert.ok(parts.some(n=>n.tag==="linearGradient"&&String(n.attrs.id).includes("net-depth")),item.id+" shaded gray net");
+  assert.ok(parts.filter(n=>n.attrs["data-v7-net-red"]==="line").length>=9,item.id+" wrapped center support");
   assert.ok(parts.filter(n=>n.attrs["data-v7-net-red"]==="frame").length>=2,item.id+" red curved bars");
   assert.ok(parts.some(n=>n.tag==="path"&&n.attrs["data-v7-net-red"]==="line"),item.id+" red center support");
  }
  assert.ok(app.includes('const depth=v7NetDimensions("pro").length,center=goalX+'),
     "Default goal mouth must remain on the regulation goal line");
- assert.ok(app.includes('for(const part of node.querySelectorAll("[data-v7-net-red]"))'),
-    "Existing red-frame flash must still reach goal bars");
+ assert.ok(app.includes('for(const part of node.querySelectorAll("[data-v7-net-red]"))')&&
+    app.includes('part.getAttribute("data-v7-net-base")'),
+    "Goal flashing must restore glossy gradient paints after each blink");
 }
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

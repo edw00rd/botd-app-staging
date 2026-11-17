@@ -6476,13 +6476,16 @@ function v7ApplyNetGoalFlash(node,now){
  const active=v7GoalFlashes.has(node.dataset.v7NetVisual);
  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches||false;
  const bright=active&&(reduced||Math.floor(now/260)%2===0);
- node.style.opacity="1"; // Blink only red bars; keep net mesh visible.
+ node.style.opacity="1";
+ // Preserve each tube's glossy paint when the goal stops flashing.
  for(const part of node.querySelectorAll("[data-v7-net-red]")){
   const kind=part.getAttribute("data-v7-net-red");
-  const base=kind==="post"?"#e33b42":kind==="line"?"#ee6b6b":"#c43d3d";
-  part.setAttribute(kind==="post"?"fill":"stroke",bright?"#ff2539":base);
+  const attribute=kind==="post"?"fill":"stroke";
+  const base=part.getAttribute("data-v7-net-base")||
+   (kind==="post"?"#e33b42":kind==="line"?"#ee6b6b":"#c43d3d");
+  part.setAttribute(attribute,bright?"#ff2539":base);
   part.style.opacity=active&&!bright?".09":"1";
-  part.style.filter=bright?"drop-shadow(0 0 5px #ff2539)":""
+  part.style.filter=bright?"drop-shadow(0 0 4px #ff2539)":""
  }
 }
 function v7UpdateGoalLights(){
@@ -6627,35 +6630,77 @@ function v7EquipmentSvg(item){
       g.append(disc)
     }
   }else if(item.type==="net"){
-    // All three presets share the approved NHL-style rounded plan footprint.
+    // Approved preview: glossy red rails, layered gray diamond net, ribbed support.
+    // All sizes use one shared physical silhouette and goal/shot geometry.
     const plan=v7NetPlanGeometry(item),D=plan.opening;
-    const pipe=Math.max(.65,D*2/72),meshStep=Math.max(.85,D/30);
-    const netUid=String(item.id).replace(/[^a-zA-Z0-9_-]/g,"_");
-    const clipId="v7-net-shape-"+netUid,patternId="v7-net-mesh-"+netUid;
+    const pipe=Math.max(1.2,D*2.35/72),meshStep=Math.max(.8,D/25);
+    const uid=String(item.id).replace(/[^a-zA-Z0-9_-]/g,"_");
+    const clipId="v7-net-shape-"+uid,patternId="v7-net-diamond-"+uid;
+    const tubeId="v7-net-tube-"+uid,postId="v7-net-post-"+uid,shadeId="v7-net-depth-"+uid;
     const netArt=svgEl("g",{"data-v7-net-visual":item.id,
       "data-v7-net-preset":item.netPreset||"pro","pointer-events":"none"});
-    const defs=svgEl("defs"),clip=svgEl("clipPath",{id:clipId,clipPathUnits:"userSpaceOnUse"});
+    const defs=svgEl("defs");
+    const clip=svgEl("clipPath",{id:clipId,clipPathUnits:"userSpaceOnUse"});
     clip.append(svgEl("path",{d:plan.outline}));defs.append(clip);
+    const shade=svgEl("linearGradient",{id:shadeId,x1:"0%",y1:"0%",x2:"100%",y2:"0%"});
+    for(const [offset,color,opacity] of [
+      ["0%","#506574",.31],["48%","#b1bdc5",.10],["100%","#e5edf2",.015]
+    ])shade.append(svgEl("stop",{offset,"stop-color":color,"stop-opacity":opacity}));
+    defs.append(shade);
     const pattern=svgEl("pattern",{id:patternId,patternUnits:"userSpaceOnUse",
       width:round(meshStep,2),height:round(meshStep,2),patternTransform:"rotate(45)"});
     pattern.append(svgEl("path",{d:"M0 0 H"+round(meshStep,2)+" V"+round(meshStep,2),
-      fill:"none",stroke:"#84949d","stroke-width":.5,opacity:.72}));
-    defs.append(pattern);netArt.append(defs);
+      fill:"none",stroke:"#768b95","stroke-width":.56,opacity:.67}));
+    defs.append(pattern);
+    const tube=svgEl("linearGradient",{id:tubeId,x1:"0%",y1:"0%",x2:"0%",y2:"100%"});
+    for(const [offset,color] of [
+      ["0%","#8e0b1a"],["24%","#e22431"],["40%","#ff8587"],
+      ["54%","#f72d38"],["76%","#c81425"],["100%","#780914"]
+    ])tube.append(svgEl("stop",{offset,"stop-color":color}));
+    defs.append(tube);
+    const post=svgEl("radialGradient",{id:postId,cx:"30%",cy:"25%",r:"80%"});
+    for(const [offset,color] of [
+      ["0%","#ffb8b5"],["35%","#fa434b"],["75%","#d41625"],["100%","#7d0610"]
+    ])post.append(svgEl("stop",{offset,"stop-color":color}));
+    defs.append(post);netArt.append(defs);
     const mesh=svgEl("g",{"clip-path":"url(#"+clipId+")","data-v7-net-mesh":"gray"});
-    mesh.append(svgEl("path",{d:plan.outline,fill:"rgba(154,169,177,.24)",stroke:"none"}));
+    mesh.append(svgEl("path",{d:plan.outline,fill:"url(#"+shadeId+")",stroke:"none"}));
     mesh.append(svgEl("path",{d:plan.outline,fill:"url(#"+patternId+")",stroke:"none"}));
     netArt.append(mesh);
-    // The red rails and posts all retain puck-occupancy flashing.
-    for(const [d,width,kind] of [
-      [plan.outline,pipe*1.12,"frame"],
-      [plan.arch,pipe*.8,"frame"],
-      ["M"+round(plan.rear,3)+" 0 H"+round(plan.innerX,3),pipe*.85,"line"]
-    ])netArt.append(svgEl("path",{d,fill:"none",stroke:"#c43d3d","stroke-width":round(width,2),
-      "stroke-linecap":"round","stroke-linejoin":"round","data-v7-net-red":kind}));
-    for(const y of [-plan.mouth,plan.mouth])
-      netArt.append(svgEl("circle",{cx:plan.front,cy:round(y,2),
-        r:v7NetPostRadius(item),fill:"#e33b42",stroke:"#fff",
-        "stroke-width":.3,"data-v7-net-red":"post"}));
+    function redTube(d,width,kind){
+      for(const [paint,mult] of [
+        ["#6a0710",1.85],["url(#"+tubeId+")",1.22],["#ffc0b8",.27]
+      ])netArt.append(svgEl("path",{d,fill:"none",stroke:paint,
+        "stroke-width":round(width*mult,2),"stroke-linecap":"round",
+        "stroke-linejoin":"round","data-v7-net-red":kind,
+        "data-v7-net-base":paint}));
+    }
+    // Separate the arched shell from the straight front crossbar.
+    const outerRail=plan.outline.slice(0,plan.outline.lastIndexOf(" L"));
+    redTube(outerRail,pipe,"frame");
+    redTube(plan.arch,pipe*.72,"frame");
+    const mouthPath="M"+round(plan.front,3)+" "+round(-plan.mouth,3)+
+      " L"+round(plan.front,3)+" "+round(plan.mouth,3);
+    redTube(mouthPath,pipe*1.25,"frame");
+    const centerPath="M"+round(plan.rear,3)+" 0 L"+round(plan.innerX,3)+" 0";
+    redTube(centerPath,pipe*.74,"line");
+    const support=plan.innerX-plan.rear;
+    for(let i=1;i<=8;i++){
+      const x=round(plan.rear+support*i/9,3);
+      netArt.append(svgEl("line",{x1:x,y1:-pipe*.48,x2:x,y2:pipe*.48,
+        stroke:"#ffbcb3","stroke-width":.28,opacity:.87,
+        "data-v7-net-red":"line","data-v7-net-base":"#ffbcb3"}))
+    }
+    netArt.append(svgEl("circle",{cx:plan.innerX,cy:0,r:pipe*.64,
+      fill:"url(#"+postId+")","data-v7-net-red":"post",
+      "data-v7-net-base":"url(#"+postId+")"}));
+    for(const y of [-plan.mouth,plan.mouth]){
+      netArt.append(svgEl("circle",{cx:plan.front,cy:y,
+        r:v7NetPostRadius(item)*1.15,fill:"#770a10"}));
+      netArt.append(svgEl("circle",{cx:plan.front,cy:y,
+        r:v7NetPostRadius(item),fill:"url(#"+postId+")",
+        "data-v7-net-red":"post","data-v7-net-base":"url(#"+postId+")"}))
+    }
     v7ApplyNetGoalFlash(netArt,performance.now());
     g.append(netArt)
   }
