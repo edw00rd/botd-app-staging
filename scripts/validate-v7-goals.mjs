@@ -335,4 +335,47 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   assert.ok(app.includes('v60RoundedRinkPerimeter=function(){return v7IcePerimeter(state.ice)}'),
     "Puck physics must use actual rink board outline");
 }
+
+/* One curved reference silhouette scales uniformly for all three goal sizes. */
+{
+ const a=app.indexOf("function v7NetPlanGeometry(item){"),
+       b=app.indexOf("function v7EquipmentSvg(item){",a);
+ assert.ok(a>0&&b>a,"Single shared goal-shape generator required");
+ const planCtx={round:(n,d)=>Number(n.toFixed(d))};
+ vm.runInNewContext(app.slice(a,b)+"\nthis.plan=v7NetPlanGeometry;",planCtx,{timeout:2000});
+ assert.ok(app.includes("spec.widthFeet*40/72"),"All net depths must scale from the 40-inch reference");
+ const items=[["pro",6,4],["medium",4,3],["little",3,2]].map(([id,feet,h])=>{
+  const item={id,type:"net",x:0,y:0,rotation:0,scale:1,netPreset:id,
+    geometry:{width:4.8*feet,length:4.8*feet*40/72,heightFeet:h}};
+  const p=planCtx.plan(item);
+  assert.ok(Math.abs(p.depth/p.opening-40/72)<1e-9,id+" depth ratio");
+  assert.ok(Math.abs(p.overallWidth/p.opening-88/72)<1e-9,id+" overall span ratio");
+  assert.ok(p.outline.includes(" C")&&p.outline.endsWith("Z"),id+" curved rear");
+  assert.ok(p.arch.includes(" C"),id+" inner arched supports");
+  return item
+ });
+ const svgEl=(tag,attrs={})=>({tag,attrs,children:[],append(...children){this.children.push(...children)}});
+ const renderCtx={
+  round:(v,d)=>Number(v.toFixed(d)),svgEl,performance:{now:()=>0},
+  v7CollisionGeometry:item=>({length:item.geometry.length,width:item.geometry.width,radius:0}),
+  V7_RINK_OBJECT_TYPES:{net:{label:"Net"}},
+  v7NetPostRadius:item=>Math.max(.75,item.geometry.width/36),
+  v7ApplyNetGoalFlash:()=>{},ui:{selectedType:null,selectedId:null}
+ };
+ vm.runInNewContext(app.slice(a,app.indexOf("function v7RenderEquipment(){",b))+
+   "\nthis.render=v7EquipmentSvg;",renderCtx,{timeout:2000});
+ const visit=node=>[node,...node.children.flatMap(visit)];
+ for(const item of items){
+  const parts=visit(renderCtx.render(item));
+  assert.ok(parts.some(n=>n.tag==="clipPath"),item.id+" outline clip");
+  assert.ok(parts.some(n=>n.attrs["data-v7-net-mesh"]==="gray"),item.id+" gray net mesh");
+  assert.ok(parts.some(n=>n.attrs["data-v7-net-preset"]===item.id),item.id+" preset");
+  assert.equal(parts.filter(n=>n.attrs["data-v7-net-red"]==="post").length,2,item.id+" red posts");
+  assert.ok(parts.filter(n=>n.attrs["data-v7-net-red"]==="frame").length>=2,item.id+" red curved bars");
+ }
+ assert.ok(app.includes('const depth=v7NetDimensions("pro").length,center=goalX+'),
+    "Default goal mouth must remain on the regulation goal line");
+ assert.ok(app.includes('for(const part of node.querySelectorAll("[data-v7-net-red]"))'),
+    "Existing red-frame flash must still reach goal bars");
+}
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

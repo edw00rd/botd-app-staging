@@ -303,8 +303,13 @@ for(const marker of [
    "HTML minus must delete original puck");
  assert.ok(listener.includes('v7DeleteAdditionalPuck(ui.selectedId)'),
    "HTML minus must delete whichever added puck is selected");
- assert.ok(app.includes(".v60-float-button.remove-puck{background:linear-gradient("),
-   "Red remove button style must exist");
+ assert.ok(app.includes("#v60ContextMenu .v60-float-button.remove-puck{"),
+   "Small puck minus needs a selector overriding v6.2 fixed-width buttons");
+ for(const marker of ["inline-size:36px!important","min-inline-size:36px!important",
+   "max-inline-size:36px!important","block-size:36px!important","max-block-size:36px!important",
+   "background:linear-gradient(180deg,#e34653,#ac1f32)!important"]){
+   assert.ok(app.includes(marker),"Missing compact red minus property: "+marker);
+ }
 }
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
