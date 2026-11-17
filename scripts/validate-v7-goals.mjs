@@ -378,6 +378,23 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
      preset+" must have 2 posts and 1 central joint");
    assert.ok(nodes.filter(n=>n.attrs["data-v7-net-red"]==="frame").length>=9,
      preset+" must render 3-dimensional layered shell, arch and mouth");
+   // Only stroke thickness and post radii changed; the geometry stays identical.
+   for(const [d,paint,baseline,name] of [
+     [shell,"#690913",4.7,"outer"],[inner,"#8e1520",3.2,"inner"],
+     ["M15 99 H205","#6f0c15",5.6,"front"],
+     ["M110 7 V47","#870c18",5,"support"]]){
+     const bar=nodes.find(n=>n.tag==="path"&&n.attrs.d===d&&n.attrs.stroke===paint);
+     assert.ok(bar&&Math.abs(bar.attrs["stroke-width"]-baseline*1.4)<.001,
+       preset+" "+name+" bar must be 1.4x thicker");
+   }
+   for(const [x,y,fill,oldRadius] of [
+     [15,99,"#880f1a",5.3],[205,99,"url(#"+String(item.id).replace(/[^a-zA-Z0-9_-]/g,"_")+")",4.5]]){
+     if(x===205)continue;
+     const post=nodes.find(n=>n.tag==="circle"&&n.attrs.cx===x&&n.attrs.cy===y&&n.attrs.fill===fill);
+     assert.ok(post&&Math.abs(post.attrs.r-oldRadius*1.4)<.001,preset+" post radius must be 1.4x");
+   }
+   const joint=nodes.find(n=>n.tag==="circle"&&n.attrs.cx===110&&n.attrs.cy===47);
+   assert.ok(joint&&Math.abs(joint.attrs.r-3*1.4)<.001,preset+" center joint radius must be 1.4x");
    const matrix=master.attrs.transform.match(/-?\d+(?:\.\d+)?/g).map(Number);
    assert.ok(Math.abs(matrix[1]-width/190)<.00001,preset+" mouth scaling");
    assert.ok(Math.abs(matrix[2]-length/92)<.00001,preset+" depth scaling");
