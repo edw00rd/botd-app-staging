@@ -6041,6 +6041,7 @@ newBoard=function(){
   v7IceSyncGoalObjects();
   ui.v7EquipmentDrag=null;
   ui.v7EquipmentTransform=null;
+  ui.v7NetAlignmentGuide=null;
   v7CancelEquipmentPlacement();
   if(ui.selectedType==="equipment"){ui.selectedType=null;ui.selectedId=null}
   syncActiveVariation();
@@ -6050,6 +6051,58 @@ newBoard=function(){
 };
 
 function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id)||null}
+
+/* Smart net placement: snap the mouth to the goal line, respecting facing.
+   Temporary alignment guides remain in UI state, not saved play data. */
+const V7_NET_CREASE_SNAP_DISTANCE_FT=7;
+const V7_NET_CREASE_SNAP_ANGLE=24;
+const V7_NET_ALIGN_TOLERANCE_FT=1.5;
+function v7NetAngleDifference(a,b){
+  return Math.abs((((Number(a)||0)-(Number(b)||0)+540)%360)-180)
+}
+function v7PlanNetPlacement(item,point,equipment=state.equipment,allowAlignment=true){
+  const x=Number(point.x),y=Number(point.y),angle=Number(item.rotation)||0;
+  if(item.type!=="net"||!Number.isFinite(x)||!Number.isFinite(y))
+    return{x:item.x,y:item.y,rotation:angle,snap:null,guide:null,side:null};
+  const g=v7IceGeometry(state.ice),depth=(Number(item.geometry?.length)||v7NetDimensions(item.netPreset||"pro").length)*(item.scale||1);
+  const candidates=[
+    {side:"left",goalX:g.goalLeft,x:g.goalLeft-depth/2,y:300,rotation:0},
+    {side:"right",goalX:g.goalRight,x:g.goalRight+depth/2,y:300,rotation:180}
+  ];
+  let closest=null;
+  for(const candidate of candidates){
+    // Permanent left/right goals cannot change goal identity.
+    if(item.goalSide&&item.goalSide!==candidate.side)continue;
+    const distance=Math.hypot(x-candidate.x,y-candidate.y);
+    if(distance>g.scale*V7_NET_CREASE_SNAP_DISTANCE_FT||
+      v7NetAngleDifference(angle,candidate.rotation)>V7_NET_CREASE_SNAP_ANGLE)continue;
+    if(!closest||distance<closest.distance)closest={...candidate,distance}
+  }
+  if(closest)return{
+    x:round(closest.x,2),y:300,rotation:closest.rotation,snap:"crease",side:closest.side,
+    guide:{kind:"crease",lineX:closest.goalX,y:300,halfWidth:(Number(item.geometry?.width)||28.8)/2}
+  };
+  if(allowAlignment){
+    // 180-degree opposing net mouths count as parallel, even in diagonal setups.
+    const radians=angle*Math.PI/180,normal={x:-Math.sin(radians),y:Math.cos(radians)};
+    let best=null;
+    for(const other of equipment||[]){
+      if(other?.type!=="net"||other.id===item.id)continue;
+      const difference=v7NetAngleDifference(angle,other.rotation);
+      if(Math.min(difference,180-difference)>15)continue;
+      const lateral=(other.x-x)*normal.x+(other.y-y)*normal.y;
+      if(Math.abs(lateral)>g.scale*V7_NET_ALIGN_TOLERANCE_FT)continue;
+      const along=Math.hypot(other.x-x,other.y-y),score=Math.abs(lateral)+along*.0001;
+      if(!best||score<best.score){
+        const at={x:round(x+lateral*normal.x,2),y:round(y+lateral*normal.y,2)};
+        best={score,at,other}
+      }
+    }
+    if(best)return{x:best.at.x,y:best.at.y,rotation:angle,snap:"alignment",side:null,
+      guide:{kind:"align",from:{x:best.other.x,y:best.other.y},to:best.at}};
+  }
+  return{x:round(x,2),y:round(y,2),rotation:angle,snap:null,guide:null,side:null}
+}
 function v7Deg(rad){return rad*180/Math.PI}
 function v7Rad(deg){return deg*Math.PI/180}
 function v7RotatePoint(p,deg){
@@ -6709,6 +6762,28 @@ function v7EquipmentSvg(item){
   }
   return g
 }
+
+function v7RenderNetPlacementGuide(layer){
+  const guide=ui.v7NetAlignmentGuide;if(!guide)return;
+  const node=svgEl("g",{"data-v7-net-guide":guide.kind,"pointer-events":"none"});
+  if(guide.kind==="crease"){
+    node.append(svgEl("line",{x1:round(guide.lineX,2),y1:round(guide.y-guide.halfWidth-8,2),
+      x2:round(guide.lineX,2),y2:round(guide.y+guide.halfWidth+8,2),
+      stroke:"#0782ad","stroke-width":2.8,"stroke-dasharray":"1 6",
+      "stroke-linecap":"round","vector-effect":"non-scaling-stroke"}))
+  }else if(guide.kind==="align"){
+    const a=guide.from,b=guide.to,dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+    if(length>.01){
+      const ux=dx/length,uy=dy/length,extension=12;
+      node.append(svgEl("line",{x1:round(a.x-ux*extension,2),y1:round(a.y-uy*extension,2),
+        x2:round(b.x+ux*extension,2),y2:round(b.y+uy*extension,2),
+        stroke:"#0782ad","stroke-width":2.8,"stroke-dasharray":"1 6",
+        "stroke-linecap":"round","vector-effect":"non-scaling-stroke"}))
+    }
+  }
+  layer.insertBefore(node,layer.firstChild)
+}
+
 function v7RenderEquipment(){
   const layer=$("#objectLayer");if(!layer)return;
   const first=layer.firstChild;
@@ -6716,6 +6791,7 @@ function v7RenderEquipment(){
     const node=v7EquipmentSvg(item);
     if(first)layer.insertBefore(node,first);else layer.append(node)
   }
+  v7RenderNetPlacementGuide(layer);
   const selected=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;
   if(selected&&!selected.goalSide){
     const point=v59ClampVisiblePoint?
@@ -7183,6 +7259,10 @@ function v7AddEquipment(type,point,overrides={}){
   pushHistory();
   const p=v59ClampVisiblePoint?v59ClampVisiblePoint(point):clampRinkPoint(point);
   const item=v7NormalizeEquipmentItem({id:uid("eq"),type,x:p.x,y:p.y,...overrides});
+  if(type==="net"){
+    const plan=v7PlanNetPlacement(item,{x:item.x,y:item.y},state.equipment);
+    item.x=plan.x;item.y=plan.y;item.rotation=plan.rotation
+  }
   state.equipment.push(item);
   ui.selectedType="equipment";ui.selectedId=item.id;
   syncActiveVariation();renderAll();return item
@@ -7289,6 +7369,7 @@ function v7SetupEquipmentEvents(){
     if(!equipmentNode||ui.tool!=="select")return;
     event.preventDefault();event.stopImmediatePropagation();
     const id=equipmentNode.dataset.equipmentId,item=v7EquipmentById(id);if(!item)return;
+    ui.v7NetAlignmentGuide=null;
     // Preserve click-to-select: the legacy pointerup must not clear this object.
     ui.pendingTap=null;
     ui.selectedType="equipment";ui.selectedId=id;renderInspector();
@@ -7311,7 +7392,13 @@ function v7SetupEquipmentEvents(){
       if(item.goalSide)item.iceAnchor=false;
       if(transform.kind==="rotate"){
         const angle=Math.atan2(p.y-item.y,p.x-item.x)*180/Math.PI+90;
-        item.rotation=round(((angle+180)%360)-180,1)
+        item.rotation=round(((angle+180)%360)-180,1);
+        if(item.type==="net"){
+          const plan=v7PlanNetPlacement(item,{x:item.x,y:item.y},state.equipment,false);
+          item.x=plan.x;item.y=plan.y;item.rotation=plan.rotation;
+          if(item.goalSide)item.iceAnchor=plan.snap==="crease"&&plan.side===item.goalSide;
+          ui.v7NetAlignmentGuide=plan.guide
+        }
       }else if(transform.kind==="resize-length"){
         const local=localPoint(item,p),min=item.type==="divider"?28:item.type==="stick"?24:18,max=item.type==="divider"?190:item.type==="stick"?70:120;
         item.geometry.length=round(clamp(Math.abs(local.x)*2,min,max),1)
@@ -7327,16 +7414,30 @@ function v7SetupEquipmentEvents(){
     const raw=svgPoint(event);
     if(!drag.moved&&Math.hypot(raw.x-drag.start.x,raw.y-drag.start.y)<2.5)return;
     pushTransformHistory(drag);drag.moved=true;
-    const p=v59ClampVisiblePoint?v59ClampVisiblePoint(raw):clampRinkPoint(raw);item.x=round(p.x,2);item.y=round(p.y,2);renderFrame(ui.playhead)
+    if(item.type==="net"){
+      // Preserve the initial grab offset instead of jumping under the cursor.
+      const bounds=rinkBounds(),p={
+        x:clamp(drag.origin.x+raw.x-drag.start.x,bounds.minX,bounds.maxX),
+        y:clamp(drag.origin.y+raw.y-drag.start.y,bounds.minY,bounds.maxY)
+      };
+      const plan=v7PlanNetPlacement(item,p,state.equipment);
+      item.x=plan.x;item.y=plan.y;item.rotation=plan.rotation;
+      if(item.goalSide)item.iceAnchor=plan.snap==="crease"&&plan.side===item.goalSide;
+      ui.v7NetAlignmentGuide=plan.guide
+    }else{
+      const p=v59ClampVisiblePoint?v59ClampVisiblePoint(raw):clampRinkPoint(raw);
+      item.x=round(p.x,2);item.y=round(p.y,2)
+    }
+    renderFrame(ui.playhead)
   },true);
   const finish=event=>{
     const transform=ui.v7EquipmentTransform;
     if(transform&&transform.pointerId===event.pointerId){
-      event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentTransform=null;
+      event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentTransform=null;ui.v7NetAlignmentGuide=null;
       if(transform.changed){syncActiveVariation();scheduleSave()}renderInspector();renderAll();return
     }
     const drag=ui.v7EquipmentDrag;if(!drag||drag.pointerId!==event.pointerId)return;
-    event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentDrag=null;
+    event.preventDefault();event.stopImmediatePropagation();ui.v7EquipmentDrag=null;ui.v7NetAlignmentGuide=null;
     if(drag.moved){syncActiveVariation();scheduleSave();renderInspector();renderAll()}
     else{renderInspector();renderFrame(ui.playhead)}
   };

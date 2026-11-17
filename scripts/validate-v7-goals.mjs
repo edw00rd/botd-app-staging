@@ -70,6 +70,40 @@ for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.
  assert.equal(item.capabilities.resize,"none");
 }
 assert.equal(right.x,935.2);assert.equal(right.rotation,180);
+
+/* Regression: crease mouth snapping, orientation and opposing scrimmage alignment. */
+const placementStart=app.indexOf("const V7_NET_CREASE_SNAP_DISTANCE_FT=");
+const placementEnd=app.indexOf("function v7Deg(",placementStart);
+assert.ok(placementStart>0&&placementEnd>placementStart);
+vm.runInNewContext(app.slice(placementStart,placementEnd)+"\nthis.netPlan=v7PlanNetPlacement",normContext,{timeout:1500});
+const planNet=normContext.netPlan;
+const looseNet=normContext.v7NormalizeEquipmentItem({id:"scrimmage",type:"net",x:110,y:300,rotation:12});
+let snap=planNet(looseNet,{x:83,y:306},initial);
+assert.equal(snap.snap,"crease");assert.equal(snap.x,left.x);assert.equal(snap.y,300);assert.equal(snap.rotation,0);
+assert.equal(snap.guide.kind,"crease");
+snap=planNet({...looseNet,rotation:180},{x:83,y:306},initial);
+assert.notEqual(snap.snap,"crease","Wrong-facing net must not snap");
+snap=planNet(looseNet,{x:150,y:300},initial);
+assert.notEqual(snap.snap,"crease","Far net must not snap");
+snap=planNet({...looseNet,rotation:-174},{x:930,y:296},initial);
+assert.equal(snap.snap,"crease");assert.equal(snap.side,"right");
+assert.equal(snap.x,right.x);assert.equal(snap.rotation,180);
+const small=normContext.v7NormalizeEquipmentItem({id:"small-net",type:"net",x:90,y:300,rotation:0,netPreset:"little"});
+snap=planNet(small,{x:73,y:300},initial);
+assert.equal(snap.snap,"crease");
+assert.equal(snap.x,Math.round((72.8-small.geometry.length/2)*100)/100,
+ "All goal sizes snap their crossbar to the goal line");
+const parallelOther={id:"other-net",type:"net",x:380,y:244,rotation:180};
+snap=planNet({...looseNet,rotation:0},{x:470,y:248},[parallelOther]);
+assert.equal(snap.snap,"alignment");assert.equal(snap.y,244);
+assert.equal(snap.guide.kind,"align","Opposing nets need a dotted guide");
+snap=planNet({...looseNet,rotation:90},{x:384,y:380},[{...parallelOther,rotation:-90}]);
+assert.equal(snap.snap,"alignment");assert.equal(snap.x,380,"Vertical nets must align");
+snap=planNet({...looseNet,rotation:0},{x:470,y:265},[parallelOther]);
+assert.equal(snap.guide,null,"Guides vanish when away from alignment");
+snap=planNet({...looseNet,rotation:0},{x:470,y:248},[{...parallelOther,rotation:90}]);
+assert.equal(snap.guide,null,"Perpendicular nets must not align");
+assert.ok(app.includes('ui.v7NetAlignmentGuide=null')&&app.includes('v7RenderNetPlacementGuide(layer)'));
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);
