@@ -91,9 +91,9 @@ for(const required of [
  'v7RinkDispensePuckControl(selected.id,point)',
  'const filter=phaseOn?glowFilter:"none";',
  'if(!interval||interval.kind!=="travel")return null',
- 'v7RinkRemoveControl(item.id,"additionalPuck"',
+ 'v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")',
  'v7RinkRemoveControl(selected.id,"equipment"',
- 'outer.append(raised);'
+ 'group.append(raised);'
 ])assert.ok(app.includes(required),"Missing puck/pile behavior: "+required);
 assert.ok(app.includes('type==="puckPile"'),"The pile must have artwork");
 assert.ok(!app.includes('puckShadow'),"No puck may retain a legacy shadow filter");
@@ -102,7 +102,7 @@ const extraPucks=app.slice(app.indexOf('function v7RenderAdditionalPucks('),
  app.indexOf('/* Reuse original route geometry',app.indexOf('function v7RenderAdditionalPucks(')));
 assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks must remain shadow-free");
 {
- const start=app.indexOf("function v7PuckLiftAt("),end=app.indexOf("const renderPuckLayerV682ForV7=",start);
+ const start=app.indexOf("function v7PuckLiftAt("),end=app.indexOf("renderPuckLayer=function(time,timeline){",start);
  assert.ok(start>0&&end>start,"Shared puck flight helper missing");
  const ctx={clamp:(x,a,b)=>Math.max(a,Math.min(b,x))};
  vm.runInNewContext(app.slice(start,end)+"\nthis.lift=v7PuckLiftAt;",ctx,{timeout:2000});
@@ -114,6 +114,22 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
  const sauce={...travel,clearances:[{startProgress:.35,endProgress:.65,objectId:"cone"}]};
  assert.ok(ctx.lift(sauce,2).lift>=ctx.lift(travel,2).lift,"Clearance arc still works");
 }
+
+// Original puck removal is stored in history, saved plays and play variations.
+for(const marker of [
+ 'function v7DeletePrimaryPuck(){',
+ 'state.primaryPuckVisible=false;',
+ 'take.events=take.events.filter(event=>event.puckId&&event.puckId!=="puck")',
+ 'state.primaryPuckVisible=true;',
+ 'output.primaryPuckVisible=output.primaryPuckVisible!==false;',
+ 'option.primaryPuckVisible=source?.primaryPuckVisible!==false;',
+ 'data.primaryPuckVisible=state.primaryPuckVisible!==false;',
+ 'play.primaryPuckVisible=state.primaryPuckVisible!==false;',
+ 'main.style.display=state.primaryPuckVisible===false?"none":""',
+ 'function v7PuckCount()',
+ 'v7MaxAdditionalPucks(state.primaryPuckVisible)',
+])assert.ok(app.includes(marker),"Missing puck-free drills invariant: "+marker);
+
 // No special lightweight puck controller: every puck shares the full Puck Director.
 {
  const section=app.slice(app.indexOf("function renderInspectorBase("),app.indexOf("function setPlayhead(",app.indexOf("function renderInspectorBase(")));
@@ -121,7 +137,7 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
  for(const marker of ['id="addPossessionBtn"','id="dropPuckBtn"','id="puckTakeSelect"','id="puckGlowCheck"','id="clearPuckTakeBtn"','id="v7PuckX"','id="v7PuckY"']){
   assert.ok(section.includes(marker),"Shared Puck Director control missing: "+marker);
  }
- assert.ok(app.includes("setGlowStyle(group,item.glow"),"Added puck glow must use the default renderer settings");
+ assert.ok(app.includes("setGlowStyle(group,v7PuckGlowById(id)"),"Every puck must use one shared glow renderer");
  assert.ok(app.includes("glow:v7NormalizePuckGlow(item.glow)"),"Added puck glow must survive save/load");
  assert.ok(app.includes('v7SelectedPuckGlow().enabled=event.target.checked'),"Glow controls must work on any puck");
  assert.ok(app.includes('function clearActiveTake(){const id=ui.v7ActivePuckId'),"Clearing one puck must preserve other pucks' actions");
@@ -170,8 +186,9 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
  const env={round:(value,digits)=>Number(value.toFixed(digits)),
   svgEl:(tag,attrs)=>({tag,attrs,children:[],append(...children){this.children.push(...children)}})};
  vm.runInNewContext(app.slice(start,end)+"\nthis.make=v7RinkRemoveControl;",env,{timeout:2000});
- const puck=env.make("puck123","additionalPuck"),equipment=env.make("equipment123","equipment",{x:30,y:20});
+ const puck=env.make("puck123","additionalPuck"),primary=env.make("puck","primaryPuck"),equipment=env.make("equipment123","equipment",{x:30,y:20});
  assert.equal(puck.attrs["data-v7-remove-additional-puck"],"puck123");
+ assert.equal(primary.attrs["data-v7-remove-primary-puck"],"puck");
  assert.equal(equipment.attrs["data-v7-remove-equipment"],"equipment123");
  assert.equal(equipment.attrs.role,"button");
  assert.equal(equipment.children[0].tag,"circle");
@@ -184,7 +201,8 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
  assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
  const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
    app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
- assert.ok(puckRender.includes('v7RinkRemoveControl(item.id,"additionalPuck"'),"Puck 2+ must show minus");
+ assert.ok(puckRender.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Every puck must show the same minus control");
+ assert.ok(puckRender.includes('function v7CreatePuckToken('),"All pucks need one shared renderer");
  const equipmentEvents=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
    app.indexOf("/* Shot collision options are attached",app.indexOf("function v7SetupEquipmentEvents()")));
  const puckEvents=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
@@ -193,6 +211,8 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
  assert.ok(equipmentEvents.includes('v7ResetGoalNet(reset.dataset.v7ResetGoal)'),"On-ice reset must restore permanent goals");
  assert.ok(app.includes("function v7ResetGoalNet("),"Goal reset must not depend on an invisible inspector");
  assert.ok(puckEvents.includes('v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)'),"Added puck minus must delete");
+ assert.ok(puckEvents.includes('v7DeletePrimaryPuck()'),"Original puck minus must delete");
+ assert.ok(equipmentEvents.includes('else if(primary)v7DeletePrimaryPuck()'),"Keyboard original-puck minus must delete");
  assert.ok(equipmentEvents.includes('v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck)'),"Keyboard minus must work for pucks");
  assert.ok(!equipmentEvents.includes("openRight()"),"Equipment selection must not call hidden drawer");
  assert.ok(!app.includes("function v7RenderEquipmentInspector"),"Dead equipment panel still present");
@@ -219,32 +239,26 @@ assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks
   "Bench hide/show toggle must still be supported");
 }
 
-/* All pucks must share the same circle geometry, rather than retaining a
-   rectangular primary selector from the older editor renderer. */
+/* Primary and additional puck artwork and on-ice selection must be identical. */
 {
- const a=app.indexOf("function v7PuckSelectionRing(radius)"),
-       b=app.indexOf("function v7ScalePuckArt()",a);
- assert.ok(a>0&&b>a,"Shared V7 puck selection factory is missing");
+ const begin=app.indexOf("function v7PuckSelectionRing(radius)");
+ const finish=app.indexOf("function v7ScalePuckArt()",begin);
+ assert.ok(begin>0&&finish>begin,"Shared selection ring missing");
  const context={svgEl:(tag,attributes)=>({tag,attributes})};
- vm.runInNewContext(app.slice(a,b)+"\nthis.makeRing=v7PuckSelectionRing;",context,{timeout:2000});
- const one=context.makeRing(7),two=context.makeRing(7);
- assert.equal(one.tag,"circle","Puck selector should be round");
- assert.equal(one.attributes.r,12);
- assert.equal(one.attributes.class,"selection-ring puck-select");
- assert.deepEqual(one,two,"Selection rings must have identical geometry");
- const primary=app.slice(b,app.indexOf("const renderObjectLayerV682ForV7=",b));
- const added=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
-                       app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
- assert.ok(primary.includes('outer.querySelectorAll(".puck-select").forEach(ring=>ring.remove())'),
-   "The legacy rectangle must be removed every frame");
- assert.ok(primary.includes('outer.append(v7PuckSelectionRing(r))'),
-   "Puck 1 must use the shared circle");
- assert.ok(added.includes('group.append(v7PuckSelectionRing(r))'),
-   "Added pucks must use the shared circle");
- assert.ok(!primary.includes('ring.setAttribute("transform","scale('),
-   "Primary selection indicator must not use a special scale");
+ vm.runInNewContext(app.slice(begin,finish)+"\nthis.makeRing=v7PuckSelectionRing;",context,{timeout:2000});
+ const ring=context.makeRing(7);
+ assert.equal(ring.tag,"circle");
+ assert.equal(ring.attributes.r,12);
+ assert.equal(ring.attributes.class,"selection-ring puck-select");
+ const token=app.slice(app.indexOf("function v7CreatePuckToken("),app.indexOf("function v7RenderAdditionalPucks("));
+ const defaultRenderer=app.slice(app.lastIndexOf("renderPuckLayer=function(time,timeline){"));
+ assert.ok(token.includes('const primary=id==="puck"'),"Shared token must identify original puck");
+ assert.ok(token.includes('group.append(v7PuckSelectionRing(r))'),"Shared circle required for both pucks");
+ assert.ok(token.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Both pucks must have the same on-ice remove button");
+ assert.ok(defaultRenderer.includes('v7CreatePuckToken("puck",0,pos,ps,time,timeline)'),"Original puck must use shared renderer");
+ assert.ok(app.includes('v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline)'),"Added puck must use shared renderer");
+ assert.ok(app.includes('if(state.primaryPuckVisible===false)return{pos:null,mode:"hidden",hidden:true}'),"Puck-free drills must draw no default puck");
 }
-
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
 const v7Shot=v7Timeline.slice(v7Timeline.indexOf('if(event.type==="shot"){'),v7Timeline.indexOf("function v7EquipmentSvg"));
@@ -454,14 +468,15 @@ assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction 
 }
 {
   const a=app.indexOf("function v7PuckLiftAt(");
-  const b=app.indexOf("const renderPuckLayerV682ForV7=renderPuckLayer",a);
+  const b=app.indexOf("renderPuckLayer=function(time,timeline){",a);
   assert.ok(a>0&&b>a,"Puck clearance visual helper missing");
   const ctx={clamp:(n,l,h)=>Math.max(l,Math.min(h,n))};
   vm.runInNewContext(app.slice(a,b)+"\nthis.liftAt=v7PuckLiftAt;",ctx,{timeout:2000});
   const interval={start:0,end:10,kind:"travel",motion:"pass",clearances:[{startProgress:.43,endProgress:.57,objectId:"divider"}]};
   assert.ok(ctx.liftAt(interval,5)?.lift>15,"Elevated puck must visually clear object");
   assert.equal(ctx.liftAt(interval,0),null,"Puck must stay flat before object");
-  assert.equal(ctx.liftAt(interval,9),null,"Puck must return to ice after object");
+  assert.ok(ctx.liftAt(interval,9)?.lift>0,"Pass remains animated after clearing an object");
+ assert.equal(ctx.liftAt(interval,10),null,"Puck rests when travel finishes");
 }
 {
   const a=app.lastIndexOf("v60CommitShot=function(){");
