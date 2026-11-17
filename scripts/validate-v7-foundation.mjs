@@ -91,7 +91,6 @@ for(const required of [
  'v7RinkDispensePuckControl(selected.id,point)',
  'const filter=phaseOn?glowFilter:"none";',
  'if(!interval||interval.kind!=="travel")return null',
- 'v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")',
  'v7RinkRemoveControl(selected.id,"equipment"',
  'raised.append(disc);group.append(raised)'
 ])assert.ok(app.includes(required),"Missing puck/pile behavior: "+required);
@@ -143,7 +142,10 @@ for(const marker of [
  assert.ok(app.includes('function clearActiveTake(){const id=ui.v7ActivePuckId'),"Clearing one puck must preserve other pucks' actions");
  assert.ok(!app.includes("function v7RenderAdditionalPuckInspector"),"Duplicated puck inspector must not remain");
  assert.ok(app.includes('function v7OpenPuckDirector()'),"Advanced puck controls must be accessible from both pucks");
- assert.ok(app.includes('data-v60-action="director"'),"Shared context menu must open Puck Director");
+ assert.ok(app.includes('id="v7TimelinePuckDirectorBtn"'),"Puck Director must be beside + Puck route on the timeline");
+ assert.ok(app.includes('$("#v7TimelinePuckDirectorBtn")?.addEventListener("click",()=>v7OpenPuckDirector());'),
+   "Timeline Puck Director must open the existing director modal");
+ assert.ok(!app.includes('data-v60-action="director"'),"Remove the old floating Puck Director action");
  assert.ok(app.includes('v7PreparePuckDirectorDialog()'),"Puck Director dialog must initialize");
  assert.ok(app.includes('renderInspectorBase();'),"Shared dialog must render the actual Puck Director");
  assert.ok(app.includes('v7PuckContextMarkupOriginal'),"The original pass/shot context menu must be preserved");
@@ -187,8 +189,8 @@ for(const marker of [
 
 
 
-/* Rink equipment and added pucks expose direct on-ice removal, never the dead
-   right-drawer equipment inspector. Puck Director remains a working modal. */
+/* Rink equipment retains on-ice removal; pucks use a floating HTML minus,
+   with the Puck Director accessible beside + Puck route on the timeline. */
 {
  const start=app.indexOf("function v7RinkRemoveControl("),
        end=app.indexOf("function v7EquipmentSvg(",start);
@@ -211,7 +213,8 @@ for(const marker of [
  assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
  const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
    app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
- assert.ok(app.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Every puck must show the same minus control");
+ const puckToken=app.slice(app.indexOf("function v7CreatePuckToken("),app.indexOf("function v7RenderAdditionalPucks("));
+ assert.ok(!puckToken.includes("v7RinkRemoveControl("),"Puck SVG must not draw an obscured minus");
  assert.ok(app.includes('function v7CreatePuckToken('),"All pucks need one shared renderer");
  const equipmentEvents=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
    app.indexOf("/* Shot collision options are attached",app.indexOf("function v7SetupEquipmentEvents()")));
@@ -264,10 +267,44 @@ for(const marker of [
  const defaultRenderer=app.slice(app.lastIndexOf("renderPuckLayer=function(time,timeline){"));
  assert.ok(token.includes('const primary=id==="puck"'),"Shared token must identify original puck");
  assert.ok(token.includes('group.append(v7PuckSelectionRing(r))'),"Shared circle required for both pucks");
- assert.ok(token.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Both pucks must have the same on-ice remove button");
+ assert.ok(!token.includes("v7RinkRemoveControl("),"Puck 1 and additional pucks must use the overlay minus instead");
  assert.ok(defaultRenderer.includes('v7CreatePuckToken("puck",0,pos,ps,time,timeline)'),"Original puck must use shared renderer");
  assert.ok(app.includes('v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline)'),"Added puck must use shared renderer");
  assert.ok(app.includes('if(state.primaryPuckVisible===false)return{pos:null,mode:"hidden",hidden:true}'),"Puck-free drills must draw no default puck");
+}
+/* Floating puck controls must replace Puck Director with a red minus, while
+   the same director opens from the timeline beside + Puck route. */
+{
+ const buttonStart=app.indexOf('id="newPuckTakeBtn"');
+ const directorStart=app.indexOf('id="v7TimelinePuckDirectorBtn"');
+ assert.ok(buttonStart>0&&directorStart>buttonStart&&directorStart-buttonStart<240,
+   "Timeline Puck Director must sit immediately after + Puck route");
+ const segment=app.slice(app.indexOf("const v7PuckContextMarkupOriginal=v60ContextMarkup;"),
+   app.indexOf("const initV682ForV7=init;"));
+ assert.ok(segment.includes('data-v60-action="remove-puck"'),"Floating puck menu needs HTML minus");
+ assert.ok(segment.includes('title="Remove puck from ice"'),"Floating minus must be labeled");
+ const ui={selectedType:"puck",selectedId:"puck",v60DirectSelection:true,playing:false,
+   recordingMove:false,v60Mode:null};
+ const context={ui,v60ContextMarkup:()=>'<div class="v60-context-actions"><button data-v60-action="pass">Pass</button><button data-v60-action="shoot">Shoot</button></div>'};
+ vm.runInNewContext(segment,context,{timeout:2000});
+ for(const selectedType of ["puck","additionalPuck"]){
+   ui.selectedType=selectedType;
+   const html=context.v60ContextMarkup();
+   assert.ok(html.includes('data-v60-action="remove-puck"'),"No HTML minus for "+selectedType);
+   assert.ok(!html.includes('Puck Director'),"Puck Director must not appear above ice");
+   assert.ok(html.indexOf('data-v60-action="remove-puck"')>html.indexOf('data-v60-action="shoot"'),
+     "Remove button must occupy former third action slot");
+ }
+ ui.v60DirectSelection=false;
+ assert.ok(!context.v60ContextMarkup().includes("remove-puck"),"Do not show minus for an unselected puck");
+ const listener=app.slice(app.indexOf("function v7PreparePuckDirectorDialog()"),
+   app.indexOf("const v7PuckContextMarkupOriginal="));
+ assert.ok(listener.includes('if(ui.selectedType==="puck")v7DeletePrimaryPuck();'),
+   "HTML minus must delete original puck");
+ assert.ok(listener.includes('v7DeleteAdditionalPuck(ui.selectedId)'),
+   "HTML minus must delete whichever added puck is selected");
+ assert.ok(app.includes(".v60-float-button.remove-puck{background:linear-gradient("),
+   "Red remove button style must exist");
 }
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));

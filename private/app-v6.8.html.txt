@@ -1087,7 +1087,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
   </div>
   <div class="timeline-branchbar" aria-label="Timeline play options, puck routes, and reusable range">
     <div class="variation-cluster"><span class="branch-label">PLAY OPTION</span><select id="timelineVariationSelect" aria-label="Active play option"></select><button class="btn small danger" id="deleteVariationBtn" type="button">Delete option</button></div>
-    <div class="puck-route-cluster"><select id="timelineTakeSelect" aria-label="Puck route" title="Puck route"></select><button class="btn small" id="newPuckTakeBtn" type="button">+ Puck route</button></div>
+    <div class="puck-route-cluster"><select id="timelineTakeSelect" aria-label="Puck route" title="Puck route"></select><button class="btn small" id="newPuckTakeBtn" type="button">+ Puck route</button><button class="btn small" id="v7TimelinePuckDirectorBtn" type="button" title="Open controls for the active puck">Puck Director</button></div>
     <div class="reuse-cluster"><output id="reuseRangeOutput" class="reuse-output">Set In and Out to choose a reusable segment</output><button class="btn small" id="setReuseInBtn" type="button">Set In</button><button class="btn small" id="setReuseOutBtn" type="button">Set Out</button><button class="btn small primary" id="copyReuseBtn" type="button" disabled>Copy &amp; Reuse</button></div>
   </div>
   <div class="timeline-body" id="timelineBody"><div class="timeline-grid" id="timelineGrid"></div></div>
@@ -6792,8 +6792,10 @@ function v7PuckActionAnchor(){
 }
 
 function v7RefreshAddPuckButton(){
- const btn=document.querySelector("#v7EquipmentDialog [data-v7-add-puck]");if(!btn)return;
  const count=v7PuckCount(),full=count>=V7_MAX_PUCKS;
+ const director=$("#v7TimelinePuckDirectorBtn");
+ if(director){director.disabled=count===0;director.title=count?"Open Puck Director for the active puck":"Add a puck to enable Puck Director"}
+ const btn=document.querySelector("#v7EquipmentDialog [data-v7-add-puck]");if(!btn)return;
  btn.disabled=full;
  btn.title="Add a puck ("+count+"/"+V7_MAX_PUCKS+" pucks on ice)";
  btn.setAttribute("aria-label",btn.title);
@@ -6859,7 +6861,7 @@ function v7DeleteAdditionalPuck(id){
  if(ui.selectedType==="additionalPuck"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
  syncActiveVariation();renderAll();scheduleSave();return true
 }
-/* Every puck uses the same art, selection, hit area and on-ice minus control. */
+/* Every puck uses the same artwork and selection; removal is in the HTML action overlay. */
 function v7CreatePuckToken(id,index,pos,ps,time,timeline){
  const primary=id==="puck",m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(m.puckRadius,2);
  const attrs=primary?{"data-puck":"1"}:{"data-v7-additional-puck-id":id};
@@ -6882,7 +6884,7 @@ function v7CreatePuckToken(id,index,pos,ps,time,timeline){
    raised.append(disc);group.append(raised)
  }else group.append(disc);
  const selected=primary?ui.selectedType==="puck":ui.selectedType==="additionalPuck"&&ui.selectedId===id;
- if(selected){group.append(v7PuckSelectionRing(r));group.append(v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck"))}
+ if(selected)group.append(v7PuckSelectionRing(r));
  return group
 }
 function v7RenderAdditionalPucks(time=ui.playhead){
@@ -7459,7 +7461,9 @@ v58OffsideModel=function(teamId){
    inside one shared modal instead of maintaining two puck-only interfaces.
    The main toolbar gains no new controls. */
 function v7OpenPuckDirector(){
+ if(v7PuckCount()===0){toast("Add a puck from Rink Objects to use Puck Director.");return false}
  const id=v7SelectedPuckId(),selected=v7SelectExistingPuck(id);
+ if(!selected)return false;
  const dialog=$("#v7PuckDirectorDialog"),root=$("#inspectorContent");
  if(!dialog||!root)return false;
  const mount=dialog.querySelector("[data-v7-puck-director-mount]");
@@ -7485,7 +7489,11 @@ function v7PreparePuckDirectorDialog(){
   '.v7-puck-director-head button{border:1px solid #466479;background:#19334a;color:#fff;border-radius:7px;padding:6px 10px;cursor:pointer}'+
   '.v7-puck-director-scroll{overflow-y:auto;max-height:calc(85vh - 55px);padding:14px}'+
   '.v7-puck-director-scroll #inspectorContent{display:block!important;visibility:visible!important;color:#edf6fb;max-height:none!important;overflow:visible}'+
-  '.v7-puck-director-scroll .inspector-section{margin-bottom:14px}';
+  '.v7-puck-director-scroll .inspector-section{margin-bottom:14px}'+
+  '.v60-float-button.remove-puck{background:linear-gradient(180deg,#ec4452,#b42332);color:#fff;'+
+  'width:42px;min-width:42px;padding:6px 0;font-size:25px;font-weight:800;line-height:1;'+
+  'box-shadow:inset 0 1px rgba(255,255,255,.27),0 3px 9px rgba(125,9,27,.35)}'+
+  '.v60-float-button.remove-puck:hover{background:linear-gradient(180deg,#f35a66,#c63040)}';
  document.head.append(style);
  dialog.querySelector("[data-v7-puck-director-close]").addEventListener("click",()=>dialog.close());
  dialog.addEventListener("close",()=>{
@@ -7497,17 +7505,25 @@ function v7PreparePuckDirectorDialog(){
   if(["passTargetBtn","shotTargetBtn","liveDirectBtn","newLiveTakeBtn","retargetShotBtn"].includes(event.target.id))
    dialog.close()
  },true);
+ $("#v7TimelinePuckDirectorBtn")?.addEventListener("click",()=>v7OpenPuckDirector());
  $("#v60ContextMenu")?.addEventListener("click",event=>{
-  if(event.target.closest('[data-v60-action="director"]')){
-   event.preventDefault();v7OpenPuckDirector()
-  }
+  if(!event.target.closest('[data-v60-action="remove-puck"]'))return;
+  event.preventDefault();event.stopPropagation();
+  // Delete the puck that owns this floating menu, including Puck 1.
+  if(ui.selectedType==="puck")v7DeletePrimaryPuck();
+  else if(ui.selectedType==="additionalPuck")v7DeleteAdditionalPuck(ui.selectedId);
  });
 }
 const v7PuckContextMarkupOriginal=v60ContextMarkup;
 v60ContextMarkup=function(){
  const markup=v7PuckContextMarkupOriginal();
- if(!markup||(ui.selectedType!=="puck"&&ui.selectedType!=="additionalPuck"))return markup;
- return markup.replace('</div>','<button class="v60-float-button secondary" data-v60-action="director" type="button">Puck Director</button></div>')
+ if(ui.selectedType!=="puck"&&ui.selectedType!=="additionalPuck")return markup;
+ if(!ui.v60DirectSelection||ui.playing||ui.recordingMove||ui.v60Mode)return markup;
+ // HTML action controls sit above the SVG: the minus cannot hide behind Pass/Shoot.
+ const remove='<button class="v60-float-button remove-puck" data-v60-action="remove-puck"'+
+  ' type="button" title="Remove puck from ice" aria-label="Remove selected puck from ice">−</button>';
+ return markup?markup.replace('</div>',remove+'</div>'):
+  '<div class="v60-context-actions" role="group" aria-label="Puck actions">'+remove+'</div>'
 };
 
 const initV682ForV7=init;
