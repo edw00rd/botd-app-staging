@@ -202,9 +202,11 @@ for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"
   'v7GoalFlashes.set(id,true)','data-v7-net-visual','data-v7-net-red',
   'data-v7-net-size','data-v7-net-preset',
   'v7ApplyNetGoalFlash(netArt,performance.now())',
-  'v7SyncGoalNetOccupancy([output?.ps?.pos',
+  'v7SyncGoalNetOccupancy([...(state.primaryPuckVisible===false?[]:[output?.ps?.pos])',
   '$("#goalBanner").classList.remove("active")'
 ])assert.ok(app.includes(marker),"Missing occupancy-based goal flash marker: "+marker);
+assert.ok(app.includes('...(state.additionalPucks||[]).map(item=>puckStateAt(time,buildPuckTimeline(item.id)).pos)'),
+  "Goal occupancy must include every additional puck");
 assert.ok(!app.includes("performance.now()+3500"),"A fixed 3.5-second timer must not control a scored goal");
 assert.ok(app.includes('for(const node of '+String.fromCharCode(36,36)+'("[data-v7-net-visual]"))'),"Net flashing must iterate ALL net nodes");
 assert.ok(!app.includes('data-v7-goal-light'),"Standalone beacon must be gone");

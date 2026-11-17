@@ -93,7 +93,7 @@ for(const required of [
  'if(!interval||interval.kind!=="travel")return null',
  'v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")',
  'v7RinkRemoveControl(selected.id,"equipment"',
- 'group.append(raised);'
+ 'raised.append(disc);group.append(raised)'
 ])assert.ok(app.includes(required),"Missing puck/pile behavior: "+required);
 assert.ok(app.includes('type==="puckPile"'),"The pile must have artwork");
 assert.ok(!app.includes('puckShadow'),"No puck may retain a legacy shadow filter");
