@@ -104,6 +104,27 @@ assert.equal(snap.guide,null,"Guides vanish when away from alignment");
 snap=planNet({...looseNet,rotation:0},{x:470,y:248},[{...parallelOther,rotation:90}]);
 assert.equal(snap.guide,null,"Perpendicular nets must not align");
 assert.ok(app.includes('ui.v7NetAlignmentGuide=null')&&app.includes('v7RenderNetPlacementGuide(layer)'));
+// A dotted guide must never imply that noticeably skewed crossbars are parallel.
+let crossbarPlan=planNet({...looseNet,rotation:15},{x:470,y:244},[parallelOther]);
+assert.equal(crossbarPlan.guide,null,"No guide for crossbars 15 degrees apart");
+crossbarPlan=planNet({...looseNet,rotation:5},{x:470,y:248},[{...parallelOther,rotation:0}]);
+assert.equal(crossbarPlan.snap,"alignment","Gentle angular attraction within 6 degrees");
+assert.equal(crossbarPlan.rotation,0,"Parallel crossbars must be exactly matched");
+assert.equal(crossbarPlan.y,244,"Centers must also match");
+crossbarPlan=planNet({...looseNet,rotation:175},{x:470,y:248},[{...parallelOther,rotation:0}]);
+assert.equal(crossbarPlan.rotation,-180,"Opposing nets must align their crossbars");
+crossbarPlan=planNet({...looseNet,rotation:7.5},{x:470,y:244},[{...parallelOther,rotation:0}]);
+assert.equal(crossbarPlan.guide,null,"No alignment indicator outside 6-degree angle window");
+crossbarPlan=planNet({...looseNet,rotation:37},{x:456,y:292},[{...parallelOther,rotation:32}]);
+assert.equal(crossbarPlan.rotation,32,"Non-cardinal crossbars must align too");
+assert.ok(app.includes('state.equipment,true'),"Turning nets should align to nearby parallel crossbars");
+assert.ok(app.includes('function v7NetRotateOverlay(item)')&&
+  app.includes('if(isNet&&selected.capabilities?.rotatable)layer.append(v7NetRotateOverlay(selected))'),
+  "Net handle must render above buttons");
+assert.ok(app.includes('cy=-ry-52'),"Extended rotation arm must stay clear of compact controls");
+assert.ok(app.includes('v7RinkNetSizeControl(selected.id,point,.78)')&&
+  app.includes('v7RinkGoalResetControl(selected.id,point,.78)'),
+  "Net action buttons must be compact and grouped closer together");
 
 /* Fine rotation snapping: 0, 90, 180, 270 degrees, only within ±2°. */
 for(const [input,expected] of [[0,0],[1.9,0],[-1.9,0],[88.1,90],
@@ -141,14 +162,16 @@ const renderContext={
  v7RinkRemoveControl:()=>({kind:"remove-control"}),
  v7RinkGoalResetControl:()=>({kind:"reset-control"}),
  v7RinkNetSizeControl:()=>({kind:"size-control"}),
- v7RinkDispensePuckControl:()=>({kind:"dispense-control"})
+ v7RinkDispensePuckControl:()=>({kind:"dispense-control"}),
+ v7NetRotateOverlay:()=>({kind:"rotate-overlay"})
 };
 vm.runInNewContext(app.slice(renderStart,renderEnd)+"\nthis.draw=v7RenderEquipment",renderContext,{timeout:1500});
 renderContext.draw();
-assert.deepEqual(drawn,["net-art"],"Rotation must hide the overlapping net SVG buttons");
+assert.deepEqual(drawn,["net-art","rotate-overlay"],
+ "The rotation handle must remain topmost while the action buttons disappear");
 drawn.length=0;renderContext.ui.v7EquipmentTransform=null;renderContext.draw();
-assert.deepEqual(drawn,["net-art","remove-control","size-control"],
- "The selected net must get its action controls back on release");
+assert.deepEqual(drawn,["net-art","remove-control","size-control","rotate-overlay"],
+ "On release, compact net controls return UNDER the always-accessible handle");
 
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
