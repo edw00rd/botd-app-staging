@@ -35,7 +35,7 @@ const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
-  net:{geometry:{length:19.2,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
+  net:{geometry:{length:16,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
   cone:{geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},capabilities:{rotatable:false,resize:"uniform",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
@@ -55,12 +55,12 @@ vm.runInNewContext(modelSource+
 const initial=normContext.v7NormalizeEquipmentList([]);
 assert.equal(initial.length,2,"Fresh play must have two nets");
 const migrated=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:62,y:300,rotation:0,netPreset:"pro"});
-assert.equal(migrated.x,63.2,"Original built-in net should migrate to rink-driven 11ft goal line");
+assert.equal(migrated.x,64.8,"Original built-in net should migrate to rink-driven 11ft goal line");
 const custom=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:82,y:295,rotation:15,netPreset:"pro"});
 assert.equal(custom.x,82,"A user-moved net must never migrate unexpectedly");
 assert.deepEqual(Array.from(initial,n=>n.goalSide).sort(),["left","right"]);
 const left=initial.find(n=>n.goalSide==="left"),right=initial.find(n=>n.goalSide==="right");
-assert.equal(left.x,63.2);assert.equal(left.geometry.width,28.8);assert.equal(left.rotation,0);
+assert.equal(left.x,64.8);assert.equal(left.geometry.width,28.8);assert.equal(left.rotation,0);
 assert.equal(left.netPreset,"pro");assert.equal(left.scale,1);assert.equal(left.capabilities.resize,"none");
 for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.8,4]]){
  const item=normContext.v7NormalizeEquipmentItem({id:name,type:"net",x:500,y:300,netPreset:name,scale:2.5,geometry:{length:110,width:120}});
@@ -69,7 +69,7 @@ for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.
  assert.equal(item.scale,1,"Net resize must be disabled");
  assert.equal(item.capabilities.resize,"none");
 }
-assert.equal(right.x,936.8);assert.equal(right.rotation,180);
+assert.equal(right.x,935.2);assert.equal(right.rotation,180);
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);
@@ -96,7 +96,7 @@ function raySegment(start,direction,maxDistance,a,b){
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const ctx={
   state:{equipment:structuredClone(initial)},v7LocalToWorld:toWorld,v7WorldToLocal:toLocal,v7RotatePoint:rotate,
-  v7NetPostRadius:item=>Math.max(1.8,3.6*(Number(item.geometry?.width)||48)/48),
+  v7NetPostRadius:item=>Math.max(.75,(Number(item.geometry?.width)||28.8)/36),
   v64RaySegmentHit:raySegment,v64GoalCandidate:null,goalResultForShot:null,v64NearestShotSurface:null,
   v64Unit:p=>{const n=Math.hypot(p.x,p.y)||1;return{x:p.x/n,y:p.y/n}},
   v60RoundedRinkPerimeter:()=>[{x:10,y:10},{x:990,y:10},{x:990,y:590},{x:10,y:590},{x:10,y:10}],
@@ -109,7 +109,7 @@ assert.ok(begin>0&&end>begin);
 vm.runInNewContext(app.slice(begin,end),ctx,{timeout:2000});
 const leftGoal=ctx.v64GoalCandidate({x:300,y:300},{x:-1,y:0},400);
 assert.equal(leftGoal?.side,"left");assert.ok(Math.abs(leftGoal.entry.x-72.8)<.01);
-assert.ok(Math.abs(leftGoal.end.x-54.6)<.01);
+assert.ok(Math.abs(leftGoal.end.x-57.8)<.01);
 const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
 assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-927.2)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
@@ -124,7 +124,7 @@ ctx.state.equipment[0].x=500;ctx.state.equipment[0].rotation=90;
 const rotated=ctx.v64GoalCandidate({x:500,y:400},{x:0,y:-1},200);
 assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
-ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=63.2;
+ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=64.8;
 ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
 assert.equal(ctx.v64GoalCandidate({x:300,y:307},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
 assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
