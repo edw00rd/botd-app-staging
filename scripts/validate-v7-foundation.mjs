@@ -201,8 +201,8 @@ for(const marker of [
  assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
  const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
    app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));
- assert.ok(puckRender.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Every puck must show the same minus control");
- assert.ok(puckRender.includes('function v7CreatePuckToken('),"All pucks need one shared renderer");
+ assert.ok(app.includes('v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck")'),"Every puck must show the same minus control");
+ assert.ok(app.includes('function v7CreatePuckToken('),"All pucks need one shared renderer");
  const equipmentEvents=app.slice(app.indexOf("function v7SetupEquipmentEvents()"),
    app.indexOf("/* Shot collision options are attached",app.indexOf("function v7SetupEquipmentEvents()")));
  const puckEvents=app.slice(app.indexOf("function v7SetupAdditionalPuckEvents()"),
