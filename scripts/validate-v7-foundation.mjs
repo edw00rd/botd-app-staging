@@ -33,7 +33,7 @@ for(const legacyMarker of [
   'id="toolbarPlayback"',
 ]) assert.ok(app.includes(legacyMarker),`Legacy clipboard capability missing: ${legacyMarker}`);
 
-const types=["cone","tire","bumper","divider","pad","stick","rebounder","net"];
+const types=["cone","tire","bumper","divider","pad","stick","rebounder","puckPile","net"];
 for(const type of types)assert.ok(new RegExp(`\\b${type}:\\s*\\{`).test(app),`Missing equipment type: ${type}`);
 
 for(const marker of [
@@ -54,7 +54,8 @@ for(const marker of [
 
 /* Multiple pucks are genuine saved puck tokens, never equipment props. */
 const equipmentCatalog=app.slice(app.indexOf("const V7_RINK_OBJECT_TYPES="),app.indexOf("const V7_EQUIPMENT_TYPES="));
-assert.doesNotMatch(equipmentCatalog,/\bpuckPile\s*:/);
+assert.match(equipmentCatalog,/\bpuckPile\s*:/,"Puck pile must return as a rink prop");
+assert.match(equipmentCatalog,/puckPile:[\s\S]*?collidable:false/,"Puck pile cannot block a route");
 assert.doesNotMatch(equipmentCatalog,/\bpuck\s*:/);
 for(const forbidden of ["v7TakePuckFromPile","v7UseSparePuck","v7ObjectQuantity","Take a usable puck","Use as active puck"])
  assert.ok(!app.includes(forbidden),"Legacy puck dispenser/conversion is still present: "+forbidden);
@@ -81,6 +82,37 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  assert.equal(scope.normalize([{id:"bad",x:"oops",y:300}]).length,0);
 }
 
+/* Pile supplies normal pucks, sharing the 50-total limit and every puck action.
+   Grounded pucks do not cast shadows; both types share the same flight model. */
+for(const required of [
+ "function v7DispensePuckFromPile(", "function v7RinkDispensePuckControl(",
+ 'data-v7-dispense-puck', 'v7AddAdditionalPuck(point||(',
+ 'v7DispensePuckFromPile(dispense.dataset.v7DispensePuck)',
+ 'v7RinkDispensePuckControl(selected.id,point)',
+ 'if(flight?.lift>.4)group.append(v7PuckAirShadow(flight.lift))',
+ 'const shadow=v7PuckAirShadow(flight.lift);',
+ 'const filter=phaseOn?glowFilter:"none";',
+ 'if(!interval||interval.kind!=="travel")return null',
+ 'v7RinkRemoveControl(item.id,"additionalPuck"',
+ 'v7RinkRemoveControl(selected.id,"equipment"'
+])assert.ok(app.includes(required),"Missing puck/pile behavior: "+required);
+assert.ok(app.includes('type==="puckPile"'),"The pile must have dedicated artwork");
+assert.ok(!app.includes('const puckShadow=node.classList'),"The legacy default shadow must be removed");
+{
+ const start=app.indexOf("function v7PuckAirShadow("),end=app.indexOf("const renderPuckLayerV682ForV7=",start);
+ assert.ok(start>0&&end>start,"Shared puck flight helpers missing");
+ const ctx={svgEl:(tag,attributes)=>({tag,attributes}),round:(x,n)=>Number(x.toFixed(n)),
+   clamp:(x,a,b)=>Math.max(a,Math.min(b,x))};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.lift=v7PuckLiftAt;this.shadow=v7PuckAirShadow;",ctx,{timeout:2000});
+ assert.equal(ctx.lift(null,2),null,"Stationary puck must not fly");
+ const travel={kind:"travel",motion:"pass",start:1,end:3,clearances:[]};
+ assert.equal(ctx.lift(travel,1),null,"No shadow before pass starts");
+ assert.ok(ctx.lift(travel,2).lift>0,"Pass must lift puck");
+ assert.equal(ctx.lift(travel,3),null,"No shadow after pass finishes");
+ assert.equal(ctx.shadow(10).tag,"ellipse","Flight must draw a shadow");
+ const sauce={...travel,clearances:[{startProgress:.35,endProgress:.65,objectId:"cone"}]};
+ assert.ok(ctx.lift(sauce,2).lift>=ctx.lift(travel,2).lift,"Clearance arc must not lower the puck");
+}
 // No special lightweight puck controller: every puck shares the full Puck Director.
 {
  const section=app.slice(app.indexOf("function renderInspectorBase("),app.indexOf("function setPlayhead(",app.indexOf("function renderInspectorBase(")));
