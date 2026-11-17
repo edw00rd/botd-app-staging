@@ -5886,9 +5886,11 @@ function v7SetPuckStartPosition(id,axis,value){
  puck.x=round(valid.x,2);puck.y=round(valid.y,2);
  syncActiveVariation();renderFrame(ui.playhead);scheduleSave();return true
 }
-function v7NormalizeAdditionalPucks(items){
+function v7MaxAdditionalPucks(visible=state?.primaryPuckVisible!==false){return V7_MAX_PUCKS-(visible?1:0)}
+function v7PuckCount(){return (state.primaryPuckVisible===false?0:1)+(state.additionalPucks?.length||0)}
+function v7NormalizeAdditionalPucks(items,maxCount=V7_MAX_PUCKS-1){
   const ids=new Set();
-  return (Array.isArray(items)?items:[]).slice(0,V7_MAX_PUCKS-1).map(item=>{
+  return (Array.isArray(items)?items:[]).slice(0,maxCount).map(item=>{
     if(!item||!Number.isFinite(Number(item.x))||!Number.isFinite(Number(item.y)))return null;
     const id=String(item.id||uid("puck"));
     if(ids.has(id))return null;
@@ -5902,14 +5904,16 @@ function v7EnsurePlatformState(output){
   output.platform=v7NormalizePlatformMeta(output.platform);
   output.ice=v7NormalizeIce(output.ice);
   output.equipment=v7NormalizeEquipmentList(output.equipment);
-  output.additionalPucks=v7NormalizeAdditionalPucks(output.additionalPucks);
+  output.primaryPuckVisible=output.primaryPuckVisible!==false;
+  output.additionalPucks=v7NormalizeAdditionalPucks(output.additionalPucks,v7MaxAdditionalPucks(output.primaryPuckVisible));
   output.puckGlow=v7NormalizePuckGlow(output.puckGlow);
   v7EnsureSemanticTimeline(output.timeline);
   if(Array.isArray(output.variations)){
     for(const option of output.variations){
       option.ice=v7NormalizeIce(option.ice||output.ice);
       option.equipment=v7NormalizeEquipmentList(option.equipment);
-      option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks);
+      option.primaryPuckVisible=option.primaryPuckVisible!==false;
+      option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks,v7MaxAdditionalPucks(option.primaryPuckVisible));
       v7EnsureSemanticTimeline(option.timeline)
     }
   }
@@ -5926,7 +5930,8 @@ captureVariationFromStateLike=function(source,id,name,sourceRange=null){
   const option=captureVariationV682ForV7(source,id,name,sourceRange);
   option.ice=v7NormalizeIce(source?.ice||state?.ice);
   option.equipment=v7NormalizeEquipmentList(source?.equipment);
-  option.additionalPucks=v7NormalizeAdditionalPucks(source?.additionalPucks);
+  option.primaryPuckVisible=source?.primaryPuckVisible!==false;
+  option.additionalPucks=v7NormalizeAdditionalPucks(source?.additionalPucks,v7MaxAdditionalPucks(option.primaryPuckVisible));
   v7EnsureSemanticTimeline(option.timeline);
   return option
 };
@@ -5935,7 +5940,8 @@ applyVariation=function(option){
   applyVariationV682ForV7(option);
   state.ice=v7NormalizeIce(option?.ice||state?.ice);
   state.equipment=v7NormalizeEquipmentList(option?.equipment);
-  state.additionalPucks=v7NormalizeAdditionalPucks(option?.additionalPucks);
+  state.primaryPuckVisible=option?.primaryPuckVisible!==false;
+  state.additionalPucks=v7NormalizeAdditionalPucks(option?.additionalPucks,v7MaxAdditionalPucks(state.primaryPuckVisible));
   v7EnsureActivePuckSelection();
   v7EnsureSemanticTimeline(state.timeline)
 };
@@ -5946,11 +5952,13 @@ snapshot=function(){
   data.platform=v7NormalizePlatformMeta(state.platform);
   data.ice=v7NormalizeIce(state.ice);
   data.equipment=v7NormalizeEquipmentList(state.equipment);
-  data.additionalPucks=v7NormalizeAdditionalPucks(state.additionalPucks);
+  data.primaryPuckVisible=state.primaryPuckVisible!==false;
+  data.additionalPucks=v7NormalizeAdditionalPucks(state.additionalPucks,v7MaxAdditionalPucks(data.primaryPuckVisible));
   if(Array.isArray(data.variations))for(const option of data.variations){
     option.ice=v7NormalizeIce(option.ice||state.ice);
     option.equipment=v7NormalizeEquipmentList(option.equipment);
-    option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks)
+    option.primaryPuckVisible=option.primaryPuckVisible!==false;
+    option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks,v7MaxAdditionalPucks(option.primaryPuckVisible))
   }
   return JSON.stringify(data)
 };
@@ -5960,11 +5968,13 @@ snapshotPlay=function(name){
   play.platform=v7NormalizePlatformMeta(state.platform);
   play.ice=v7NormalizeIce(state.ice);
   play.equipment=v7NormalizeEquipmentList(state.equipment);
-  play.additionalPucks=v7NormalizeAdditionalPucks(state.additionalPucks);
+  play.primaryPuckVisible=state.primaryPuckVisible!==false;
+  play.additionalPucks=v7NormalizeAdditionalPucks(state.additionalPucks,v7MaxAdditionalPucks(play.primaryPuckVisible));
   if(Array.isArray(play.variations))for(const option of play.variations){
     option.ice=v7NormalizeIce(option.ice||state.ice);
     option.equipment=v7NormalizeEquipmentList(option.equipment);
-    option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks)
+    option.primaryPuckVisible=option.primaryPuckVisible!==false;
+    option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks,v7MaxAdditionalPucks(option.primaryPuckVisible))
   }
   v7EnsureSemanticTimeline(play.timeline);
   return play
@@ -5975,7 +5985,9 @@ loadPlay=function(play){
   state.platform=v7NormalizePlatformMeta(play?.platform||state.platform);
   state.ice=v7NormalizeIce(play?.ice||state.ice);
   state.equipment=v7NormalizeEquipmentList(play?.equipment||state.equipment);
-  state.additionalPucks=v7NormalizeAdditionalPucks(play?.additionalPucks);
+  const loadedVariation=Array.isArray(play?.variations)?play.variations.find(v=>v.id===state.activeVariationId):null;
+  state.primaryPuckVisible=(loadedVariation?.primaryPuckVisible??play?.primaryPuckVisible)!==false;
+  state.additionalPucks=v7NormalizeAdditionalPucks(loadedVariation?.additionalPucks??play?.additionalPucks,v7MaxAdditionalPucks(state.primaryPuckVisible));
   v7EnsureActivePuckSelection();
   v7IceSyncGoalObjects();
   v7EnsurePlatformState(state);
@@ -5994,7 +6006,7 @@ function v7StopPuckDiscovery(){
 }
 function v7PuckDiscoveryEligible(){
  const c=state?.puckStart;
- return !ui.playing&&ui.playhead<.001&&ui.selectedType===null&&
+ return state.primaryPuckVisible!==false&&!ui.playing&&ui.playhead<.001&&ui.selectedType===null&&
   !!c&&Math.abs(c.x-500)<.001&&Math.abs(c.y-300)<.001&&
   Object.keys(state.onIce||{}).length===0&&
   !(state.timeline?.movements?.length)&&!(activeTake()?.events?.length)
@@ -6006,7 +6018,7 @@ function v7SchedulePuckDiscovery(){
   v7PuckDiscoveryPending=0;
   if(sequence!==v7PuckDiscoverySequence||!v7PuckDiscoveryEligible())return;
   v7PuckDiscoveryActive=true;
-  v7ScalePuckArt();
+  renderFrame(ui.playhead);
   v7PuckDiscoveryStopTimer=setTimeout(()=>{
    if(sequence===v7PuckDiscoverySequence)v7StopPuckDiscovery()
   },3600)
@@ -6020,6 +6032,7 @@ newBoard=function(){
   state.ice=v7NormalizeIce({profile:"nhl"});
   state.equipment=v7NormalizeEquipmentList([]);
   state.additionalPucks=[];
+  state.primaryPuckVisible=true;
   state.puckStart={x:500,y:300};
   ui.v7ActivePuckId="puck";
   v7CancelAdditionalPuckPlacement();
@@ -6477,7 +6490,7 @@ function v7UpdateGoalLights(){
  if(v7GoalFlashes.size)v7GoalLightAnimationFrame=requestAnimationFrame(v7UpdateGoalLights)
 }
 function v7SyncGoalNetOccupancy(puckPosition){
- const positions=Array.isArray(puckPosition)?puckPosition:[puckPosition];
+ const positions=(Array.isArray(puckPosition)?puckPosition:[puckPosition]).filter(p=>p&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)));
  const occupied=new Set(v7GoalNets().filter(net=>positions.some(pos=>v7PuckInsideNet(net,pos))).map(net=>net.id));
  for(const id of [...v7GoalFlashes.keys()])if(!occupied.has(id))v7GoalFlashes.delete(id);
  for(const id of occupied)if(!v7GoalFlashes.has(id))v7GoalFlashes.set(id,true);
@@ -6491,14 +6504,14 @@ function v7SyncGoalNetOccupancy(puckPosition){
 function v7TriggerGoalLight(_netId){
  // Preserve the old playback callback, but don't allow it to create
  // a flash when the puck isn't actually inside a net.
- v7SyncGoalNetOccupancy([puckStateAt(ui.playhead,buildPuckTimeline()).pos,...(state.additionalPucks||[]).map(item=>puckStateAt(ui.playhead,buildPuckTimeline(item.id)).pos)])
+ v7SyncGoalNetOccupancy([...(state.primaryPuckVisible===false?[]:[puckStateAt(ui.playhead,buildPuckTimeline()).pos]),...(state.additionalPucks||[]).map(item=>puckStateAt(ui.playhead,buildPuckTimeline(item.id)).pos)])
 }
 /* V7 equipment is edited directly on ice, not via a hidden inspector. */
 function v7RinkRemoveControl(id,kind,point={x:28,y:-27}){
  const node=svgEl("g",{class:"v7-rink-remove",
-  [kind==="additionalPuck"?"data-v7-remove-additional-puck":"data-v7-remove-equipment"]:id,
+  [kind==="primaryPuck"?"data-v7-remove-primary-puck":kind==="additionalPuck"?"data-v7-remove-additional-puck":"data-v7-remove-equipment"]:id,
   role:"button",tabindex:"0",
-  "aria-label":kind==="additionalPuck"?"Remove puck from ice":"Remove rink equipment",
+  "aria-label":kind==="primaryPuck"||kind==="additionalPuck"?"Remove puck from ice":"Remove rink equipment",
   transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",style:"cursor:pointer"});
  node.append(svgEl("circle",{r:14,fill:"#b42332",stroke:"#fff","stroke-width":2.2,"vector-effect":"non-scaling-stroke","pointer-events":"all"}));
  node.append(svgEl("path",{d:"M-6 0H6",fill:"none",stroke:"#fff","stroke-width":2.8,"stroke-linecap":"round","pointer-events":"none"}));
@@ -6717,7 +6730,13 @@ renderObjectLayer=function(time){renderObjectLayerV682ForV7(time);v7RenderEquipm
 
 
 function v7AdditionalPuckById(id){return (state.additionalPucks||[]).find(item=>item.id===id)||null}
-function v7EnsureActivePuckSelection(){if(ui.v7ActivePuckId!=="puck"&&!v7AdditionalPuckById(ui.v7ActivePuckId))ui.v7ActivePuckId="puck"}
+function v7EnsureActivePuckSelection(){
+  if(ui.v7ActivePuckId!=="puck"&&!v7AdditionalPuckById(ui.v7ActivePuckId))
+    ui.v7ActivePuckId=state.primaryPuckVisible===false?(state.additionalPucks?.[0]?.id||null):"puck";
+  if(ui.v7ActivePuckId==="puck"&&state.primaryPuckVisible===false)
+    ui.v7ActivePuckId=state.additionalPucks?.[0]?.id||null;
+  if(ui.selectedType==="puck"&&state.primaryPuckVisible===false){ui.selectedType=null;ui.selectedId=null}
+}
 
 /* The old puck's events have no puckId; new pucks carry a stable id through
    route editing, alternate takes, save/load, undo and cloud persistence. */
@@ -6733,6 +6752,7 @@ addPuckEvent=function(event,opts){
 };
 const v7OriginalSelectItem=selectItem;
 selectItem=function(type,id,open=true){
+ if(type==="puck"&&state.primaryPuckVisible===false)return;
  if(type==="puck")ui.v7ActivePuckId="puck";
  else if(type==="additionalPuck"&&v7AdditionalPuckById(id))ui.v7ActivePuckId=id;
  else if(type==="event")ui.v7ActivePuckId=activeTake().events.find(ev=>ev.id===id)?.puckId||"puck";
@@ -6771,7 +6791,7 @@ function v7PuckActionAnchor(){
 
 function v7RefreshAddPuckButton(){
  const btn=document.querySelector("#v7EquipmentDialog [data-v7-add-puck]");if(!btn)return;
- const count=1+(state.additionalPucks?.length||0),full=count>=V7_MAX_PUCKS;
+ const count=v7PuckCount(),full=count>=V7_MAX_PUCKS;
  btn.disabled=full;
  btn.title="Add a puck ("+count+"/"+V7_MAX_PUCKS+" pucks on ice)";
  btn.setAttribute("aria-label",btn.title);
@@ -6782,30 +6802,30 @@ function v7CancelAdditionalPuckPlacement(){
  v7RefreshAddPuckButton()
 }
 function v7BeginAdditionalPuckPlacement(){
- if((state.additionalPucks?.length||0)>=V7_MAX_PUCKS-1)return toast("Maximum of 50 total pucks on the ice.");
+ if(v7PuckCount()>=V7_MAX_PUCKS)return toast("Maximum of 50 total pucks on the ice.");
  v7CancelEquipmentPlacement();
  ui.v7AdditionalPuckPlacement=true;
  v7RefreshAddPuckButton();
  toast("Tap the ice to place a puck.",2400)
 }
 function v7AddAdditionalPuck(point){
- if((state.additionalPucks?.length||0)>=V7_MAX_PUCKS-1){
+ if(v7PuckCount()>=V7_MAX_PUCKS){
   v7CancelAdditionalPuckPlacement();toast("Maximum of 50 total pucks on the ice.");return null
  }
  const p=v59ClampVisiblePoint?v59ClampVisiblePoint(point):clampRinkPoint(point);
  pushHistory();
  const puck={id:uid("puck"),x:round(p.x,2),y:round(p.y,2)};
- state.additionalPucks=v7NormalizeAdditionalPucks([...(state.additionalPucks||[]),puck]);
+ state.additionalPucks=v7NormalizeAdditionalPucks([...(state.additionalPucks||[]),puck],v7MaxAdditionalPucks());
  ui.selectedType="additionalPuck";ui.selectedId=puck.id;ui.v7ActivePuckId=puck.id;ui.v60DirectSelection=true;
  v7CancelAdditionalPuckPlacement();syncActiveVariation();renderAll();scheduleSave();
  return puck
 }
 function v7DispensePuckFromPile(id){
   const pile=v7EquipmentById(id);if(pile?.type!=="puckPile")return null;
-  if((state.additionalPucks?.length||0)>=V7_MAX_PUCKS-1){
+  if(v7PuckCount()>=V7_MAX_PUCKS){
     toast("Maximum of 50 total pucks on the ice.");return null
   }
-  const occupied=[state.puckStart,...(state.additionalPucks||[])];let point=null;
+  const occupied=[...(state.primaryPuckVisible===false?[]:[state.puckStart]),...(state.additionalPucks||[])];let point=null;
   for(let ring=0;ring<8&&!point;ring++){
     const distance=22+ring*13;
     for(let step=0;step<16;step++){
@@ -6818,6 +6838,17 @@ function v7DispensePuckFromPile(id){
     v59ClampVisiblePoint({x:pile.x+28,y:pile.y+20}):
     clampRinkPoint({x:pile.x+28,y:pile.y+20})))
 }
+function v7DeletePrimaryPuck(){
+ if(state.primaryPuckVisible===false)return false;
+ pushHistory();state.primaryPuckVisible=false;
+ // Remove this puck's saved motion, without affecting other pucks.
+ for(const take of state.timeline?.puckTakes||[])
+   take.events=take.events.filter(event=>event.puckId&&event.puckId!=="puck");
+ v7StopPuckDiscovery();ui.dragPuck=null;ui.pendingTap=null;ui.v60Mode=null;ui.targetMode=null;
+ if(ui.v7ActivePuckId==="puck")ui.v7ActivePuckId=state.additionalPucks?.[0]?.id||null;
+ if(ui.selectedType==="puck"){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
+ syncActiveVariation();renderAll();scheduleSave();return true
+}
 function v7DeleteAdditionalPuck(id){
  if(!v7AdditionalPuckById(id))return false;
  pushHistory();state.additionalPucks=state.additionalPucks.filter(p=>p.id!==id);
@@ -6826,34 +6857,39 @@ function v7DeleteAdditionalPuck(id){
  if(ui.selectedType==="additionalPuck"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
  syncActiveVariation();renderAll();scheduleSave();return true
 }
+/* Every puck uses the same art, selection, hit area and on-ice minus control. */
+function v7CreatePuckToken(id,index,pos,ps,time,timeline){
+ const primary=id==="puck",m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(m.puckRadius,2);
+ const attrs=primary?{"data-puck":"1"}:{"data-v7-additional-puck-id":id};
+ const group=svgEl("g",{...attrs,class:"puck-disc",role:"button",tabindex:"0",
+   "aria-label":"Puck "+(index+1),transform:"translate("+round(pos.x,2)+" "+round(pos.y,2)+")",style:"cursor:grab"});
+ setGlowStyle(group,v7PuckGlowById(id),"#39D8FF");
+ group.append(svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"}));
+ const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
+ const flight=v7PuckLiftAt(interval,time),disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
+ disc.dataset.v7PuckArt="1";
+ disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
+ disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
+ if(primary&&v7PuckDiscoveryActive&&v7PuckDiscoveryEligible()){
+   disc.classList.add("v7-puck-discovery-art");
+   group.append(svgEl("circle",{class:"v7-puck-discovery-halo",r:14,fill:"none",stroke:"#21d4ff","stroke-width":2.4,"pointer-events":"none"}))
+ }
+ if(flight?.lift>.4){
+   const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
+     transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
+   raised.append(disc);group.append(raised)
+ }else group.append(disc);
+ const selected=primary?ui.selectedType==="puck":ui.selectedType==="additionalPuck"&&ui.selectedId===id;
+ if(selected){group.append(v7PuckSelectionRing(r));group.append(v7RinkRemoveControl(id,primary?"primaryPuck":"additionalPuck"))}
+ return group
+}
 function v7RenderAdditionalPucks(time=ui.playhead){
-  const layer=$("#objectLayer");if(!layer)return;
-  const metrics=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale),r=round(metrics.puckRadius,2);
-  for(const [index,item] of (state.additionalPucks||[]).entries()){
-    const timeline=buildPuckTimeline(item.id),ps=puckStateAt(time,timeline);
-    const pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:item;
-    const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
-    const flight=v7PuckLiftAt(interval,time);
-    const group=svgEl("g",{"data-v7-additional-puck-id":item.id,role:"button",tabindex:"0",
-      "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y,2)+")",style:"cursor:grab"});
-    setGlowStyle(group,item.glow,"#39D8FF");
-    group.append(svgEl("circle",{r:round(metrics.puckHitRadius,2),fill:"transparent","pointer-events":"all"}));
-    const disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
-    disc.dataset.v7PuckArt="1";
-    disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
-    disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
-    if(flight?.lift>.4){
-      const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
-        transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
-      raised.append(disc);group.append(raised)
-    }else group.append(disc);
-    if(ui.selectedType==="additionalPuck"&&ui.selectedId===item.id){
-      group.append(v7PuckSelectionRing(r));
-      group.append(v7RinkRemoveControl(item.id,"additionalPuck"))
-    }
-    layer.append(group)
-  }
-  v7RefreshAddPuckButton()
+ const layer=$("#objectLayer");if(!layer)return;
+ for(const [index,puck] of (state.additionalPucks||[]).entries()){
+   const timeline=buildPuckTimeline(puck.id),ps=puckStateAt(time,timeline),pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:puck;
+   layer.append(v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline))
+ }
+ v7RefreshAddPuckButton()
 }
 /* Reuse original route geometry and timeline styling for every extra puck. */
 const v7PrimaryRenderRoutes=renderRoutes;
@@ -6881,6 +6917,7 @@ const v7PrimaryRenderTimeline=renderTimeline;
 renderTimeline=function(){
  const result=v7PrimaryRenderTimeline(),grid=$("#timelineGrid"),main=grid?.querySelector("[data-select-puck]")?.closest(".track-row");
  if(!main)return result;
+ main.style.display=state.primaryPuckVisible===false?"none":"";
  let anchor=main;const secW=timelinePx();
  for(const [i,puck] of (state.additionalPucks||[]).entries()){
   const pt=buildPuckTimeline(puck.id),row=document.createElement("div");
@@ -6917,6 +6954,11 @@ function v7SetupAdditionalPuckEvents(){
  $("#timelineGrid")?.addEventListener("pointerdown",v7SelectAdditionalPuckFromTrack,true);
  svg.addEventListener("pointerdown",event=>{
   if(event.button!==undefined&&event.button!==0)return;
+  const removePrimary=event.target.closest?.("[data-v7-remove-primary-puck]");
+  if(removePrimary){
+   event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
+   v7DeletePrimaryPuck();return
+  }
   const remove=event.target.closest?.("[data-v7-remove-additional-puck]");
   if(remove){
    event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
@@ -7174,13 +7216,15 @@ function v7SetupEquipmentEvents(){
     if(event.key!=="Enter"&&event.key!==" ")return;
     const eq=event.target.closest?.("[data-v7-remove-equipment]");
     const puck=event.target.closest?.("[data-v7-remove-additional-puck]");
+    const primary=event.target.closest?.("[data-v7-remove-primary-puck]");
     const reset=event.target.closest?.("[data-v7-reset-goal]");
     const size=event.target.closest?.("[data-v7-net-size]");
     const dispense=event.target.closest?.("[data-v7-dispense-puck]");
-    if(!eq&&!puck&&!reset&&!size&&!dispense)return;
+    if(!eq&&!puck&&!primary&&!reset&&!size&&!dispense)return;
     event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
     if(eq)v7DeleteEquipment(eq.dataset.v7RemoveEquipment);
     else if(puck)v7DeleteAdditionalPuck(puck.dataset.v7RemoveAdditionalPuck);
+    else if(primary)v7DeletePrimaryPuck();
     else if(reset)v7ResetGoalNet(reset.dataset.v7ResetGoal);
     else if(dispense)v7DispensePuckFromPile(dispense.dataset.v7DispensePuck);
     else v7CycleNetSize(size.dataset.v7NetSize)
@@ -7299,18 +7343,14 @@ function v7PuckLiftAt(interval,time){
   }
   return best.lift>.4?best:null
 }
-const renderPuckLayerV682ForV7=renderPuckLayer;
 renderPuckLayer=function(time,timeline){
-  const result=renderPuckLayerV682ForV7(time,timeline);
-  const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
-  const flight=v7PuckLiftAt(interval,time),outer=$("#puckLayer [data-puck]");
-  if(!flight||flight.lift<.4||!outer){v7ScalePuckArt();return result}
-  const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
-    transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
-  while(outer.firstChild)raised.append(outer.firstChild);
-  outer.append(raised);
-  v7ScalePuckArt();
-  return result
+ const layer=$("#puckLayer");layer.replaceChildren();
+ if(state.primaryPuckVisible===false)return{pos:null,mode:"hidden",hidden:true};
+ const ps=puckStateAt(time,timeline);
+ const pos=ps.pos&&Number.isFinite(ps.pos.x)&&Number.isFinite(ps.pos.y)?ps.pos:ui.lastValidPuckPos||state.puckStart;
+ if(Number.isFinite(Number(pos.x))&&Number.isFinite(Number(pos.y)))ui.lastValidPuckPos={x:pos.x,y:pos.y};
+ layer.append(v7CreatePuckToken("puck",0,pos,ps,time,timeline));
+ return {...ps,pos}
 };
 
 /* Vibration API is optional (typically Android); never make editor behavior
@@ -7319,7 +7359,7 @@ const renderFrameV682ForV7=renderFrame;
 renderFrame=function(time=ui.playhead){
   v7ApplyCreaseProfile();
   const output=renderFrameV682ForV7(time);
-  v7SyncGoalNetOccupancy([output?.ps?.pos,...(state.additionalPucks||[]).map(item=>puckStateAt(time,buildPuckTimeline(item.id)).pos)]);
+  v7SyncGoalNetOccupancy([...(state.primaryPuckVisible===false?[]:[output?.ps?.pos]),...(state.additionalPucks||[]).map(item=>puckStateAt(time,buildPuckTimeline(item.id)).pos)]);
   const now=Number(time),previous=Number(ui.v7PreviousHapticFrame);
   if(ui.playing&&Number.isFinite(previous)&&now>=previous){
     for(const travel of output?.pt?.intervals||[]){
