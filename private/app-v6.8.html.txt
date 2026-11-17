@@ -5872,8 +5872,10 @@ function v7SelectedPuckId(){
 }
 function v7SelectedPuckGlow(){return v7PuckGlowById(v7SelectedPuckId())}
 function v7SelectExistingPuck(id){
- if(id!=="puck"&&!v7AdditionalPuckById(id))id="puck";
- ui.v7ActivePuckId=id;ui.selectedType=id==="puck"?"puck":"additionalPuck";ui.selectedId=id;
+ if(id==="puck"&&state.primaryPuckVisible===false)id=state.additionalPucks?.[0]?.id||null;
+ if(id!=="puck"&&!v7AdditionalPuckById(id))
+   id=state.primaryPuckVisible===false?(state.additionalPucks?.[0]?.id||null):"puck";
+ ui.v7ActivePuckId=id;ui.selectedType=id?(id==="puck"?"puck":"additionalPuck"):null;ui.selectedId=id;
  return id
 }
 function v7PuckStartPosition(id){
@@ -6761,7 +6763,7 @@ selectItem=function(type,id,open=true){
 
 const v7OriginalTrackSelection=v67SetTrackSelection;
 v67SetTrackSelection=function(kind,id){
- if(kind==="puck")ui.v7ActivePuckId="puck";
+ if(kind==="puck"){if(state.primaryPuckVisible===false)return;ui.v7ActivePuckId="puck";}
  return v7OriginalTrackSelection(kind,id)
 };
 const v7RestoreSnapshotOriginal=restoreSnapshot;
@@ -6853,7 +6855,7 @@ function v7DeleteAdditionalPuck(id){
  if(!v7AdditionalPuckById(id))return false;
  pushHistory();state.additionalPucks=state.additionalPucks.filter(p=>p.id!==id);
  for(const take of state.timeline?.puckTakes||[])take.events=take.events.filter(ev=>ev.puckId!==id);
- if(ui.v7ActivePuckId===id)ui.v7ActivePuckId="puck";
+ if(ui.v7ActivePuckId===id)ui.v7ActivePuckId=state.primaryPuckVisible===false?(state.additionalPucks?.[0]?.id||null):"puck";
  if(ui.selectedType==="additionalPuck"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
  syncActiveVariation();renderAll();scheduleSave();return true
 }
