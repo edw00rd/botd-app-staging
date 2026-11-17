@@ -28,7 +28,7 @@ assert.ok(visual.skaterDiameter<goalWidth&&visual.goalieWidth<goalWidth);
 assert.ok(visual.playerHitRadius>visual.skaterDiameter/2&&visual.puckHitRadius>visual.puckRadius);
 assert.ok(app.includes("v7RenderEquipment();v7RenderAdditionalPucks(time);v7ScalePlayerSymbols()"),
  "Rink renderer must draw equipment, individual added pucks, and correctly scaled player symbols");
-assert.ok(app.includes("v7ScalePuckArt();return result")&&app.includes("outer.append(raised);\n  v7ScalePuckArt()"),"Puck flight art must not append a shadow");
+assert.ok(app.includes('layer.append(v7CreatePuckToken("puck",0,pos,ps,time,timeline))')&&app.includes('v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline)'),"All pucks must share the same shadow-free renderer");
 assert.ok(app.includes(".v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]"));
 
 const round=(v,places=2)=>Math.round(v*10**places)/10**places;
