@@ -1023,7 +1023,6 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
           <marker id="routeArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="context-stroke"/></marker>
           <marker id="passArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#111315"/></marker>
           <marker id="shotArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#111315"/><path d="M0 0 L10 5 L0 5 Z" fill="#e32636"/></marker>
-          <filter id="puckShadow" x="-100%" y="-100%" width="300%" height="300%"><feDropShadow dx="2" dy="4" stdDeviation="2" flood-color="#07101a" flood-opacity=".5"/></filter>
         </defs>
         <g id="fullRink">
           <rect x="10" y="10" width="980" height="580" rx="82" fill="url(#iceGrad)" stroke="#607f91" stroke-width="4"/><rect x="10" y="10" width="980" height="580" rx="82" fill="url(#iceTex)" clip-path="url(#fullClip)"/>
@@ -1699,7 +1698,7 @@ function renderObjectLayer(time){
 function renderPuckLayer(time,puckTimeline){
   const layer=$("#puckLayer");layer.innerHTML="";const ps=puckStateAt(time,puckTimeline);let pos=ps.pos;if(!pos||!Number.isFinite(pos.x)||!Number.isFinite(pos.y))pos=ui.lastValidPuckPos||state.puckStart;else ui.lastValidPuckPos={x:pos.x,y:pos.y};
   const outer=svgEl("g",{"data-puck":"1",transform:`translate(${round(pos.x,2)} ${round(pos.y,2)})`,class:"puck-disc",role:"button",tabindex:"0","aria-label":t("puck")});setGlowStyle(outer,state.puckGlow,"#39D8FF");
-  const spinner=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});spinner.append(svgEl("ellipse",{cx:0,cy:2,rx:11,ry:6,fill:"#07090b",stroke:"#5f6970","stroke-width":2,filter:"url(#puckShadow)"}));spinner.append(svgEl("path",{d:"M-7 0Q0-4 7 0",fill:"none",stroke:"#a6afb5","stroke-width":1.4,opacity:.7}));outer.append(spinner);
+  const spinner=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});spinner.append(svgEl("ellipse",{cx:0,cy:2,rx:11,ry:6,fill:"#07090b",stroke:"#5f6970","stroke-width":2}));spinner.append(svgEl("path",{d:"M-7 0Q0-4 7 0",fill:"none",stroke:"#a6afb5","stroke-width":1.4,opacity:.7}));outer.append(spinner);
   if(ui.selectedType==="puck")outer.append(svgEl("ellipse",{class:"selection-ring puck-select",cx:0,cy:1,rx:20,ry:15}));layer.append(outer);return{...ps,pos}
 }
 function renderDrawing(){const layer=$("#drawingLayer");layer.innerHTML="";for(const stroke of state.drawings){if(!stroke.points?.length)continue;layer.append(svgEl("path",{d:pathD(stroke.points),fill:"none",stroke:stroke.color,"stroke-width":stroke.width,"stroke-linecap":"round","stroke-linejoin":"round",opacity:stroke.opacity??1}))}}
@@ -2556,7 +2555,7 @@ renderPuckLayer=function(time,puckTimeline){
   if(!pos||!Number.isFinite(pos.x)||!Number.isFinite(pos.y))pos=ui.lastValidPuckPos||state.puckStart;else ui.lastValidPuckPos={x:pos.x,y:pos.y};
   const outer=svgEl("g",{"data-puck":"1",transform:`translate(${round(pos.x,2)} ${round(pos.y,2)})`,class:"puck-disc",role:"button",tabindex:"0","aria-label":t("puck")});setGlowStyle(outer,state.puckGlow,"#39D8FF");
   const spinner=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
-  spinner.append(svgEl("rect",{x:-13,y:-5,width:26,height:11,rx:2.4,fill:"#07090b",stroke:"#424b51","stroke-width":1.8,filter:"url(#puckShadow)"}));
+  spinner.append(svgEl("rect",{x:-13,y:-5,width:26,height:11,rx:2.4,fill:"#07090b",stroke:"#424b51","stroke-width":1.8}));
   spinner.append(svgEl("rect",{x:-10.5,y:-3.2,width:21,height:2.5,rx:1.1,fill:"#1b2024",opacity:.9}));
   spinner.append(svgEl("line",{x1:-10,y1:2.8,x2:10,y2:2.8,stroke:"#5c666d","stroke-width":1.2,opacity:.7}));outer.append(spinner);
   if(ui.selectedType==="puck")outer.append(svgEl("rect",{class:"selection-ring puck-select",x:-23,y:-17,width:46,height:34,rx:9}));layer.append(outer);return{...ps,pos}
@@ -6839,7 +6838,6 @@ function v7RenderAdditionalPucks(time=ui.playhead){
       "aria-label":"Puck "+(index+2),transform:"translate("+round(pos.x,2)+" "+round(pos.y,2)+")",style:"cursor:grab"});
     setGlowStyle(group,item.glow,"#39D8FF");
     group.append(svgEl("circle",{r:round(metrics.puckHitRadius,2),fill:"transparent","pointer-events":"all"}));
-    if(flight?.lift>.4)group.append(v7PuckAirShadow(flight.lift));
     const disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
     disc.dataset.v7PuckArt="1";
     disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
@@ -7282,11 +7280,7 @@ v60CommitShot=function(){
 
 /* Lift the puck only while it visually crosses a bypassed object; the puck
    retains its original horizontal position and original shot route. */
-function v7PuckAirShadow(lift){
-  return svgEl("ellipse",{cx:2,cy:4,rx:round(6+lift*.22,2),ry:round(2.8+lift*.08,2),
-    fill:"#17232a",opacity:round(clamp(.24-lift*.004,.1,.24),3),"pointer-events":"none"})
-}
-/* Every puck lifts and casts a shadow only during pass or shot travel. */
+/* A puck can animate during a pass/shot, but never creates a drop shadow. */
 function v7PuckLiftAt(interval,time){
   if(!interval||interval.kind!=="travel")return null;
   const start=Number(interval.start),end=Number(interval.end),duration=end-start;
@@ -7311,11 +7305,10 @@ renderPuckLayer=function(time,timeline){
   const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
   const flight=v7PuckLiftAt(interval,time),outer=$("#puckLayer [data-puck]");
   if(!flight||flight.lift<.4||!outer){v7ScalePuckArt();return result}
-  const shadow=v7PuckAirShadow(flight.lift);
   const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
     transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
   while(outer.firstChild)raised.append(outer.firstChild);
-  outer.append(shadow,raised);
+  outer.append(raised);
   v7ScalePuckArt();
   return result
 };
