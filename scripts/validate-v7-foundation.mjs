@@ -82,36 +82,37 @@ assert.ok(app.includes('v7SchedulePuckDiscovery()'),"New puck discovery wobble m
  assert.equal(scope.normalize([{id:"bad",x:"oops",y:300}]).length,0);
 }
 
-/* Pile supplies normal pucks, sharing the 50-total limit and every puck action.
-   Grounded pucks do not cast shadows; both types share the same flight model. */
+/* Pile supplies normal pucks; every puck remains shadow-free on the ice
+   and in flight. The existing lift animation does not create a shadow. */
 for(const required of [
  "function v7DispensePuckFromPile(", "function v7RinkDispensePuckControl(",
  'data-v7-dispense-puck', 'v7AddAdditionalPuck(point||(',
  'v7DispensePuckFromPile(dispense.dataset.v7DispensePuck)',
  'v7RinkDispensePuckControl(selected.id,point)',
- 'if(flight?.lift>.4)group.append(v7PuckAirShadow(flight.lift))',
- 'const shadow=v7PuckAirShadow(flight.lift);',
  'const filter=phaseOn?glowFilter:"none";',
  'if(!interval||interval.kind!=="travel")return null',
  'v7RinkRemoveControl(item.id,"additionalPuck"',
- 'v7RinkRemoveControl(selected.id,"equipment"'
+ 'v7RinkRemoveControl(selected.id,"equipment"',
+ 'outer.append(raised);'
 ])assert.ok(app.includes(required),"Missing puck/pile behavior: "+required);
-assert.ok(app.includes('type==="puckPile"'),"The pile must have dedicated artwork");
-assert.ok(!app.includes('const puckShadow=node.classList'),"The legacy default shadow must be removed");
+assert.ok(app.includes('type==="puckPile"'),"The pile must have artwork");
+assert.ok(!app.includes('puckShadow'),"No puck may retain a legacy shadow filter");
+assert.ok(!app.includes('v7PuckAirShadow'),"No puck may create a shadow in flight");
+const extraPucks=app.slice(app.indexOf('function v7RenderAdditionalPucks('),
+ app.indexOf('/* Reuse original route geometry',app.indexOf('function v7RenderAdditionalPucks(')));
+assert.ok(!extraPucks.includes('group.append(v7PuckAirShadow'),"Additional pucks must remain shadow-free");
 {
- const start=app.indexOf("function v7PuckAirShadow("),end=app.indexOf("const renderPuckLayerV682ForV7=",start);
- assert.ok(start>0&&end>start,"Shared puck flight helpers missing");
- const ctx={svgEl:(tag,attributes)=>({tag,attributes}),round:(x,n)=>Number(x.toFixed(n)),
-   clamp:(x,a,b)=>Math.max(a,Math.min(b,x))};
- vm.runInNewContext(app.slice(start,end)+"\nthis.lift=v7PuckLiftAt;this.shadow=v7PuckAirShadow;",ctx,{timeout:2000});
+ const start=app.indexOf("function v7PuckLiftAt("),end=app.indexOf("const renderPuckLayerV682ForV7=",start);
+ assert.ok(start>0&&end>start,"Shared puck flight helper missing");
+ const ctx={clamp:(x,a,b)=>Math.max(a,Math.min(b,x))};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.lift=v7PuckLiftAt;",ctx,{timeout:2000});
  assert.equal(ctx.lift(null,2),null,"Stationary puck must not fly");
  const travel={kind:"travel",motion:"pass",start:1,end:3,clearances:[]};
- assert.equal(ctx.lift(travel,1),null,"No shadow before pass starts");
- assert.ok(ctx.lift(travel,2).lift>0,"Pass must lift puck");
- assert.equal(ctx.lift(travel,3),null,"No shadow after pass finishes");
- assert.equal(ctx.shadow(10).tag,"ellipse","Flight must draw a shadow");
+ assert.equal(ctx.lift(travel,1),null,"No flight before pass starts");
+ assert.ok(ctx.lift(travel,2).lift>0,"Pass can retain its lift effect");
+ assert.equal(ctx.lift(travel,3),null,"No flight after pass finishes");
  const sauce={...travel,clearances:[{startProgress:.35,endProgress:.65,objectId:"cone"}]};
- assert.ok(ctx.lift(sauce,2).lift>=ctx.lift(travel,2).lift,"Clearance arc must not lower the puck");
+ assert.ok(ctx.lift(sauce,2).lift>=ctx.lift(travel,2).lift,"Clearance arc still works");
 }
 // No special lightweight puck controller: every puck shares the full Puck Director.
 {
