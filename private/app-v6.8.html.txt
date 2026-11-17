@@ -5668,7 +5668,7 @@ const V7_NET_SIZES=Object.freeze({
 function v7NetDimensions(preset="pro"){
   const spec=V7_NET_SIZES[preset]||V7_NET_SIZES.pro;
   const ftScale=typeof state!=="undefined"&&state?.ice?v7IceGeometry(state.ice).scale:4.8;
-  return{length:round(ftScale*spec.widthFeet*40/72,2),width:round(ftScale*spec.widthFeet,2),heightFeet:spec.heightFeet}
+  return{length:round(ftScale*spec.widthFeet*44/72,2),width:round(ftScale*spec.widthFeet,2),heightFeet:spec.heightFeet}
 }
 function v7NetPostRadius(item){return Math.max(.75,(Number(item.geometry?.width)||28.8)/36)}
 const V7_PUCK_RADIUS=2.8;
@@ -5715,7 +5715,7 @@ const V7_RINK_OBJECT_TYPES=Object.freeze({
   },
   net:{
     label:"Extra net",short:"NET",shape:"net",
-    geometry:{length:16,width:28.8,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
+    geometry:{length:17.6,width:28.8,heightFeet:4},physics:{collidable:true,response:"stop",restitution:0},
     capabilities:{rotatable:true,resize:"none",puckSource:false}
   }
 });
@@ -6549,28 +6549,43 @@ function v7RinkNetSizeControl(id,point){
   "font-size":16,"font-weight":"900","pointer-events":"none"});
  symbol.textContent="⇆";node.append(symbol);return node
 }
-/* Reference top-down goal plan: 72in clear mouth, 88in overall width,
-   40in depth. One curved silhouette is scaled for all 3 goal presets. */
+/* Approved NHL-style top-down goal artwork. Same silhouette for all three
+   presets: 72in clear mouth, 44in depth, 20in curved rear corners and a
+   shorter, flat rear crown. All dimensions scale from the goal opening.
+   +local X faces the ice; -local X is the rounded rear of the goal. */
 function v7NetPlanGeometry(item){
- const opening=Math.max(1,Number(item.geometry?.width)||28.8),
-   depth=Math.max(1,Number(item.geometry?.length)||opening*40/72),
-   overallWidth=opening*88/72;
- const front=depth/2,rear=-depth/2,mouth=opening/2,outer=overallWidth/2;
- const n=v=>round(v,3);
+ const opening=Math.max(1,Number(item.geometry?.width)||28.8);
+ const depth=Math.max(1,Number(item.geometry?.length)||opening*44/72);
+ const mouth=opening/2,front=depth/2,rear=-depth/2;
+ const cornerY=opening*20/72,cornerX=depth*20/44;
+ const rearFlatHalf=mouth-cornerY,k=.55228475;
+ const n=value=>round(value,3);
+ // Front mouth stays exactly 72in-wide (before preset scaling); sides
+ // return into 20in-radius shoulders and a 32in-wide straight back rail.
  const outline="M"+n(front)+" "+n(-mouth)+
-   " C"+n(front-depth*.24)+" "+n(-outer*.93)+
-   " "+n(rear+depth*.42)+" "+n(-outer)+" "+n(rear+depth*.23)+" "+n(-outer)+
-   " C"+n(rear+depth*.06)+" "+n(-outer)+" "+n(rear)+" "+n(-mouth*.86)+" "+n(rear)+" "+n(-mouth*.57)+
-   " L"+n(rear)+" "+n(mouth*.57)+
-   " C"+n(rear)+" "+n(mouth*.86)+" "+n(rear+depth*.06)+" "+n(outer)+" "+n(rear+depth*.23)+" "+n(outer)+
-   " C"+n(rear+depth*.42)+" "+n(outer)+" "+n(front-depth*.24)+" "+n(outer*.93)+" "+n(front)+" "+n(mouth)+
-   " L"+n(front)+" "+n(-mouth)+" Z";
- const innerX=rear+depth*.44,innerY=mouth*.31;
+   " L"+n(rear+cornerX)+" "+n(-mouth)+
+   " C"+n(rear+cornerX*(1-k))+" "+n(-mouth)+
+   " "+n(rear)+" "+n(-rearFlatHalf-cornerY*k)+
+   " "+n(rear)+" "+n(-rearFlatHalf)+
+   " L"+n(rear)+" "+n(rearFlatHalf)+
+   " C"+n(rear)+" "+n(rearFlatHalf+cornerY*k)+
+   " "+n(rear+cornerX*(1-k))+" "+n(mouth)+
+   " "+n(rear+cornerX)+" "+n(mouth)+
+   " L"+n(front)+" "+n(mouth)+" Z";
+ // The inner rib bows back from both posts and finishes in a short
+ // 32in-scale center arch, as seen in the approved plan-view preview.
+ const innerX=front-depth*18/44;
+ const innerHalf=mouth*.29;
  const arch="M"+n(front)+" "+n(-mouth)+
-   " C"+n(front-depth*.27)+" "+n(-mouth*.88)+" "+n(innerX+depth*.18)+" "+n(-innerY)+" "+n(innerX)+" "+n(-innerY)+
-   " L"+n(innerX)+" "+n(innerY)+
-   " C"+n(innerX+depth*.18)+" "+n(innerY)+" "+n(front-depth*.27)+" "+n(mouth*.88)+" "+n(front)+" "+n(mouth);
- return{opening,depth,overallWidth,front,rear,mouth,outer,outline,arch,innerX}
+   " C"+n(front-depth*.09)+" "+n(-mouth)+
+   " "+n(innerX+depth*.16)+" "+n(-innerHalf)+
+   " "+n(innerX)+" "+n(-innerHalf)+
+   " L"+n(innerX)+" "+n(innerHalf)+
+   " C"+n(innerX+depth*.16)+" "+n(innerHalf)+
+   " "+n(front-depth*.09)+" "+n(mouth)+
+   " "+n(front)+" "+n(mouth);
+ return{opening,depth,front,rear,mouth,cornerX,cornerY,
+   rearFlatHalf,outline,arch,innerX}
 }
 function v7EquipmentSvg(item){
   const def=V7_RINK_OBJECT_TYPES[item.type],g=svgEl("g",{
@@ -6612,30 +6627,35 @@ function v7EquipmentSvg(item){
       g.append(disc)
     }
   }else if(item.type==="net"){
-    // Shared red-frame, gray-mesh curved plan for regulation, cross-ice and mini.
+    // All three presets share the approved NHL-style rounded plan footprint.
     const plan=v7NetPlanGeometry(item),D=plan.opening;
-    const pipe=Math.max(.9,D*2/72),meshStep=Math.max(1.15,D/13);
-    const clipId="v7-net-shape-"+String(item.id).replace(/[^a-zA-Z0-9_-]/g,"_");
-    const netArt=svgEl("g",{"data-v7-net-visual":item.id,"data-v7-net-preset":item.netPreset||"pro","pointer-events":"none"});
+    const pipe=Math.max(.65,D*2/72),meshStep=Math.max(.85,D/30);
+    const netUid=String(item.id).replace(/[^a-zA-Z0-9_-]/g,"_");
+    const clipId="v7-net-shape-"+netUid,patternId="v7-net-mesh-"+netUid;
+    const netArt=svgEl("g",{"data-v7-net-visual":item.id,
+      "data-v7-net-preset":item.netPreset||"pro","pointer-events":"none"});
     const defs=svgEl("defs"),clip=svgEl("clipPath",{id:clipId,clipPathUnits:"userSpaceOnUse"});
-    clip.append(svgEl("path",{d:plan.outline}));defs.append(clip);netArt.append(defs);
+    clip.append(svgEl("path",{d:plan.outline}));defs.append(clip);
+    const pattern=svgEl("pattern",{id:patternId,patternUnits:"userSpaceOnUse",
+      width:round(meshStep,2),height:round(meshStep,2),patternTransform:"rotate(45)"});
+    pattern.append(svgEl("path",{d:"M0 0 H"+round(meshStep,2)+" V"+round(meshStep,2),
+      fill:"none",stroke:"#84949d","stroke-width":.5,opacity:.72}));
+    defs.append(pattern);netArt.append(defs);
     const mesh=svgEl("g",{"clip-path":"url(#"+clipId+")","data-v7-net-mesh":"gray"});
-    mesh.append(svgEl("path",{d:plan.outline,fill:"rgba(154,169,177,.25)",stroke:"none"}));
-    for(let x=plan.rear;x<=plan.front+.01;x+=meshStep)
-      mesh.append(svgEl("line",{x1:round(x,2),y1:-plan.outer-1,x2:round(x,2),y2:plan.outer+1,stroke:"#8999a1","stroke-width":.55,opacity:.76}));
-    for(let y=-plan.outer;y<=plan.outer+.01;y+=meshStep)
-      mesh.append(svgEl("line",{x1:plan.rear-1,y1:round(y,2),x2:plan.front+1,y2:round(y,2),stroke:"#8999a1","stroke-width":.55,opacity:.76}));
+    mesh.append(svgEl("path",{d:plan.outline,fill:"rgba(154,169,177,.24)",stroke:"none"}));
+    mesh.append(svgEl("path",{d:plan.outline,fill:"url(#"+patternId+")",stroke:"none"}));
     netArt.append(mesh);
-    // Red curved frame, inner arched support, central brace and mouth posts
-    // retain the existing occupied-goal blinking; gray netting never flashes.
+    // The red rails and posts all retain puck-occupancy flashing.
     for(const [d,width,kind] of [
-      [plan.outline,pipe*1.2,"frame"],[plan.arch,pipe,"frame"],
-      ["M"+round(plan.rear,3)+" 0 H"+round(plan.innerX,3),pipe*.92,"line"]
+      [plan.outline,pipe*1.12,"frame"],
+      [plan.arch,pipe*.8,"frame"],
+      ["M"+round(plan.rear,3)+" 0 H"+round(plan.innerX,3),pipe*.85,"line"]
     ])netArt.append(svgEl("path",{d,fill:"none",stroke:"#c43d3d","stroke-width":round(width,2),
       "stroke-linecap":"round","stroke-linejoin":"round","data-v7-net-red":kind}));
     for(const y of [-plan.mouth,plan.mouth])
-      netArt.append(svgEl("circle",{cx:plan.front,cy:round(y,2),r:v7NetPostRadius(item),
-        fill:"#e33b42",stroke:"#fff","stroke-width":.35,"data-v7-net-red":"post"}));
+      netArt.append(svgEl("circle",{cx:plan.front,cy:round(y,2),
+        r:v7NetPostRadius(item),fill:"#e33b42",stroke:"#fff",
+        "stroke-width":.3,"data-v7-net-red":"post"}));
     v7ApplyNetGoalFlash(netArt,performance.now());
     g.append(netArt)
   }
