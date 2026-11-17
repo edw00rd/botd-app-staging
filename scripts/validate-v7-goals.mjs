@@ -35,7 +35,7 @@ const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
-  net:{geometry:{length:17.6,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
+  net:{geometry:{length:16,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
   cone:{geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},capabilities:{rotatable:false,resize:"uniform",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
@@ -55,12 +55,12 @@ vm.runInNewContext(modelSource+
 const initial=normContext.v7NormalizeEquipmentList([]);
 assert.equal(initial.length,2,"Fresh play must have two nets");
 const migrated=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:62,y:300,rotation:0,netPreset:"pro"});
-assert.equal(migrated.x,64,"Original built-in net should migrate to rink-driven 11ft goal line");
+assert.equal(migrated.x,64.8,"Original built-in net should migrate to rink-driven 11ft goal line");
 const custom=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:82,y:295,rotation:15,netPreset:"pro"});
 assert.equal(custom.x,82,"A user-moved net must never migrate unexpectedly");
 assert.deepEqual(Array.from(initial,n=>n.goalSide).sort(),["left","right"]);
 const left=initial.find(n=>n.goalSide==="left"),right=initial.find(n=>n.goalSide==="right");
-assert.equal(left.x,64);assert.equal(left.geometry.width,28.8);assert.equal(left.rotation,0);
+assert.equal(left.x,64.8);assert.equal(left.geometry.width,28.8);assert.equal(left.rotation,0);
 assert.equal(left.netPreset,"pro");assert.equal(left.scale,1);assert.equal(left.capabilities.resize,"none");
 for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.8,4]]){
  const item=normContext.v7NormalizeEquipmentItem({id:name,type:"net",x:500,y:300,netPreset:name,scale:2.5,geometry:{length:110,width:120}});
@@ -69,7 +69,7 @@ for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.
  assert.equal(item.scale,1,"Net resize must be disabled");
  assert.equal(item.capabilities.resize,"none");
 }
-assert.equal(right.x,936);assert.equal(right.rotation,180);
+assert.equal(right.x,935.2);assert.equal(right.rotation,180);
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);
@@ -109,7 +109,7 @@ assert.ok(begin>0&&end>begin);
 vm.runInNewContext(app.slice(begin,end),ctx,{timeout:2000});
 const leftGoal=ctx.v64GoalCandidate({x:300,y:300},{x:-1,y:0},400);
 assert.equal(leftGoal?.side,"left");assert.ok(Math.abs(leftGoal.entry.x-72.8)<.01);
-assert.ok(Math.abs(leftGoal.end.x-56.2)<.01);
+assert.ok(Math.abs(leftGoal.end.x-57.8)<.01);
 const rightGoal=ctx.v64GoalCandidate({x:700,y:300},{x:1,y:0},400);
 assert.equal(rightGoal?.side,"right");assert.ok(Math.abs(rightGoal.entry.x-927.2)<.01);
 assert.equal(ctx.v64GoalCandidate({x:300,y:390},{x:-1,y:0},400),null,"Wide shot cannot score");
@@ -124,7 +124,7 @@ ctx.state.equipment[0].x=500;ctx.state.equipment[0].rotation=90;
 const rotated=ctx.v64GoalCandidate({x:500,y:400},{x:0,y:-1},200);
 assert.equal(rotated?.side,"left","Moved/rotated net must update goal mouth");
 assert.equal(ctx.v64GoalCandidate({x:570,y:400},{x:0,y:-1},200),null,"Rotated net must still reject misses");
-ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=64;
+ctx.state.equipment[0].rotation=0;ctx.state.equipment[0].x=64.8;
 ctx.state.equipment[0].geometry=normContext.v7NetDimensions("medium");
 assert.equal(ctx.v64GoalCandidate({x:300,y:307},{x:-1,y:0},400)?.side,"left","Medium net mouth should accept a clean shot");
 assert.equal(ctx.v64GoalCandidate({x:300,y:314},{x:-1,y:0},400),null,"Medium net cannot score outside 4 ft opening");
@@ -336,56 +336,55 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
     "Puck physics must use actual rink board outline");
 }
 
-/* One curved reference silhouette scales uniformly for all three goal sizes. */
+/* Approved net artwork: clean-room rebuild and identical master for all three sizes. */
 {
- const a=app.indexOf("function v7NetPlanGeometry(item){"),
-       b=app.indexOf("function v7EquipmentSvg(item){",a);
- assert.ok(a>0&&b>a,"Single shared goal-shape generator required");
- const planCtx={round:(n,d)=>Number(n.toFixed(d))};
- vm.runInNewContext(app.slice(a,b)+"\nthis.plan=v7NetPlanGeometry;",planCtx,{timeout:2000});
- assert.ok(app.includes("spec.widthFeet*44/72"),"Every net must share the photo’s 44-inch reference depth");
- const items=[["pro",6,4],["medium",4,3],["little",3,2]].map(([id,feet,h])=>{
-  const item={id,type:"net",x:0,y:0,rotation:0,scale:1,netPreset:id,
-    geometry:{width:4.8*feet,length:4.8*feet*44/72,heightFeet:h}};
-  const p=planCtx.plan(item);
-  assert.ok(Math.abs(p.depth/p.opening-44/72)<1e-9,id+" depth ratio");
-  assert.ok(Math.abs(p.rearFlatHalf/p.opening-16/72)<1e-9,id+" rear straight rail width");
-  assert.ok(Math.abs(p.cornerY/p.opening-20/72)<1e-9,id+" approved 20-inch corner radius");
-  assert.ok(p.mouth*2===p.opening,id+" no wider-than-mouth rear");
-  assert.ok(p.innerX<p.front&&p.innerX>p.rear,id+" inner arch must be inside net");
-  assert.ok(p.outline.includes(" C")&&p.outline.endsWith("Z"),id+" curved rear");
-  assert.ok(p.arch.includes(" C"),id+" inner arched supports");
-  return item
- });
- const svgEl=(tag,attrs={})=>({tag,attrs,children:[],append(...children){this.children.push(...children)}});
- const renderCtx={
-  round:(v,d)=>Number(v.toFixed(d)),svgEl,performance:{now:()=>0},
-  v7CollisionGeometry:item=>({length:item.geometry.length,width:item.geometry.width,radius:0}),
-  V7_RINK_OBJECT_TYPES:{net:{label:"Net"}},
-  v7NetPostRadius:item=>Math.max(.75,item.geometry.width/36),
-  v7ApplyNetGoalFlash:()=>{},ui:{selectedType:null,selectedId:null}
- };
- vm.runInNewContext(app.slice(a,app.indexOf("function v7RenderEquipment(){",b))+
-   "\nthis.render=v7EquipmentSvg;",renderCtx,{timeout:2000});
- const visit=node=>[node,...node.children.flatMap(visit)];
- for(const item of items){
-  const parts=visit(renderCtx.render(item));
-  assert.ok(parts.some(n=>n.tag==="clipPath"),item.id+" outline clip");
-  assert.ok(parts.some(n=>n.tag==="pattern"&&n.attrs.patternTransform==="rotate(45)"),item.id+" diagonal gray diamond mesh");
-  assert.ok(parts.some(n=>n.attrs["data-v7-net-mesh"]==="gray"),item.id+" gray net mesh");
-  assert.ok(parts.some(n=>n.attrs["data-v7-net-preset"]===item.id),item.id+" preset");
-  assert.equal(parts.filter(n=>n.attrs["data-v7-net-red"]==="post").length,3,item.id+" two red posts and center joint");
-  assert.ok(parts.some(n=>n.tag==="linearGradient"&&String(n.attrs.id).includes("net-tube")),item.id+" glossy tubular red frame");
-  assert.ok(parts.some(n=>n.tag==="radialGradient"&&String(n.attrs.id).includes("net-post")),item.id+" rounded shaded red posts");
-  assert.ok(parts.some(n=>n.tag==="linearGradient"&&String(n.attrs.id).includes("net-depth")),item.id+" shaded gray net");
-  assert.ok(parts.filter(n=>n.attrs["data-v7-net-red"]==="line").length>=9,item.id+" wrapped center support");
-  assert.ok(parts.filter(n=>n.attrs["data-v7-net-red"]==="frame").length>=2,item.id+" red curved bars");
-  assert.ok(parts.some(n=>n.tag==="path"&&n.attrs["data-v7-net-red"]==="line"),item.id+" red center support");
+ assert.ok(!app.includes("function v7NetPlanGeometry("),"Delete the OLD generated net outline");
+ assert.ok(app.includes('v7RenderNHLGoalFromScratch(item,g)'),
+    "Rink-object net branch must use the new independent master only");
+ assert.ok(app.includes("spec.widthFeet*40/72"),"All goal presets must share reference depth");
+ const begin=app.indexOf("function v7RenderNHLGoalFromScratch(item,parent){"),
+       end=app.indexOf("function v7EquipmentSvg(item){",begin);
+ assert.ok(begin>0&&end>begin,"New dedicated master-net generator missing");
+ const el=(tag,attrs={})=>({tag,attrs,children:[],append(...parts){this.children.push(...parts)}});
+ const ctx={round:(n,d)=>Number(n.toFixed(d)),svgEl:el,
+   performance:{now:()=>77},v7ApplyNetGoalFlash(node,now){node.flashAt=now}};
+ vm.runInNewContext(app.slice(begin,end)+"\nthis.draw=v7RenderNHLGoalFromScratch;",ctx,{timeout:2000});
+ const walk=node=>[node,...node.children.flatMap(walk)];
+ let referencePaths=null;
+ for(const [preset,width,length] of [["pro",28.8,16],["medium",19.2,10.67],["little",14.4,8]]){
+   const root=el("g"),item={id:"fixture-"+preset,type:"net",netPreset:preset,geometry:{width,length}};
+   ctx.draw(item,root);
+   assert.equal(root.children.length,1,preset+" must create one master asset");
+   const master=root.children[0],nodes=walk(master);
+   assert.equal(master.attrs["data-v7-master-goal"],"nhl-approved-2026-11");
+   assert.equal(master.attrs["data-v7-net-preset"],preset);
+   assert.equal(master.flashAt,77,preset+" must preserve occupied-goal flash");
+   const paths=nodes.filter(n=>n.tag==="path").map(n=>n.attrs.d);
+   const shell=paths.find(d=>d?.startsWith("M15 99 C7 86"));
+   const inner=paths.find(d=>d?.startsWith("M15 99 C22 76"));
+   assert.ok(shell&&inner,preset+" must have approved shell and inner arch");
+   if(referencePaths){assert.equal(shell,referencePaths[0]);assert.equal(inner,referencePaths[1])}
+   else referencePaths=[shell,inner];
+   assert.ok(paths.includes("M15 99 H205"),preset+" mouth must be straight");
+   assert.ok(paths.includes("M110 7 V47"),preset+" centered rear support must be present");
+   assert.ok(nodes.some(n=>n.tag==="clipPath"),preset+" mesh must be clipped");
+   assert.ok(nodes.some(n=>n.tag==="pattern"&&n.attrs.patternTransform==="rotate(45)"),
+     preset+" must have diamond mesh");
+   assert.ok(nodes.some(n=>n.tag==="linearGradient"&&String(n.attrs.id).includes("-pipe")),
+     preset+" glossy red frame gradient");
+   assert.ok(nodes.some(n=>n.tag==="radialGradient"&&String(n.attrs.id).includes("-post")),
+     preset+" rounded red posts");
+   assert.equal(nodes.filter(n=>n.attrs["data-v7-net-red"]==="post").length,3,
+     preset+" must have 2 posts and 1 central joint");
+   assert.ok(nodes.filter(n=>n.attrs["data-v7-net-red"]==="frame").length>=9,
+     preset+" must render 3-dimensional layered shell, arch and mouth");
+   const matrix=master.attrs.transform.match(/-?\d+(?:\.\d+)?/g).map(Number);
+   assert.ok(Math.abs(matrix[1]-width/190)<.00001,preset+" mouth scaling");
+   assert.ok(Math.abs(matrix[2]-length/92)<.00001,preset+" depth scaling");
+   assert.ok(Math.abs(99*matrix[2]+matrix[4]-length/2)<.001,
+     preset+" must align the mouth with the goal line");
  }
- assert.ok(app.includes('const depth=v7NetDimensions("pro").length,center=goalX+'),
-    "Default goal mouth must remain on the regulation goal line");
- assert.ok(app.includes('for(const part of node.querySelectorAll("[data-v7-net-red]"))')&&
-    app.includes('part.getAttribute("data-v7-net-base")'),
-    "Goal flashing must restore glossy gradient paints after each blink");
+ assert.ok(app.includes('part.getAttribute("data-v7-net-base-opacity")'),
+   "Blinking must restore each red tube's original opacity");
 }
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
