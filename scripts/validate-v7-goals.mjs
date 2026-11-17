@@ -75,7 +75,7 @@ assert.equal(right.x,935.2);assert.equal(right.rotation,180);
 const placementStart=app.indexOf("const V7_NET_CREASE_SNAP_DISTANCE_FT=");
 const placementEnd=app.indexOf("function v7Deg(",placementStart);
 assert.ok(placementStart>0&&placementEnd>placementStart);
-vm.runInNewContext(app.slice(placementStart,placementEnd)+"\nthis.netPlan=v7PlanNetPlacement",normContext,{timeout:1500});
+vm.runInNewContext(app.slice(placementStart,placementEnd)+"\nthis.netPlan=v7PlanNetPlacement;this.snapCardinal=v7SnapNetCardinalAngle",normContext,{timeout:1500});
 const planNet=normContext.netPlan;
 const looseNet=normContext.v7NormalizeEquipmentItem({id:"scrimmage",type:"net",x:110,y:300,rotation:12});
 let snap=planNet(looseNet,{x:83,y:306},initial);
@@ -104,6 +104,52 @@ assert.equal(snap.guide,null,"Guides vanish when away from alignment");
 snap=planNet({...looseNet,rotation:0},{x:470,y:248},[{...parallelOther,rotation:90}]);
 assert.equal(snap.guide,null,"Perpendicular nets must not align");
 assert.ok(app.includes('ui.v7NetAlignmentGuide=null')&&app.includes('v7RenderNetPlacementGuide(layer)'));
+
+/* Fine rotation snapping: 0, 90, 180, 270 degrees, only within ±2°. */
+for(const [input,expected] of [[0,0],[1.9,0],[-1.9,0],[88.1,90],
+ [91.9,90],[178.1,-180],[-179.1,-180],[269,-90],[271.5,-90],
+ [358.5,0],[361.5,0],[2.1,2.1],[87.8,87.8],[-87.8,-87.8],
+ [177.8,177.8],[182.5,-177.5],[272.5,-87.5]]){
+ assert.equal(normContext.snapCardinal(input),expected,
+  "Net cardinal angle must engage only inside the two-degree window: "+input)
+}
+assert.ok(app.includes('item.rotation=item.type==="net"?'),
+ "Cardinal snapping must leave the rotation behavior of other equipment unchanged");
+const tighter=normContext.v7NormalizeEquipmentItem({id:"tighter",type:"net",x:103,y:300,rotation:20});
+let strictSnap=planNet(tighter,{x:83,y:306},initial);
+assert.notEqual(strictSnap.snap,"crease","20-degree near-crease net should not be pulled early");
+strictSnap=planNet({...tighter,rotation:12},{x:94,y:300},initial);
+assert.notEqual(strictSnap.snap,"crease","Crease magnet distance should be 5.5 rink feet");
+strictSnap=planNet({...tighter,rotation:0},{x:470,y:249.5},[parallelOther]);
+assert.notEqual(strictSnap.snap,"alignment","Parallel-net alignment tolerance should be one rink foot");
+/* Render layer must omit overlaid action controls during an active net rotation
+   and restore them immediately on release, without clearing the selection. */
+const renderStart=app.indexOf("function v7RenderEquipment(){");
+const renderEnd=app.indexOf("/* V7 on-ice visual scale",renderStart);
+assert.ok(renderStart>0&&renderEnd>renderStart);
+const drawn=[];
+const layer={firstChild:null,insertBefore(node){drawn.push(node.kind)},append(node){drawn.push(node.kind)}};
+const renderContext={
+ state:{equipment:[{...looseNet,id:"scrimmage",goalSide:null}]},
+ ui:{selectedType:"equipment",selectedId:"scrimmage",
+  v7EquipmentTransform:{id:"scrimmage",kind:"rotate"}},
+ $:()=>layer,
+ v7EquipmentSvg:()=>({kind:"net-art"}),
+ v7RenderNetPlacementGuide:()=>{},
+ v7EquipmentById:()=>({id:"scrimmage",type:"net",x:450,y:300,goalSide:null}),
+ v59ClampVisiblePoint:p=>p,clampRinkPoint:p=>p,
+ v7RinkRemoveControl:()=>({kind:"remove-control"}),
+ v7RinkGoalResetControl:()=>({kind:"reset-control"}),
+ v7RinkNetSizeControl:()=>({kind:"size-control"}),
+ v7RinkDispensePuckControl:()=>({kind:"dispense-control"})
+};
+vm.runInNewContext(app.slice(renderStart,renderEnd)+"\nthis.draw=v7RenderEquipment",renderContext,{timeout:1500});
+renderContext.draw();
+assert.deepEqual(drawn,["net-art"],"Rotation must hide the overlapping net SVG buttons");
+drawn.length=0;renderContext.ui.v7EquipmentTransform=null;renderContext.draw();
+assert.deepEqual(drawn,["net-art","remove-control","size-control"],
+ "The selected net must get its action controls back on release");
+
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
 const extra=normContext.v7NormalizeEquipmentList([...initial,{id:"extra",type:"net",x:450,y:300}]);

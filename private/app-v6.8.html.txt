@@ -6054,9 +6054,19 @@ function v7EquipmentById(id){return(state.equipment||[]).find(item=>item.id===id
 
 /* Smart net placement: snap the mouth to the goal line, respecting facing.
    Temporary alignment guides remain in UI state, not saved play data. */
-const V7_NET_CREASE_SNAP_DISTANCE_FT=7;
-const V7_NET_CREASE_SNAP_ANGLE=24;
-const V7_NET_ALIGN_TOLERANCE_FT=1.5;
+// Narrower positional magnets; cardinal rotation clicks in only within 2°.
+const V7_NET_CREASE_SNAP_DISTANCE_FT=5.5;
+const V7_NET_CREASE_SNAP_ANGLE=16;
+const V7_NET_ALIGN_TOLERANCE_FT=1;
+const V7_NET_CARDINAL_SNAP_ANGLE=2;
+function v7SnapNetCardinalAngle(angle){
+  // The editor stores signed rotations, so 270° is represented as -90°.
+  const normalized=((Number(angle)%360)+360)%360;
+  const cardinal=Math.round(normalized/90)*90;
+  if(Math.abs(normalized-cardinal)<=V7_NET_CARDINAL_SNAP_ANGLE)
+    return ((cardinal+180)%360)-180;
+  return round(((normalized+180)%360)-180,1)
+}
 function v7NetAngleDifference(a,b){
   return Math.abs((((Number(a)||0)-(Number(b)||0)+540)%360)-180)
 }
@@ -6793,6 +6803,10 @@ function v7RenderEquipment(){
   }
   v7RenderNetPlacementGuide(layer);
   const selected=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;
+  // Net rotation handle stays visible and clear of the floating SVG buttons.
+  // Controls return automatically once pointerup/pointercancel clears transform.
+  if(selected?.type==="net"&&ui.v7EquipmentTransform?.kind==="rotate"&&
+     ui.v7EquipmentTransform.id===selected.id)return;
   if(selected&&!selected.goalSide){
     const point=v59ClampVisiblePoint?
       v59ClampVisiblePoint({x:selected.x+30,y:selected.y-27}):
@@ -7392,7 +7406,8 @@ function v7SetupEquipmentEvents(){
       if(item.goalSide)item.iceAnchor=false;
       if(transform.kind==="rotate"){
         const angle=Math.atan2(p.y-item.y,p.x-item.x)*180/Math.PI+90;
-        item.rotation=round(((angle+180)%360)-180,1);
+        item.rotation=item.type==="net"?
+          v7SnapNetCardinalAngle(angle):round(((angle+180)%360)-180,1);
         if(item.type==="net"){
           const plan=v7PlanNetPlacement(item,{x:item.x,y:item.y},state.equipment,false);
           item.x=plan.x;item.y=plan.y;item.rotation=plan.rotation;
