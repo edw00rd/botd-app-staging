@@ -54,7 +54,7 @@ body.focus-mode .workspace{grid-template-columns:1fr}
 .right-drawer.closed{display:none}.right-content{overflow:auto;min-height:0;padding:12px}.inspector-empty{color:var(--muted);font-size:12px;line-height:1.5;padding:8px}.identity-card{display:flex;align-items:center;gap:10px;padding:10px;background:#0d2639;border:1px solid #315169;border-radius:11px;margin-bottom:10px}.identity-token{width:46px;height:46px;border-radius:50%;border:3px solid #fff;display:grid;place-items:center;font-weight:900;text-shadow:0 1px 2px #000}.identity-token.goalie{border-radius:10px}.identity-token.puck{width:40px;height:22px;border-radius:50%;background:#111;border-color:#69747c}.identity-card strong{font-size:14px}.identity-card small{display:block;color:var(--muted)}.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;background:#173a52;border:1px solid #38627d;padding:4px 8px;font-size:10px;font-weight:800}.status-dot{width:8px;height:8px;border-radius:50%;background:#22c55e}.inspector-section{border-top:1px solid #2b4a62;padding-top:11px;margin-top:11px}.inspector-section h3{margin:0 0 7px;font-size:12px}.inspector-section p{margin:4px 0 8px;font-size:10px;color:var(--muted);line-height:1.4}.range-label{display:flex;justify-content:space-between;font-size:10px;color:#bfd1dd}.range-label output{color:#fff;font-weight:800}.route-take-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px}.route-take-row select{min-width:0}
 .command-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #29485f;border-bottom:1px solid #29485f;background:#081a29;z-index:40;overflow-x:auto}.tool-btn{flex:0 0 auto;width:40px;height:40px;border:1px solid #35536b;background:#142f44;border-radius:9px;display:grid;place-items:center;cursor:pointer;font-size:18px}.tool-btn.active{background:#1b6e9d;border-color:#57c4ef}.separator{height:30px;width:1px;background:#325067;margin:0 3px;flex:0 0 auto}.command-spacer{flex:1}.command-label{font-size:10px;color:var(--muted);white-space:nowrap}.route-toggle{display:flex;align-items:center;gap:5px;font-size:10px;white-space:nowrap}.route-toggle input{width:17px;height:17px}.command-bar select{border:1px solid #35536b;background:#10283e;color:#fff;border-radius:8px;padding:6px;font-size:11px}
 .timeline-dock{min-height:0;background:#071724;border-top:1px solid #2c4d66;display:flex;flex-direction:column;z-index:35}.timeline-head{height:48px;display:flex;align-items:center;gap:7px;padding:6px 10px;background:#0b2234;border-bottom:1px solid #29485f;overflow-x:auto}.timeline-title{font-size:12px;font-weight:900;white-space:nowrap;margin-right:4px}.transport{width:34px;height:34px;border-radius:8px;border:1px solid #3b5d75;background:#15334a;display:grid;place-items:center;cursor:pointer;flex:0 0 auto}.transport.primary{background:#1e78aa;border-color:#52bce8}.time-code{font-variant-numeric:tabular-nums;font-size:11px;min-width:91px;text-align:center;color:#dcebf4}.timeline-duration{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);white-space:nowrap}.timeline-duration input{width:55px;border:1px solid #35536b;background:#061827;color:#fff;border-radius:7px;padding:5px}.timeline-collapse{margin-left:auto}.timeline-body{min-height:0;overflow:auto;position:relative}.timeline-grid{min-width:max-content;position:relative}.ruler-row,.track-row{display:grid;grid-template-columns:150px var(--track-w,960px);min-height:36px}.ruler-label,.track-label{position:sticky;left:0;z-index:5;background:#0b2133;border-right:1px solid #29485f;border-bottom:1px solid #223f55;padding:7px 10px}.ruler-label{font-size:10px;font-weight:900;color:#a9c0ce}.track-label{display:flex;align-items:center;gap:7px;font-size:10px}.track-label strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.track-dot{width:11px;height:11px;border-radius:50%;border:1px solid #fff;flex:0 0 auto}.ruler-lane,.track-lane{position:relative;border-bottom:1px solid #223f55;background-image:linear-gradient(to right,#254258 1px,transparent 1px);background-size:var(--sec-w,72px) 100%;min-height:36px}.ruler-lane{height:34px;background-color:#0b2133}.tick{position:absolute;top:0;bottom:0;border-left:1px solid #456075;color:#b7cbd7;font-size:9px;padding:3px 0 0 4px}.tick.major{border-left-color:#7590a3}.playhead-line{position:absolute;top:0;bottom:0;width:2px;background:#f7d94c;z-index:15;pointer-events:none;box-shadow:0 0 6px #f7d94c}.ruler-playhead{position:absolute;top:0;width:14px;height:18px;background:#f7d94c;clip-path:polygon(0 0,100% 0,50% 100%);transform:translateX(-6px);z-index:17;cursor:ew-resize}.movement-clip{position:absolute;top:6px;height:24px;border:1px solid #7ad8ff;background:linear-gradient(90deg,#176b99,#2f95bf);border-radius:7px;padding:3px 7px;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;z-index:8;min-width:18px}.movement-clip.selected{outline:2px solid #f7d94c}.movement-clip:active{cursor:grabbing}.puck-event{position:absolute;top:4px;height:28px;min-width:28px;transform:translateX(-7px);border:1px solid #fff;background:#131a20;border-radius:8px;padding:4px 7px;font-size:9px;font-weight:900;white-space:nowrap;cursor:ew-resize;z-index:10;box-shadow:0 2px 6px #0008}.puck-event.pass{background:#195b82}.puck-event.possess{background:#1d7a45}.puck-event.shot{background:#8c3b21}.puck-event.drop{background:#5a5961}.puck-event.invalid{outline:2px solid #ef4444}.puck-event.selected{outline:2px solid #f7d94c}.travel-span{position:absolute;top:28px;height:4px;background:#4bc7ef;border-radius:99px;z-index:6}.possession-span{position:absolute;top:2px;height:32px;border-radius:6px;opacity:.22;z-index:1}.timeline-collapsed .timeline-body{display:none}.timeline-collapsed .timeline-head{border-bottom:0}.timeline-help{padding:10px;color:var(--muted);font-size:11px}
-svg text{font-family:inherit}.token-label{fill:#102033;font-size:12px;font-weight:900;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}.selection-ring{fill:none;stroke:#ffffff;stroke-width:3;stroke-dasharray:9 6;animation:spinRing 2.2s linear infinite;transform-box:fill-box;transform-origin:center}.selection-ring.puck-select{stroke:#f7d94c}@keyframes spinRing{to{transform:rotate(360deg)}}.player-glow{animation:tokenBlink var(--blink,1s) ease-in-out infinite alternate}@keyframes tokenBlink{to{filter:drop-shadow(0 0 var(--glow-size,10px) var(--glow-color,#39d8ff)) drop-shadow(0 0 calc(var(--glow-size,10px)*1.8) var(--glow-color,#39d8ff))}}.route-path{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.72;marker-end:url(#routeArrow)}.route-path.past{opacity:.22}.preview-path{fill:none;stroke:#f59e0b;stroke-width:4;stroke-dasharray:9 7;stroke-linecap:round}.puck-disc{cursor:pointer;filter:drop-shadow(2px 4px 2px #0007)}.puck-spin{animation:puckSpin .34s linear infinite;transform-box:fill-box;transform-origin:center}@keyframes puckSpin{to{transform:rotate(360deg)}}
+svg text{font-family:inherit}.token-label{fill:#102033;font-size:12px;font-weight:900;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}.selection-ring{fill:none;stroke:#ffffff;stroke-width:3;stroke-dasharray:9 6;animation:spinRing 2.2s linear infinite;transform-box:fill-box;transform-origin:center}.selection-ring.puck-select{stroke:#f7d94c}@keyframes spinRing{to{transform:rotate(360deg)}}.player-glow{animation:tokenBlink var(--blink,1s) ease-in-out infinite alternate}@keyframes tokenBlink{to{filter:drop-shadow(0 0 var(--glow-size,10px) var(--glow-color,#39d8ff)) drop-shadow(0 0 calc(var(--glow-size,10px)*1.8) var(--glow-color,#39d8ff))}}.route-path{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.72;marker-end:url(#routeArrow)}.route-path.past{opacity:.22}.preview-path{fill:none;stroke:#f59e0b;stroke-width:4;stroke-dasharray:9 7;stroke-linecap:round}.puck-disc{cursor:pointer;filter:none}.puck-spin{animation:puckSpin .34s linear infinite;transform-box:fill-box;transform-origin:center}@keyframes puckSpin{to{transform:rotate(360deg)}}
 .toast{position:fixed;left:50%;bottom:calc(var(--timeline-h) + var(--toolbar-h) + 12px);transform:translate(-50%,16px);background:#061827ef;border:1px solid #4e7188;border-radius:10px;padding:9px 13px;box-shadow:var(--shadow);font-size:11px;opacity:0;pointer-events:none;transition:.2s;z-index:200;max-width:min(540px,90vw);text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}
 dialog{border:1px solid #44647b;border-radius:14px;background:#0d2537;color:#fff;box-shadow:0 24px 80px #000b;padding:0;max-width:min(520px,92vw)}dialog::backdrop{background:#03101bbd}.dialog-head{padding:14px 16px;border-bottom:1px solid #2d4c63}.dialog-head h2{margin:0;font-size:16px}.dialog-head p{margin:4px 0 0;color:var(--muted);font-size:11px}.dialog-body{padding:14px 16px;max-height:68vh;overflow:auto}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:11px 16px;border-top:1px solid #2d4c63}.color-tabs{display:flex;gap:5px;margin-bottom:10px}.color-tab{border:1px solid #3a5b73;background:#122f45;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:11px}.color-tab.active{background:#25749d}.color-panel{display:none}.color-panel.active{display:block}.color-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}.color-grid button{aspect-ratio:1;border-radius:8px;border:2px solid #fff;cursor:pointer}.color-preview{height:46px;border-radius:10px;border:2px solid #fff;margin:10px 0}.rgb-row{display:grid;grid-template-columns:18px 1fr 42px;align-items:center;gap:7px;margin:8px 0}.rgb-row input[type=number]{width:42px;background:#061827;color:#fff;border:1px solid #35536b;border-radius:6px;padding:4px}.file-input{width:100%;font-size:11px;color:#c4d7e4}
 @media(max-width:1180px){
@@ -6970,6 +6970,23 @@ function v7SetupAdditionalPuckEvents(){
    event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;v7AddAdditionalPuck(svgPoint(event));return
   }
   if(ui.v60Mode||ui.targetMode)return;
+  // Puck 1 and every added puck select on pointerdown. The old pointerup
+  // selection could be lost when the puck SVG was re-rendered.
+  const primaryNode=event.target.closest?.("[data-puck]");
+  if(primaryNode&&ui.tool==="select"&&state.primaryPuckVisible!==false){
+    event.preventDefault();event.stopImmediatePropagation();
+    // A legacy capture listener already runs on this SVG; cancel its
+    // deferred tap/drag so it cannot overwrite this first-class selection.
+    ui.pendingTap=null;ui.dragPuck=null;
+    ui.selectedType="puck";ui.selectedId="puck";ui.v7ActivePuckId="puck";ui.v60DirectSelection=true;
+    v7StopPuckDiscovery();renderInspector();
+    const ps=puckStateAt(ui.playhead,buildPuckTimeline("puck"));
+    const canDrag=!ui.playing&&ui.playhead<.02&&ps.mode==="loose"&&
+      activeTake().events.every(e=>e.time>.05);
+    ui.v7PrimaryPuckDrag=canDrag?{pointerId:event.pointerId,start:svgPoint(event),changed:false}:null;
+    if(canDrag)try{svg.setPointerCapture(event.pointerId)}catch{}
+    renderFrame(ui.playhead);return
+  }
   const node=event.target.closest?.("[data-v7-additional-puck-id]");if(!node||ui.tool!=="select")return;
   event.preventDefault();event.stopImmediatePropagation();
   const id=node.dataset.v7AdditionalPuckId,item=v7AdditionalPuckById(id);if(!item)return;
@@ -6982,6 +6999,17 @@ function v7SetupAdditionalPuckEvents(){
   renderFrame(ui.playhead)
  },true);
  svg.addEventListener("pointermove",event=>{
+  const primary=ui.v7PrimaryPuckDrag;
+  if(primary&&primary.pointerId===event.pointerId){
+    event.preventDefault();event.stopImmediatePropagation();
+    const p=svgPoint(event);
+    if(!primary.changed&&Math.hypot(p.x-primary.start.x,p.y-primary.start.y)<2.5)return;
+    if(!primary.changed)pushHistory();
+    primary.changed=true;
+    const position=v59ClampVisiblePoint?v59ClampVisiblePoint(p):clampRinkPoint(p);
+    state.puckStart={x:round(position.x,2),y:round(position.y,2)};
+    renderFrame(ui.playhead);return
+  }
   const drag=ui.v7AdditionalPuckDrag;if(!drag||drag.pointerId!==event.pointerId)return;
   event.preventDefault();event.stopImmediatePropagation();
   const p=svgPoint(event);
@@ -6992,6 +7020,14 @@ function v7SetupAdditionalPuckEvents(){
   item.x=round(position.x,2);item.y=round(position.y,2);renderFrame(ui.playhead)
  },true);
  const finish=event=>{
+  const primary=ui.v7PrimaryPuckDrag;
+  if(primary&&primary.pointerId===event.pointerId){
+    event.preventDefault();event.stopImmediatePropagation();
+    ui.v7PrimaryPuckDrag=null;
+    if(primary.changed){syncActiveVariation();scheduleSave()}
+    // Keep the same selected state after a simple click or completed drag.
+    renderAll();renderInspector();return
+  }
   const drag=ui.v7AdditionalPuckDrag;if(!drag||drag.pointerId!==event.pointerId)return;
   event.preventDefault();event.stopImmediatePropagation();ui.v7AdditionalPuckDrag=null;
   if(drag.changed){syncActiveVariation();scheduleSave()}

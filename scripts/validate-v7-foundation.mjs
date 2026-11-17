@@ -172,6 +172,16 @@ for(const marker of [
    "Puck 2+ must display the exact same player targeting triangle as Puck 1");
  assert.ok(extra.includes('ui.v7ActivePuckId=id;ui.v60DirectSelection=true'),
    "Added-puck selection must enable the normal Pass/Shoot/Puck Director actions");
+ assert.ok(extra.includes('const primaryNode=event.target.closest?.("[data-puck]");')&&
+           extra.includes('ui.pendingTap=null;ui.dragPuck=null;')&&
+           extra.includes('ui.selectedType="puck";ui.selectedId="puck";ui.v7ActivePuckId="puck";ui.v60DirectSelection=true;'),
+   "Puck 1 must select directly and cancel legacy pointerup interactions");
+ assert.ok(extra.includes('ui.v7PrimaryPuckDrag=canDrag?')&&
+           extra.includes('ui.v7PrimaryPuckDrag=null;')&&
+           extra.includes('state.puckStart={x:round(position.x,2),y:round(position.y,2)};'),
+   "Puck 1 must remain selected after dragging or tapping");
+ assert.ok(app.includes('.puck-disc{cursor:pointer;filter:none}'),
+   "Neither puck may have the legacy CSS drop shadow");
 }
 
 
