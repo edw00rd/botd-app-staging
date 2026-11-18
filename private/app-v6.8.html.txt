@@ -91,7 +91,7 @@ body.focus-mode .drawer-edge-handle{display:none}
 .timeline-dock{width:100vw;max-width:100vw}.timeline-head{width:100%;min-height:54px;height:auto;gap:7px;padding:7px 10px;overflow-x:auto}.timeline-body{overflow-y:auto;overflow-x:hidden}.timeline-grid{width:100%;min-width:0}.ruler-row,.track-row{grid-template-columns:var(--timeline-label-w) minmax(0,1fr);width:100%}.ruler-lane,.track-lane{width:100%;min-width:0}.timeline-title{font-size:13px}.transport{width:38px;height:38px;font-size:15px}.time-code{font-size:12px;min-width:108px}
 .possession-choice-list{display:grid;gap:6px;max-height:210px;overflow:auto;padding:3px}.possession-choice{display:grid;grid-template-columns:15px minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:7px 9px;text-align:left;cursor:pointer}.possession-choice:hover,.possession-choice:focus-visible,.possession-choice.active{border-color:var(--usa-red);box-shadow:0 0 0 2px color-mix(in srgb,var(--usa-red) 22%,transparent)}.possession-choice .mini-dot{width:13px;height:13px;border-radius:50%;border:2px solid currentColor}.possession-choice small{opacity:.72}
 .target-triangle{fill:none;stroke:#c8102e;stroke-width:4;stroke-linejoin:round;filter:drop-shadow(0 0 3px #fff);animation:targetPulse 1s ease-in-out infinite alternate;pointer-events:none}@keyframes targetPulse{to{transform:scale(1.09);opacity:.58}}
-.selection-ring{fill:none;stroke:#050505;stroke-width:3.5;stroke-dasharray:10 6;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 1px #fff);animation:vroomRing 3.15s cubic-bezier(.25,.05,.18,1) infinite;transform-box:fill-box;transform-origin:center}.selection-ring.puck-select{stroke:#050505}.selection-ring.v7-tight-player-selection{stroke-width:2.25;stroke-dasharray:4.5 3.5;filter:drop-shadow(0 0 1px #fff)}
+.selection-ring{fill:none;stroke:#050505;stroke-width:2.8;stroke-dasharray:7 5;filter:drop-shadow(0 0 1px #fff);animation:vroomRing 3.15s cubic-bezier(.25,.05,.18,1) infinite;transform-box:fill-box;transform-origin:center;pointer-events:none}.selection-ring.puck-select{stroke:#050505}
 @keyframes vroomRing{0%{transform:rotate(0deg);stroke-dashoffset:0}15%{transform:rotate(38deg)}28%{transform:rotate(78deg)}48%{transform:rotate(300deg);stroke-dashoffset:-18}61%{transform:rotate(342deg)}78%{transform:rotate(610deg);stroke-dashoffset:-38}100%{transform:rotate(720deg);stroke-dashoffset:-52}}
 .puck-glow-static{filter:drop-shadow(0 0 var(--glow-size,10px) var(--glow-color,#39d8ff)) drop-shadow(0 0 calc(var(--glow-size,10px)*1.8) var(--glow-color,#39d8ff))}
 .theme-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}.appearance-card select{font-size:14px}
@@ -3096,7 +3096,7 @@ togglePlayback=function(){
 function v60AnchorElement(){
   if(!ui.v60DirectSelection)return null;
   if(ui.selectedType==="player")return $(`#objectLayer [data-player-id="${String(ui.selectedId).replaceAll('"','\\"')}"] .ice-token`)||$(`#objectLayer [data-player-id="${String(ui.selectedId).replaceAll('"','\\"')}"]`);
-  if(ui.selectedType==="puck")return $("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]");
+  if(ui.selectedType==="puck")return $("#puckLayer [data-puck]");
   if(ui.selectedType==="additionalPuck")return v7PuckActionAnchor();
   return null
 }
@@ -4518,7 +4518,7 @@ onRinkPointerDown=function(event){
   if(v64HandlePenDoubleTapDown(event))return;
   if(ui.v60Mode?.type==="shot"){
     if(v61TrackTouchDown(event))return;
-    event.preventDefault();event.stopPropagation();if(ui.v60Mode.stage!=="aim")return;
+    event.preventDefault();event.stopImmediatePropagation();if(ui.v60Mode.stage!=="aim")return;
     if(event.target.closest?.("[data-puck]"))return;
     ui.v60Mode.aim=svgPoint(event);ui.v60Mode.lastPointerType=event.pointerType||"mouse";
     if(event.pointerType==="mouse"){ui.v60Mode.stage="power";ui.v60ShotDrag=null;renderV60SpatialUI(ui.playhead);return}
@@ -7408,7 +7408,7 @@ function v7PuckActionAnchor(){
   const node=[...document.querySelectorAll("#objectLayer [data-v7-additional-puck-id]")].find(el=>el.dataset.v7AdditionalPuckId===id);
   if(node)return node
  }
- return $("#puckLayer [data-puck] g")||$("#puckLayer [data-puck]")
+ return $("#puckLayer [data-puck]")
 }
 
 function v7RefreshAddPuckButton(){
@@ -7827,6 +7827,8 @@ function v7SetupEquipmentEvents(){
   svg.addEventListener("pointerdown",event=>{
     if(event.button!==undefined&&event.button!==0)return;
     const equipmentNode=event.target.closest?.("[data-equipment-id]");
+    // Aiming at a prop is not a request to select or drag it.
+    if(ui.v60Mode?.type==="shot")return;
     const dispense=event.target.closest?.("[data-v7-dispense-puck]");
     if(dispense){
       event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
@@ -8202,15 +8204,7 @@ function v7PreparePuckDirectorDialog(){
   '.v7-puck-director-head button{border:1px solid #466479;background:#19334a;color:#fff;border-radius:7px;padding:6px 10px;cursor:pointer}'+
   '.v7-puck-director-scroll{overflow-y:auto;max-height:calc(85vh - 55px);padding:14px}'+
   '.v7-puck-director-scroll #inspectorContent{display:block!important;visibility:visible!important;color:#edf6fb;max-height:none!important;overflow:visible}'+
-  '.v7-puck-director-scroll .inspector-section{margin-bottom:14px}'+
-  '#v60ContextMenu .v60-float-button.remove-puck{'+
-  'inline-size:36px!important;min-inline-size:36px!important;max-inline-size:36px!important;'+
-  'block-size:36px!important;min-block-size:36px!important;max-block-size:36px!important;'+
-  'padding:0!important;border-radius:10px!important;font-size:21px!important;'+
-  'font-weight:850!important;line-height:1!important;color:#fff!important;'+
-  'background:linear-gradient(180deg,#e34653,#ac1f32)!important;'+
-  'border:1px solid #fa9aa4!important;box-shadow:0 3px 8px #480a2544!important}'+
-  '#v60ContextMenu .v60-float-button.remove-puck:hover{background:#f25260!important}';
+  '.v7-puck-director-scroll .inspector-section{margin-bottom:14px}';
  document.head.append(style);
  dialog.querySelector("[data-v7-puck-director-close]").addEventListener("click",()=>dialog.close());
  dialog.addEventListener("close",()=>{
@@ -8223,26 +8217,8 @@ function v7PreparePuckDirectorDialog(){
    dialog.close()
  },true);
  $("#v7TimelinePuckDirectorBtn")?.addEventListener("click",()=>v7OpenPuckDirector());
- $("#v60ContextMenu")?.addEventListener("click",event=>{
-  if(!event.target.closest('[data-v60-action="remove-puck"]'))return;
-  event.preventDefault();event.stopPropagation();
-  // Delete the puck that owns this floating menu, including Puck 1.
-  if(ui.selectedType==="puck")v7DeletePrimaryPuck();
-  else if(ui.selectedType==="additionalPuck")v7DeleteAdditionalPuck(ui.selectedId);
- });
-}
-const v7PuckContextMarkupOriginal=v60ContextMarkup;
-v60ContextMarkup=function(){
- const markup=v7PuckContextMarkupOriginal();
- if(ui.selectedType!=="puck"&&ui.selectedType!=="additionalPuck")return markup;
- if(!ui.v60DirectSelection||ui.playing||ui.recordingMove||ui.v60Mode)return markup;
- // HTML action controls sit above the SVG: the minus cannot hide behind Pass/Shoot.
- const remove='<button class="v60-float-button remove-puck" data-v60-action="remove-puck"'+
-  ' type="button" title="Remove puck from ice" aria-label="Remove selected puck from ice">−</button>';
- return markup?markup.replace('</div>',remove+'</div>'):
-  '<div class="v60-context-actions" role="group" aria-label="Puck actions">'+remove+'</div>'
-};
 
+}
 const initV682ForV7=init;
 init=function(){
   initV682ForV7();
@@ -8750,9 +8726,11 @@ function v7FloatingPlaceMenu(menu,anchor,{gap=10}={}){
  const rect=anchor?.getBoundingClientRect();if(!menu||!rect?.width)return false;
  menu.hidden=false;menu.style.visibility="hidden";menu.classList.remove("below");
  const width=menu.offsetWidth,height=menu.offsetHeight;
+ // Match Puck 1 and added pucks: keep actions clear of the outer hitbox/ring.
+ const clearance=ui.selectedType==="puck"||ui.selectedType==="additionalPuck"?Math.max(16,gap):gap;
  const left=clamp(rect.left+rect.width/2-width/2,8,Math.max(8,window.innerWidth-width-8));
- let top=rect.top-height-gap;
- if(top<8){top=rect.bottom+gap;menu.classList.add("below")}
+ let top=rect.top-height-clearance;
+ if(top<8){top=rect.bottom+clearance;menu.classList.add("below")}
  top=clamp(top,8,Math.max(8,window.innerHeight-height-8));
  menu.style.left=round(left,1)+"px";menu.style.top=round(top,1)+"px";
  menu.style.visibility="visible";return true
@@ -9224,11 +9202,11 @@ v7FloatingSync=function(){
   const at=(dx,dy)=>v59ClampVisiblePoint?
     v59ClampVisiblePoint({x:p.x+dx,y:p.y+dy}):
     clampRinkPoint({x:p.x+dx,y:p.y+dy});
-  const remove=v7RinkRemoveControl(id,id==="puck"?"primaryPuck":"additionalPuck",at(24,29));
+  const remove=v7RinkRemoveControl(id,id==="puck"?"primaryPuck":"additionalPuck",at(31,34));
   // Separate class avoids the equipment-only delegate intercepting puck minus.
   remove.classList.remove("v7-rink-remove");remove.classList.add("v7-puck-remove");
   remove.style.pointerEvents="all";
-  world.append(v7PuckCloneControl(id,at(-24,29)),remove);
+  world.append(v7PuckCloneControl(id,at(-31,34)),remove);
   return result
 };
 function v7InstallUniversalPuckButtons(){
@@ -9462,15 +9440,15 @@ function v7AppendFilledDrillArrow(layer,route,color,kind){
  const before=arc.sample(Math.max(0,arc.length-8)).point;
  const length=Math.hypot(tip.x-before.x,tip.y-before.y);if(length<.001)return;
  const d={x:(tip.x-before.x)/length,y:(tip.y-before.y)/length},n={x:-d.y,y:d.x};
- // A wide, visibly solid arrowhead as in the hockey notation reference.
- const size=Math.min(18,Math.max(10,arc.length*.20));
+ // Readable arrowhead scaled below a skater's on-ice size.
+ const size=Math.min(11.5,Math.max(6.5,arc.length*.10));
  const base={x:tip.x-d.x*size,y:tip.y-d.y*size};
- const left={x:base.x+n.x*size*.56,y:base.y+n.y*size*.56};
- const right={x:base.x-n.x*size*.56,y:base.y-n.y*size*.56};
+ const left={x:base.x+n.x*size*.43,y:base.y+n.y*size*.43};
+ const right={x:base.x-n.x*size*.43,y:base.y-n.y*size*.43};
  const token=p=>round(p.x,2)+" "+round(p.y,2);
  layer.append(svgEl("path",{d:"M"+token(tip)+" L"+token(left)+" L"+token(right)+" Z",
-  fill:color,"fill-opacity":.94,stroke:"#122330","stroke-width":1.1,
-  "stroke-opacity":.68,"stroke-linejoin":"round",
+  fill:color,"fill-opacity":.94,stroke:"#122330","stroke-width":.65,
+  "stroke-opacity":.6,"stroke-linejoin":"round",
   "pointer-events":"none","data-v7-skate-arrow":kind}))
 }
 function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
