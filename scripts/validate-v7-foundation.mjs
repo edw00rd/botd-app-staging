@@ -543,6 +543,8 @@ assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction 
     ui:{v60Mode:{type:"shot",stage:"power",power:8,aim:{x:300,y:100},ignoreDefense:true,ignoreObjects:true}},
     v60ModeOrigin:()=>({x:100,y:100}),
     v60BuildShotPath:()=>({path:[{x:100,y:100},{x:300,y:100}],direction:{x:1,y:0},boardFollow:false}),
+    v7PhysicalShotTrajectory:()=>({path:[{x:100,y:100},{x:240,y:100},{x:140,y:100}],
+      direction:{x:1,y:0},boardFollow:false}),
     deepClone:p=>structuredClone(p),
     addPuckEvent:payload=>{stored=payload;return payload},
     syncActiveVariation:()=>{},
