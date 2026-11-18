@@ -9,8 +9,9 @@ assert.ok(app.includes("includeGoalNets:false"));
 assert.ok(app.includes('item.type!=="net"'),"Ignored-object clearances must exclude all nets");
 assert.ok(!app.includes('d="M49 257h26v86'),"Legacy full-rink grey nets still present");
 assert.ok(!app.includes('d="M258 105V65Q300'),"Legacy half-rink net still present");
-assert.ok(app.includes('state.equipment=v7NormalizeEquipmentList([])'),"New must restore both nets");
-assert.ok(app.includes('if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide)return false'),"Goal deletion must be prevented");
+assert.ok(app.includes('state.equipment=v7NormalizeEquipmentList([v7DefaultGoalNet("left"),v7DefaultGoalNet("right")])'),"New must restore both nets");
+assert.ok(app.includes('if(!v7EquipmentById(id))return false'),"Default nets must be removable");
+assert.ok(!app.includes('if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide'),"No permanent-net deletion guard");
 assert.ok(app.includes('data-v7-reset-goal'),"Goal reset control missing");
 assert.ok(app.includes('const impacts=(built?.contacts||[])'),"Board/net impact data must reach haptics");
 
@@ -52,8 +53,11 @@ vm.runInNewContext(modelSource+
   "\nconst V7_CREASE_RADIUS_UNITS=28.8;"+
   presetSource+"\n"+app.slice(normalizerStart,normalizerEnd)+
   "\nthis.iceGeometry=v7IceGeometry;this.iceNormalize=v7NormalizeIce;this.icePerimeter=v7IcePerimeter;this.iceCrease=v7IceCreaseOutline;",normContext,{timeout:3000});
-const initial=normContext.v7NormalizeEquipmentList([]);
-assert.equal(initial.length,2,"Fresh play must have two nets");
+const initial=normContext.v7NormalizeEquipmentList(undefined);
+assert.equal(initial.length,2,"Legacy play without equipment must receive default pair");
+assert.equal(normContext.v7NormalizeEquipmentList([]).length,0,"Explicitly saved empty rink must remain empty");
+assert.equal(normContext.v7NormalizeEquipmentList([initial[0]]).length,1,
+ "Removing one original goal must never regenerate it");
 const migrated=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:62,y:300,rotation:0,netPreset:"pro"});
 assert.equal(migrated.x,64.8,"Original built-in net should migrate to rink-driven 11ft goal line");
 const custom=normContext.v7NormalizeEquipmentItem({id:"v7-goal-left",type:"net",goalSide:"left",x:82,y:295,rotation:15,netPreset:"pro"});
@@ -644,7 +648,8 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
  assert.ok(app.includes('v7MultiPivot(drag.snapshot,drag.total*180/Math.PI)'),"Group turn handle must drive shared pivot");
  assert.ok(app.includes('v7MultiPriorRenderFrame(time);v7MultiDraw()'),"Group overlay must redraw with the rink");
  assert.ok(app.includes('if(item.goalSide)item.iceAnchor=false'),"Group turn must release net crease anchoring");
- assert.ok(app.includes('!t.item.goalSide'),"Permanent goal nets cannot be batch-deleted");
+ assert.ok(app.includes('const items=selected; // Default nets can be removed by the group minus, too.'),
+ "Marquee minus must include the two default nets");
  assert.ok(app.includes('state.timeline.movements=state.timeline.movements.filter(c=>!players.has(c.playerId))'));
  assert.ok(app.includes('!pucks.has(e.puckId||"puck")'),"Bulk removal must clean puck routes");
  assert.ok(app.includes(".v7-object-handle-line,.v7-multi-overlay,.timeline-player-focus-ring"),
@@ -675,6 +680,42 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   const corner=solver.slide(item,{x:g.x-20,y:g.yBottom+20});
   assert.ok(corner&&!solver.penetration(item,corner),item.id+" must remain on ice near rounded corner");
  }
+}
+
+/* Default goal removal must survive snapshots, reloads and group deletion. */
+{
+ const left=initial.find(x=>x.goalSide==="left"),right=initial.find(x=>x.goalSide==="right");
+ assert.equal(normContext.v7NormalizeEquipmentList([right]).length,1,"Deleted left goal must stay gone");
+ assert.equal(normContext.v7NormalizeEquipmentList([left]).length,1,"Deleted right goal must stay gone");
+ assert.equal(normContext.v7NormalizeEquipmentList([]).length,0,"Both deleted goals stay deleted");
+ assert.ok(app.includes("state.equipment=v7NormalizeEquipmentList(play?.equipment);"),
+  "Loading a play must not use existing nets to fill an intentionally empty list");
+ const start=app.indexOf("function v7DeleteEquipment("),end=app.indexOf("function v7ResetGoalNet(",start);
+ assert.ok(start>0&&end>start);
+ const ctx={state:{equipment:[left,right]},ui:{selectedType:"equipment",selectedId:left.id},history:0,saved:0,
+  pushHistory:()=>ctx.history++,syncActiveVariation:()=>{},renderAll:()=>{},scheduleSave:()=>ctx.saved++,
+  v7EquipmentById:id=>ctx.state.equipment.find(x=>x.id===id)};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.deleteNet=v7DeleteEquipment;",ctx,{timeout:1500});
+ assert.equal(ctx.deleteNet(left.id),true,"The left original net must be individually removable");
+ assert.equal(ctx.state.equipment.length,1);
+ assert.equal(ctx.deleteNet(right.id),true,"The right original net must be individually removable");
+ assert.equal(ctx.state.equipment.length,0);
+ assert.equal(ctx.history,2);assert.equal(ctx.saved,2);
+ assert.equal(ctx.deleteNet(left.id),false,"Repeat deletion should be harmless");
+ assert.equal(normContext.v7NormalizeEquipmentList(ctx.state.equipment).length,0);
+ const a=app.indexOf("function v7MultiDelete("),b=app.indexOf("function v7MultiLayer(",a);
+ assert.ok(a>0&&b>a);
+ const context={
+  state:{equipment:[left,right],onIce:{},timeline:{movements:[],puckTakes:[{events:[]}]},additionalPucks:[],primaryPuckVisible:true},
+  ui:{selectedType:null,selectedId:null,v7ActivePuckId:"puck",v60Mode:null,targetMode:null},
+  history:0,pushHistory:()=>context.history++,
+  v7MultiTokensSelected:()=>[{type:"equipment",id:left.id,item:left},{type:"equipment",id:right.id,item:right}],
+  v7MultiClear:()=>{},syncActiveVariation:()=>{},renderAll:()=>{},scheduleSave:()=>{},toast:()=>{}
+ };
+ vm.runInNewContext(app.slice(a,b)+"\nthis.deleteGroup=v7MultiDelete;",context,{timeout:1500});
+ assert.equal(context.deleteGroup(),true,"Group minus must remove default nets");
+ assert.equal(context.state.equipment.length,0);assert.equal(context.history,1);
+ assert.equal(normContext.v7NormalizeEquipmentList(context.state.equipment).length,0);
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
