@@ -8040,6 +8040,329 @@ Object.assign(window.BOTD_TEST,{
   shellLayout:()=>({topbarDisplay:getComputedStyle(document.querySelector(".topbar")).display,focusMode:document.body.classList.contains("focus-mode")})
 });
 
+
+/* V7 MULTI-SELECTION: the selector arrow draws a marquee on empty ice.
+   Group operations are ephemeral UI; stored plays keep the original schema. */
+function v7MultiEnabled(){
+ return ui.tool==="select"&&!ui.playing&&!ui.recordingMove&&!ui.directPuck&&
+ !ui.v60Mode&&!ui.targetMode&&!ui.v7EquipmentPlacement&&!ui.v7AdditionalPuckPlacement
+}
+function v7MultiRadius(type,id){
+ const g=v7IceGeometry(state.ice),m=v7OnIceSymbolMetrics(g.scale);
+ if(type==="puck")return v7PuckBoardInset();
+ const p=playerById(id);
+ return (p?.role==="goalie"?m.goalieWidth:m.skaterDiameter)/2+V7_ICE_BOARD_INSET+.6
+}
+function v7MultiParts(token,pose=token.pos,rotation=token.item?.rotation||0){
+ if(token.type!=="equipment")return[{x:pose.x,y:pose.y,r:v7MultiRadius(token.type,token.id)}];
+ const item=token.item,scale=Number(item.scale)||1,a=rotation*Math.PI/180,c=Math.cos(a)*scale,s=Math.sin(a)*scale;
+ return v7EquipmentFootprint(item).map(p=>({x:pose.x+p.x*c-p.y*s,y:pose.y+p.x*s+p.y*c,
+  r:p.r*scale+V7_ICE_BOARD_INSET}))
+}
+function v7MultiBounds(parts){
+ return{minX:Math.min(...parts.map(p=>p.x-p.r)),maxX:Math.max(...parts.map(p=>p.x+p.r)),
+ minY:Math.min(...parts.map(p=>p.y-p.r)),maxY:Math.max(...parts.map(p=>p.y+p.r))}
+}
+function v7MultiTokens(){
+ const tokens=[];
+ for(const item of state.equipment||[])tokens.push({type:"equipment",id:item.id,key:"equipment:"+item.id,item,pos:{x:item.x,y:item.y}});
+ for(const id of Object.keys(state.onIce||{}))if(playerById(id))
+ tokens.push({type:"player",id,key:"player:"+id,pos:playerPositionAt(id,ui.playhead)});
+ if(state.primaryPuckVisible!==false)tokens.push({type:"puck",id:"puck",key:"puck:puck",
+  pos:puckStateAt(ui.playhead,buildPuckTimeline("puck")).pos});
+ for(const puck of state.additionalPucks||[])tokens.push({type:"puck",id:puck.id,key:"puck:"+puck.id,
+  pos:puckStateAt(ui.playhead,buildPuckTimeline(puck.id)).pos});
+ return tokens.filter(t=>Number.isFinite(t.pos?.x)&&Number.isFinite(t.pos?.y))
+}
+function v7MultiTokensSelected(){
+ const ids=new Set(ui.v7MultiIds||[]);
+ return v7MultiTokens().filter(t=>ids.has(t.key))
+}
+function v7MultiVisible(t){
+ if(state.view!=="half")return true;
+ const b=v7MultiBounds(v7MultiParts(t));
+ return state.halfSide==="right"?b.maxX>=500:b.minX<=500
+}
+function v7MultiClear(){
+ ui.v7MultiIds=[];ui.v7MultiMarquee=null;ui.v7MultiRotate=null;
+ $("#v7MultiLayer")?.replaceChildren()
+}
+function v7MultiChoose(keys){
+ const known=new Set(v7MultiTokens().map(t=>t.key)),ids=[...new Set(keys)].filter(k=>known.has(k));
+ ui.v7MultiIds=ids.length>1?ids:[];ui.selectedId=null;ui.selectedType=null;
+ ui.pendingTap=null;ui.v60DirectSelection=false;
+ if(ids.length===1){
+  const split=ids[0].indexOf(":"),type=ids[0].slice(0,split),id=ids[0].slice(split+1);
+  ui.selectedType=type==="puck"?(id==="puck"?"puck":"additionalPuck"):type;ui.selectedId=id;
+  if(type==="puck"){ui.v7ActivePuckId=id;ui.v60DirectSelection=true}
+ }
+ renderInspector();renderTimeline();renderFrame(ui.playhead)
+}
+/* Project only the penetrating item's painted silhouette along the nearest
+   inward wall normal; tangent motion remains free and traces rounded corners. */
+function v7MultiPenetration(token,at,rotation=token.item?.rotation||0){
+ let worst=null;
+ for(const part of v7MultiParts(token,at,rotation)){
+  const depth=v7IceSignedDistance(part,state.ice)+part.r;
+  if(depth>.000001&&(!worst||depth>worst.depth))worst={part,depth}
+ }
+ return worst
+}
+function v7MultiSlide(token,at,rotation=token.item?.rotation||0){
+ if(!Number.isFinite(at.x)||!Number.isFinite(at.y))return null;
+ const p={x:at.x,y:at.y},eps=.15;
+ for(let n=0;n<32;n++){
+  const hit=v7MultiPenetration(token,p,rotation);
+  if(!hit){
+   const q={x:round(p.x,4),y:round(p.y,4)};
+   if(!v7MultiPenetration(token,q,rotation))return q;
+   p.x-=.0008*(p.x-500)/(Math.hypot(p.x-500,p.y-300)||1);
+   p.y-=.0008*(p.y-300)/(Math.hypot(p.x-500,p.y-300)||1);continue
+  }
+  const x=hit.part.x,y=hit.part.y;
+  const nx=v7IceSignedDistance({x:x+eps,y})-v7IceSignedDistance({x:x-eps,y});
+  const ny=v7IceSignedDistance({x,y:y+eps})-v7IceSignedDistance({x,y:y-eps});
+  const length=Math.hypot(nx,ny)||1;
+  p.x-=nx/length*(hit.depth+.009);p.y-=ny/length*(hit.depth+.009)
+ }
+ if(token.type==="equipment")return v7ClampEquipmentToIce({...token.item,rotation},p);
+ return v7ProjectInsideIce(p,q=>v7PointClearOfBoards(q,v7MultiRadius(token.type,token.id)))
+}
+/* A single undoable pivot updates each member relative to the group's center.
+   When a member reaches the wall, the member slides to its nearest legal point. */
+function v7MultiSnapshot(){
+ const tokens=v7MultiTokensSelected();if(tokens.length<2)return null;
+ const b=v7MultiBounds(tokens.flatMap(t=>v7MultiParts(t)));
+ const center={x:(b.minX+b.maxX)/2,y:(b.minY+b.maxY)/2};
+ const members=tokens.map(t=>{
+  const base=t.type==="player"?{...state.onIce[t.id]}:
+   t.type==="puck"?(t.id==="puck"?{...state.puckStart}:{...v7AdditionalPuckById(t.id)}):{...t.pos};
+  const data={...t,pos:{...t.pos},base,rotation:t.item?.rotation||0};
+  if(t.type==="player")data.tracks=state.timeline.movements.filter(c=>c.playerId===t.id)
+   .map(c=>({id:c.id,points:deepClone(c.points)}));
+  if(t.type==="puck")data.routes=state.timeline.puckTakes.map(take=>({
+   id:take.id,events:take.events.filter(ev=>(ev.puckId||"puck")===t.id).map(ev=>({
+    id:ev.id,from:ev.from?deepClone(ev.from):null,target:ev.target?deepClone(ev.target):null,
+    aimVector:ev.aimVector?deepClone(ev.aimVector):null}))}));
+  return data
+ });
+ return{center,members}
+}
+function v7MultiPivot(snapshot,degrees){
+ if(!snapshot)return false;
+ const a=degrees*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+ for(const t of snapshot.members){
+  const dx=t.pos.x-snapshot.center.x,dy=t.pos.y-snapshot.center.y;
+  const pos={x:snapshot.center.x+dx*c-dy*s,y:snapshot.center.y+dx*s+dy*c};
+  const angle=round(((t.rotation+degrees+540)%360)-180,2);
+  const safe=v7MultiSlide(t,pos,angle);if(!safe)continue;
+  const offset={x:safe.x-t.pos.x,y:safe.y-t.pos.y};
+  if(t.type==="equipment"){
+   const item=v7EquipmentById(t.id);if(!item)continue;
+   item.x=safe.x;item.y=safe.y;item.rotation=angle;
+   if(item.goalSide)item.iceAnchor=false
+  }else if(t.type==="player"){
+   if(!state.onIce[t.id])continue;
+   state.onIce[t.id]={x:round(t.base.x+offset.x,4),y:round(t.base.y+offset.y,4)};
+   for(const track of t.tracks){
+    const clip=state.timeline.movements.find(c=>c.id===track.id);if(!clip)continue;
+    clip.points=track.points.map(point=>{
+     const desired={x:point.x+offset.x,y:point.y+offset.y};
+     return v7MultiSlide(t,desired)||desired
+    })
+   }
+  }else{
+   const puck=t.id==="puck"?state.puckStart:v7AdditionalPuckById(t.id);if(!puck)continue;
+   const start=v7ClampPuckToIce({x:t.base.x+offset.x,y:t.base.y+offset.y});
+   if(start){puck.x=start.x;puck.y=start.y}
+   for(const take of t.routes){
+    const live=state.timeline.puckTakes.find(x=>x.id===take.id);if(!live)continue;
+    for(const original of take.events){
+     const ev=live.events.find(x=>x.id===original.id);if(!ev)continue;
+     for(const field of ["from","target"])if(original[field])
+      ev[field]=v7ClampPuckToIce({x:original[field].x+offset.x,y:original[field].y+offset.y})||original[field];
+     if(original.aimVector)ev.aimVector={x:round(original.aimVector.x*c-original.aimVector.y*s,5),
+      y:round(original.aimVector.x*s+original.aimVector.y*c,5)}
+    }
+   }
+  }
+ }
+ return true
+}
+function v7MultiDelete(){
+ const selected=v7MultiTokensSelected();if(selected.length<2)return false;
+ const items=selected.filter(t=>t.type!=="equipment"||!t.item.goalSide);
+ if(!items.length){toast("Permanent regulation nets cannot be removed; use Reset.",2800);return false}
+ pushHistory();
+ const eq=new Set(items.filter(t=>t.type==="equipment").map(t=>t.id));
+ const players=new Set(items.filter(t=>t.type==="player").map(t=>t.id));
+ const pucks=new Set(items.filter(t=>t.type==="puck").map(t=>t.id));
+ state.equipment=state.equipment.filter(t=>!eq.has(t.id));
+ for(const id of players)delete state.onIce[id];
+ state.timeline.movements=state.timeline.movements.filter(c=>!players.has(c.playerId));
+ if(pucks.has("puck")){state.primaryPuckVisible=false;v7StopPuckDiscovery()}
+ state.additionalPucks=state.additionalPucks.filter(t=>!pucks.has(t.id));
+ for(const take of state.timeline.puckTakes)
+ take.events=take.events.filter(e=>!players.has(e.targetId)&&!pucks.has(e.puckId||"puck"));
+ if(pucks.has(ui.v7ActivePuckId))ui.v7ActivePuckId=state.primaryPuckVisible===false?
+  (state.additionalPucks[0]?.id||null):"puck";
+ ui.v60Mode=null;ui.targetMode=null;v7MultiClear();syncActiveVariation();renderAll();scheduleSave();
+ const retained=selected.length-items.length;
+ toast("Removed "+items.length+" selected objects"+(retained?"; "+retained+" permanent net(s) retained":"")+".",3000);
+ return true
+}
+function v7MultiLayer(){
+ const camera=v59EnsureWorldCamera();if(!camera)return null;
+ let layer=$("#v7MultiLayer");
+ if(!layer){layer=svgEl("g",{id:"v7MultiLayer",class:"v7-multi-overlay"});camera.append(layer)}
+ return layer
+}
+function v7MultiViewport(p){
+ const g=v7IceGeometry(state.ice),b=state.view!=="half"?
+  {minX:0,maxX:1000,minY:0,maxY:600}:
+  {minX:state.halfSide==="right"?500:g.x,maxX:state.halfSide==="right"?g.xRight:500,
+   minY:g.y,maxY:g.yBottom};
+ return{x:clamp(p.x,b.minX+14,b.maxX-14),y:clamp(p.y,b.minY+14,b.maxY-14)}
+}
+function v7MultiDraw(){
+ const layer=v7MultiLayer();if(!layer)return;
+ layer.replaceChildren();if(!v7MultiEnabled())return;
+ const marquee=ui.v7MultiMarquee;
+ if(marquee?.moved){
+  const a=marquee.start,b=marquee.end;
+  layer.append(svgEl("rect",{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),
+   width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y),rx:3,
+   class:"v7-multi-marquee","pointer-events":"none"}));
+  return
+ }
+ const tokens=v7MultiTokensSelected().filter(v7MultiVisible);
+ if(tokens.length<2)return;
+ const b=v7MultiBounds(tokens.flatMap(t=>v7MultiParts(t)));
+ const top=b.minY-6,center=(b.minX+b.maxX)/2;
+ layer.append(svgEl("rect",{x:b.minX-6,y:b.minY-6,width:b.maxX-b.minX+12,
+  height:b.maxY-b.minY+12,rx:5,class:"v7-multi-bounds","pointer-events":"none"}));
+ const rotate=v7MultiViewport({x:center,y:top-30});
+ const del=v7MultiViewport({x:b.maxX+24,y:top-7});
+ layer.append(svgEl("line",{x1:center,y1:top,x2:rotate.x,y2:rotate.y,
+  class:"v7-multi-arm","pointer-events":"none"}));
+ layer.append(svgEl("circle",{cx:rotate.x,cy:rotate.y,r:11,class:"v7-multi-rotate",
+  "data-v7-multi-rotate":"1",role:"button",tabindex:0,"pointer-events":"all",
+  "aria-label":"Rotate selected group",style:"cursor:grab"}));
+ const arrow=svgEl("text",{x:rotate.x,y:rotate.y+4,"text-anchor":"middle",fill:"#087fae",
+  "font-size":14,"font-weight":900,"pointer-events":"none"});arrow.textContent="↻";layer.append(arrow);
+ layer.append(svgEl("circle",{cx:del.x,cy:del.y,r:12,class:"v7-multi-remove",
+  "data-v7-multi-remove":"1",role:"button",tabindex:0,"pointer-events":"all",
+  "aria-label":"Remove selected objects; permanent nets stay"}));
+ const minus=svgEl("text",{x:del.x,y:del.y+6,"text-anchor":"middle",
+  fill:"#fff","font-size":21,"font-weight":900,"pointer-events":"none"});
+ minus.textContent="−";layer.append(minus);
+ const label=svgEl("text",{x:center,y:b.maxY+19,"text-anchor":"middle",
+  fill:"#0783a8","font-size":10,"font-weight":800,"pointer-events":"none"});
+ label.textContent=tokens.length+" selected";layer.append(label)
+}
+function v7MultiWorldPoint(event){
+ const svg=$("#rinkSvg"),cam=v59EnsureWorldCamera(),p=svg.createSVGPoint();
+ p.x=event.clientX;p.y=event.clientY;
+ const matrix=(cam||svg).getScreenCTM();
+ if(!matrix)return{x:500,y:300};
+ const q=p.matrixTransform(matrix.inverse()),b=v59VisibleWorldBounds();
+ return{x:clamp(q.x,b.minX,b.maxX),y:clamp(q.y,b.minY,b.maxY)}
+}
+function v7MultiInstall(){
+ if(window.__BOTD_MULTI_INSTALLED)return;window.__BOTD_MULTI_INSTALLED=true;
+ const style=document.createElement("style");style.id="v7MultiStyles";
+ style.textContent=".v7-multi-marquee{fill:#178eb51e;stroke:#0488be;stroke-width:2;stroke-dasharray:8 4;vector-effect:non-scaling-stroke}"+
+ ".v7-multi-bounds{fill:none;stroke:#007da8;stroke-width:2.3;stroke-dasharray:7 5;vector-effect:non-scaling-stroke}"+
+ ".v7-multi-arm{stroke:#087fae;stroke-width:2;vector-effect:non-scaling-stroke}"+
+ ".v7-multi-rotate{fill:white;stroke:#087fae;stroke-width:3;vector-effect:non-scaling-stroke}"+
+ ".v7-multi-remove{fill:#c62434;stroke:white;stroke-width:2.5;cursor:pointer;vector-effect:non-scaling-stroke}";
+ document.head.append(style);
+ const svg=$("#rinkSvg"),intercept=e=>{e.preventDefault();e.stopImmediatePropagation();ui.pendingTap=null};
+ const occupied=e=>e.target.closest?.("[data-player-id],[data-puck],[data-v7-additional-puck-id],"+
+  "[data-equipment-id],[data-v7-object-handle],[data-v7-remove-equipment],"+
+  "[data-v7-net-size],[data-v7-reset-goal],[data-v7-dispense-puck]");
+ window.addEventListener("pointerdown",e=>{
+  if(!svg?.contains(e.target)||e.button!==0||!v7MultiEnabled())return;
+  if(e.target.closest?.("[data-v7-multi-remove]")){intercept(e);v7MultiDelete();return}
+  if(e.target.closest?.("[data-v7-multi-rotate]")){
+   intercept(e);const snapshot=v7MultiSnapshot();if(!snapshot)return;
+   const p=v7MultiWorldPoint(e),angle=Math.atan2(p.y-snapshot.center.y,p.x-snapshot.center.x);
+   ui.v7MultiRotate={pointerId:e.pointerId,snapshot,last:angle,total:0,changed:false};
+   try{svg.setPointerCapture(e.pointerId)}catch{}return
+  }
+  if(occupied(e)){
+   if(ui.v7MultiIds?.length){ui.v7MultiIds=[];v7MultiDraw()}return
+  }
+  intercept(e);
+  const p=v7MultiWorldPoint(e);
+  ui.v7MultiMarquee={pointerId:e.pointerId,start:p,end:p,client:{x:e.clientX,y:e.clientY},
+   moved:false,prior:e.shiftKey?[...(ui.v7MultiIds||[])]:[]};
+  try{svg.setPointerCapture(e.pointerId)}catch{}
+ },true);
+ window.addEventListener("pointermove",e=>{
+  const marquee=ui.v7MultiMarquee;
+  if(marquee?.pointerId===e.pointerId){
+   intercept(e);marquee.end=v7MultiWorldPoint(e);
+   marquee.moved=marquee.moved||Math.hypot(e.clientX-marquee.client.x,e.clientY-marquee.client.y)>5;
+   v7MultiDraw();return
+  }
+  const drag=ui.v7MultiRotate;if(!drag||drag.pointerId!==e.pointerId)return;
+  intercept(e);
+  const p=v7MultiWorldPoint(e),now=Math.atan2(p.y-drag.snapshot.center.y,p.x-drag.snapshot.center.x);
+  drag.total+=Math.atan2(Math.sin(now-drag.last),Math.cos(now-drag.last));drag.last=now;
+  if(!drag.changed&&Math.abs(drag.total)<.001)return;
+  if(!drag.changed)pushHistory();
+  drag.changed=true;v7MultiPivot(drag.snapshot,drag.total*180/Math.PI);renderFrame(ui.playhead)
+ },true);
+ const finish=e=>{
+  const rotating=ui.v7MultiRotate;
+  if(rotating?.pointerId===e.pointerId){
+   intercept(e);ui.v7MultiRotate=null;
+   if(rotating.changed){syncActiveVariation();scheduleSave();renderAll()}
+   else renderFrame(ui.playhead);
+   return
+  }
+  const drag=ui.v7MultiMarquee;if(!drag||drag.pointerId!==e.pointerId)return;
+  intercept(e);ui.v7MultiMarquee=null;
+  if(e.type==="pointercancel"){v7MultiDraw();return}
+  if(!drag.moved){v7MultiChoose(drag.prior);return}
+  const a=drag.start,b=drag.end,rect={minX:Math.min(a.x,b.x),minY:Math.min(a.y,b.y),
+   maxX:Math.max(a.x,b.x),maxY:Math.max(a.y,b.y)};
+  const hits=v7MultiTokens().filter(v7MultiVisible).filter(t=>{
+   const b=v7MultiBounds(v7MultiParts(t));
+   return b.minX>=rect.minX&&b.maxX<=rect.maxX&&b.minY>=rect.minY&&b.maxY<=rect.maxY
+  }).map(t=>t.key);
+  v7MultiChoose([...drag.prior,...hits])
+ };
+ window.addEventListener("pointerup",finish,true);
+ window.addEventListener("pointercancel",finish,true);
+ window.addEventListener("keydown",e=>{
+  if(!ui.v7MultiIds?.length)return;
+  if(e.target?.matches?.("input,select,textarea")||e.target?.isContentEditable)return;
+  if(e.key==="Escape"){intercept(e);v7MultiClear()}
+  else if((e.key==="Delete"||e.key==="Backspace")&&ui.v7MultiIds.length>=2){
+   intercept(e);v7MultiDelete()
+  }else if((e.key==="Enter"||e.key===" ")&&e.target.closest?.("[data-v7-multi-remove]")){
+   intercept(e);v7MultiDelete()
+  }
+ },true);
+ Object.assign(window.BOTD_TEST,{groupSelected:()=>[...(ui.v7MultiIds||[])],
+  groupSelect:keys=>v7MultiChoose(keys),
+  groupRotate:deg=>{const x=v7MultiSnapshot();if(!x)return false;pushHistory();v7MultiPivot(x,deg);syncActiveVariation();renderAll();return true},
+  groupDelete:v7MultiDelete});
+ v7MultiDraw()
+}
+const v7MultiPriorRenderFrame=renderFrame;
+renderFrame=function(time=ui.playhead){const out=v7MultiPriorRenderFrame(time);v7MultiDraw();return out};
+const v7MultiPriorNewBoard=newBoard;
+newBoard=function(){v7MultiClear();return v7MultiPriorNewBoard()};
+const v7MultiPriorRestoreSnapshot=restoreSnapshot;
+restoreSnapshot=function(raw){v7MultiClear();return v7MultiPriorRestoreSnapshot(raw)};
+const v7MultiPriorChangeView=changeView;
+changeView=function(view){v7MultiClear();return v7MultiPriorChangeView(view)};
+const v7MultiPriorInit=init;
+init=function(){v7MultiPriorInit();v7MultiInstall();renderFrame(ui.playhead)};
+
 init();
 v682SetupGlowRangeEvents();
 v682SyncTelestrationTools();
@@ -8068,7 +8391,7 @@ async function v7VideoFrame(canvas,time){
  // A serialized SVG must have computed styles inlined before it is drawn into a video canvas.
  const props=["fill","stroke","stroke-width","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","text-anchor","dominant-baseline","display","visibility","filter","transform","transform-origin","paint-order"];
  for(let i=0;i<sources.length;i++){const computed=getComputedStyle(sources[i]);for(const prop of props)copies[i].style.setProperty(prop,computed.getPropertyValue(prop))}
- clone.querySelectorAll(".selection-ring,.v7-object-handle,.v7-object-handle-line,.timeline-player-focus-ring,.v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]").forEach(el=>el.remove());
+ clone.querySelectorAll(".selection-ring,.v7-object-handle,.v7-object-handle-line,.v7-multi-overlay,.timeline-player-focus-ring,.v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]").forEach(el=>el.remove());
  clone.querySelectorAll("image").forEach(el=>{const href=el.getAttribute("href")||el.getAttribute("xlink:href")||"";if(href&&!href.startsWith("data:"))el.remove()});
  clone.setAttribute("xmlns","http://www.w3.org/2000/svg");clone.setAttribute("width",canvas.width);clone.setAttribute("height",canvas.height);
  const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:"image/svg+xml"}));
