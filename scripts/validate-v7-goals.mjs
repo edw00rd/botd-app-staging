@@ -13,7 +13,7 @@ assert.ok(app.includes('state.equipment=v7NormalizeEquipmentList([v7DefaultGoalN
 assert.ok(app.includes('if(!v7EquipmentById(id))return false'),"Default nets must be removable");
 assert.ok(!app.includes('if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide'),"No permanent-net deletion guard");
 assert.ok(app.includes('data-v7-reset-goal'),"Goal reset control missing");
-assert.ok(app.includes('const impacts=(built?.contacts||[])'),"Board/net impact data must reach haptics");
+assert.ok(app.includes('const impacts=(physical?.contacts||built?.contacts||[])'),"Resolved object and board impacts must reach haptics");
 
 
 /* Visual footprint is tied to physical rink scale, not the old oversized tokens. */
