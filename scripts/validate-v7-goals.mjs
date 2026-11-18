@@ -932,4 +932,14 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   "Pass targeting must consume the equipment click before its selection handler");
 }
 
+/* Full power-stage prediction must match the saved physics path.
+   Window repositioning must not be overwritten by frame re-renders. */
+assert.ok(app.includes('else{const built=v7PhysicalShotTrajectory(origin,mode.aim,mode.power,{time:ui.playhead'),
+ "Shot preview must use the same equipment-aware solver as playback");
+assert.ok(app.includes("const separation=Math.max(3.6,V7_PUCK_RADIUS*1.3)"),
+ "Rebounds must separate from the impacted object's collision hull");
+assert.ok(app.includes("/* V7 DRAGGABLE POPUPS:"),"Shot dialog drag controls missing");
+assert.ok(app.includes("ui.v7ShotPanelPosition={left:x,top:y}"),"Shot popup must retain its dragged coordinates");
+assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable");
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
