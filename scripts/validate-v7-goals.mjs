@@ -37,7 +37,8 @@ const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
   net:{geometry:{length:16,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
-  cone:{geometry:{radius:6},physics:{collidable:true,response:"soft_block",restitution:.12},capabilities:{rotatable:false,resize:"uniform",puckSource:false}}
+  cone:{geometry:{radius:9},physics:{collidable:true,response:"soft_block",restitution:.06},capabilities:{rotatable:false,resize:"none",puckSource:false}},
+  tire:{geometry:{radius:10.5},physics:{collidable:true,response:"bounce",restitution:.60},capabilities:{rotatable:false,resize:"none",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
 const normalizerEnd=app.indexOf("function v7EnsureSemanticTimeline(",normalizerStart);
@@ -47,7 +48,7 @@ const normContext={V7_RINK_OBJECT_TYPES:types,deepClone,clamp,round,uid:prefix=>
   v59CopyPoint:p=>({x:p.x,y:p.y})};
 const modelSource=app.slice(app.indexOf("const V7_ICE_M_TO_FT="),app.indexOf("const V7_CREASE_RADIUS_UNITS="));
 assert.ok(modelSource.startsWith("const V7_ICE_M_TO_FT="),"Model source must precede net geometry");
-const presetSource=app.slice(app.indexOf("const V7_NET_SIZES="),app.indexOf("const V7_PUCK_RADIUS="));
+const presetSource=app.slice(app.indexOf("const V7_NET_SIZES="),app.indexOf("const V7_RINK_OBJECT_TYPES="));
 vm.runInNewContext(modelSource+
   "\nthis.state={ice:v7NormalizeIce({profile:'nhl'})};"+
   "\nconst V7_CREASE_RADIUS_UNITS=28.8;"+
@@ -74,6 +75,30 @@ for(const [name,width,height] of [["little",14.4,2],["medium",19.2,3],["pro",28.
  assert.equal(item.capabilities.resize,"none");
 }
 assert.equal(right.x,935.2);assert.equal(right.rotation,180);
+
+/* Cone and tire presets must survive normalization with no rotation or drag resize. */
+for(const [type,choices] of [
+ ["cone",[["mini",5.6],["training",9],["traffic",13.5]]],
+ ["tire",[["kart",7],["small",10.5],["car",14.5],["truck",20.5]]]
+]){
+ for(const [preset,radius] of choices){
+  const item=normContext.v7NormalizeEquipmentItem({id:type+"-"+preset,type,x:500,y:300,
+   sizePreset:preset,rotation:90,scale:2.5,capabilities:{rotatable:true,resize:"uniform"}});
+  assert.equal(item.sizePreset,preset);
+  assert.equal(item.geometry.radius,radius);
+  assert.equal(item.rotation,0);
+  assert.equal(item.scale,1);
+  assert.equal(item.capabilities.resize,"none");
+  assert.equal(item.capabilities.rotatable,false);
+ }
+}
+assert.equal(normContext.v7NormalizeEquipmentItem({type:"cone",x:500,y:300,geometry:{radius:6}}).sizePreset,"mini",
+ "Existing small cones should migrate to the closest preset");
+assert.ok(app.includes('collision.type==="cone"?clamp(inMag*.04,1.5,7)'),
+ "Cone impacts must die quickly");
+assert.ok(app.includes('function v7DuplicateRound(id)')&&app.includes('v7EquipmentFitsIce(original,at)'),
+ "Same-size duplicates must stay inside boards");
+
 
 /* Regression: crease mouth snapping, orientation and opposing scrimmage alignment. */
 const placementStart=app.indexOf("const V7_NET_CREASE_SNAP_DISTANCE_FT=");
@@ -159,6 +184,7 @@ const drawn=[],topDrawn=[];
 const layer={firstChild:null,insertBefore(node){drawn.push(node.kind)},append(node){drawn.push(node.kind)}};
 const handleLayer={replaceChildren(){topDrawn.length=0},append(node){topDrawn.push(node.kind)}};
 const renderContext={
+ V7_ROUND_SIZES:{},
  state:{equipment:[{...looseNet,id:"scrimmage",goalSide:null}]},
  ui:{selectedType:"equipment",selectedId:"scrimmage",
   v7EquipmentTransform:{id:"scrimmage",kind:"rotate"}},
@@ -730,7 +756,7 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   'cam?.getScreenCTM()',
   'world.setAttribute("transform","matrix("',
   'root.setAttribute("viewBox","0 0 "+window.innerWidth+" "+window.innerHeight)',
-  '".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-dispense-puck"',
+  '".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-round-size,.v7-rink-duplicate,.v7-rink-dispense-puck"',
   'while(netLayer?.firstChild)world.append(netLayer.firstChild)',
   '.v7-object-handle,.v7-object-handle-line',
   '.v7-multi-arm',
