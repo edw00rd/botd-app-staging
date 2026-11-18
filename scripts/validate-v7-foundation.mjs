@@ -372,6 +372,7 @@ for(const required of [
       activeTake:()=>({events:structuredClone(events)}),
       clamp:(n,lo,hi)=>Math.max(lo,Math.min(hi,n)),
       clampRinkPoint:p=>p,
+      v7ClampPuckToIce:p=>p,
       deepClone:p=>structuredClone(p),
       dist,
       polylineLength:points=>points.slice(1).reduce((sum,p,i)=>sum+dist(p,points[i]),0),
@@ -394,7 +395,7 @@ for(const required of [
   assert.equal(loose.timeline.results.get("loose-pass").target,"B");
   assert.ok(loose.timeline.intervals.some(i=>i.eventId==="loose-pass"&&i.motion==="pass"));
   assert.ok(loose.timeline.intervals.some(i=>i.kind==="attached"&&i.holder==="B"));
-  assert.ok(loose.collisionCalls.some(c=>c?.includeObjects===true),"Passing must check rink objects");
+  assert.equal(loose.collisionCalls.length,0,"Pass to a player must ignore rink obstacles");
 
   const attached=run([
     {id:"take",type:"possess",time:0,targetId:"A"},
@@ -411,7 +412,7 @@ for(const required of [
   assert.equal(spaceFlight.path.at(-1).x,400);
   assert.equal(spaceFlight.path.at(-1).y,280);
   assert.ok(!space.timeline.intervals.some(i=>i.kind==="attached"),"Open-ice pass cannot attach to a player");
-  assert.ok(space.collisionCalls.some(c=>c?.includeObjects===true),"Open-ice pass must check rink objects");
+  assert.equal(space.collisionCalls.length,0,"Pass to space must ignore rink obstacles");
 
   const fromHolder=run([{id:"take",type:"possess",time:0,targetId:"A"},
     {id:"space-held",type:"passSpace",time:.2,target:{x:450,y:220},travelDuration:1.5}]);
@@ -421,8 +422,10 @@ for(const required of [
 
   const hit={kind:"object",point:{x:200,y:180},time:.5,response:"bounce"};
   const obstructed=run([{id:"blocked-space",type:"passSpace",time:0,target:{x:400,y:280}}],hit);
-  assert.equal(obstructed.timeline.results.get("blocked-space").collision.kind,"object");
-  assert.equal(obstructed.timeline.intervals.find(i=>i.eventId==="blocked-space").path.length,3);
+  assert.equal(obstructed.timeline.results.get("blocked-space").collision,undefined,
+    "Pass should not react to obstacles in flight");
+  assert.equal(obstructed.timeline.intervals.find(i=>i.eventId==="blocked-space").path.length,2);
+  assert.equal(obstructed.collisionCalls.length,0);
 }
 // Each puck must animate its own simultaneous passes/shots, never steal
 // another puck's event stream, and retain a stable origin after save/load.
@@ -442,7 +445,7 @@ for(const required of [
    timeline:{duration:12},equipment:[],onIce:{}},
   activeTake:()=>({events:structuredClone(actions)}),
   v7AdditionalPuckById:id=>model.state.additionalPucks.find(p=>p.id===id),
-  clamp:(v,a,z)=>Math.min(z,Math.max(a,v)),clampRinkPoint:p=>p,
+  clamp:(v,a,z)=>Math.min(z,Math.max(a,v)),clampRinkPoint:p=>p,v7ClampPuckToIce:p=>p,
   passSpeedUnits:()=>120,shotSpeedUnits:()=>100,dist:distance,
   polylineLength:points=>points.slice(1).reduce((sum,p,i)=>sum+distance(p,points[i]),0),
   v60BuildShotPath:source=>({path:[source,{x:source.x+180,y:source.y}],goal:false,boardFollow:false,contacts:[]}),
