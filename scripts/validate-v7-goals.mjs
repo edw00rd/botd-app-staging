@@ -976,7 +976,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const start=app.indexOf("/* V7 DRILL MOVEMENT NOTATION AND SMOOTH SKATING");
  assert.ok(start>0,"Skating notation upgrade missing");
  const scope=app.slice(start);
- for(const key of ["forward","backward","lateral","pivot","carry","stop"])
+ for(const key of ["forward","backward","lateral","carry","crossover","stop"])
    assert.ok(scope.includes(key+':{label:'),"Missing movement type "+key);
  for(const phrase of [
    'v7SkatingSmoothPoints(raw)',
@@ -1034,7 +1034,9 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "function v7BuildRecordedTraceTiming(",
   "function v7SkatingLinkedArches(",
   "function v7PaintSkatingRoute(",
-  'type==="backward"||type==="pivot"',
+  'type==="backward"',
+  'type==="crossover"',
+  'v7AppendFilledDrillArrow(',
   'type==="lateral"',
   'type==="carry"'
  ])assert.ok(section.includes(str),"Movement regression: "+str);
@@ -1064,45 +1066,70 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   }
   return pts[0]
  };
- const arrows=[];
  const ctx={
   dist,polylineLength:length,pointAtPolyline:pointAt,
   clamp:(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),
   round:(n,d=2)=>Number(Number(n).toFixed(d)),
   pathD:pts=>pts.map((p,i)=>(i?"L":"M")+p.x+" "+p.y).join(" "),
   svgEl:(tag,attrs)=>({tag,attrs}),
-  v61AppendOpenArrow:(...args)=>arrows.push(args),
   playerPositionAt:()=>{},movementClipsFor:()=>[],
   state:{onIce:{A:{x:0,y:0}}}
  };
  vm.runInNewContext(section+
   "\nthis.traceTiming=v7BuildRecordedTraceTiming;this.pace=v7RecordedMovementProgress;"+
-  "this.paint=v7PaintSkatingRoute;this.linked=v7SkatingLinkedArches;",ctx,{timeout:3000});
+  "this.paint=v7PaintSkatingRoute;this.linked=v7SkatingLinkedArches;"+
+  "this.moveKeys=Object.keys(V7_DRILL_MOVES);",ctx,{timeout:3000});
+ assert.equal(Array.from(ctx.moveKeys).join(","),
+  "forward,backward,lateral,carry,crossover,stop",
+  "Menu must offer exactly the six pictured movement symbols");
  const route=[{x:0,y:0},{x:20,y:0},{x:40,y:0},{x:60,y:0}];
  const timing=ctx.traceTiming(route,[0,.1,.5,1.5],1.5);
- assert.equal(timing.length,4,"Record an elapsed timestamp at each traced segment");
- const timedClip={start:0,duration:1.5,traceTiming:timing};
- assert.ok(Math.abs(ctx.pace(timedClip,.1)-1/3)<.002);
- assert.ok(Math.abs(ctx.pace(timedClip,.5)-2/3)<.002);
- assert.equal(ctx.pace(timedClip,1.5),1);
+ assert.equal(timing.length,4,"Each traced segment retains its recorded time");
+ const clip={start:0,duration:1.5,traceTiming:timing};
+ assert.ok(Math.abs(ctx.pace(clip,.1)-1/3)<.002);
+ assert.ok(Math.abs(ctx.pace(clip,.5)-2/3)<.002);
+ assert.equal(ctx.pace(clip,1.5),1);
  assert.ok(Math.abs(ctx.pace({start:0,duration:1.5},.5)-1/3)<.002,
-  "Old untimed plays remain playable");
+  "Untimed legacy plays must remain playable");
  const shorthand=[{x:0,y:0},{x:100,y:0}];
  const run=kind=>{
-  const drawn=[],base=arrows.length;
-  ctx.paint({append:node=>drawn.push(node)},shorthand,kind,"#111111");
-  return{nodes:drawn,arrows:arrows.length-base}
+  const nodes=[];
+  ctx.paint({append:n=>nodes.push(n)},shorthand,kind,"#111111");
+  return{nodes,main:nodes.find(n=>n.attrs["data-v7-skate-kind"]===kind),
+   arrows:nodes.filter(n=>n.attrs["data-v7-skate-arrow"])}
  };
+ const forward=run("forward");
+ assert.equal(forward.arrows.length,1,"Forward skating requires an arrow");
+ assert.equal(forward.arrows[0].attrs.fill,"#111111");
+ assert.match(forward.arrows[0].attrs.d,/ Z$/,"Forward arrowhead must be filled");
  const backward=run("backward");
- assert.equal(backward.arrows,0,"Backward line has no end arrow in this source key");
- const arch=backward.nodes.find(n=>n.attrs["data-v7-skate-kind"]==="backward");
- assert.ok((arch?.attrs?.d?.match(/ C/g)||[]).length>=9,
-  "Backward path must use repeated curled Bézier arches, not a sine wave");
- assert.equal(run("lateral").arrows,0,"Lateral bars do not carry an arrow");
- assert.equal(run("stop").arrows,0,"Stopping ends with double bars");
- assert.equal(run("carry").arrows,1,"Puck carrying retains a broad-wave arrow");
- assert.equal(run("forward").arrows,1);
- assert.equal(run("pivot").arrows,1);
+ assert.equal(backward.arrows.length,0,"Backward skating has no arrow");
+ assert.ok((backward.main?.attrs.d.match(/M/g)||[]).length>=4 &&
+  (backward.main.attrs.d.match(/ C/g)||[]).length>=8,
+  "Backward skating needs several hooked alternating half-arches");
+ const lateral=run("lateral");
+ assert.equal(lateral.arrows.length,1,"Lateral crossovers require an arrow");
+ assert.ok(lateral.main.attrs.d.startsWith("M0 0L100 0"),
+  "Lateral crossovers require a continuous shaft");
+ assert.ok(lateral.nodes.filter(n=>n.attrs["data-v7-lateral-tick"]).length>=4,
+  "Lateral crossovers require spaced perpendicular bars");
+ const carry=run("carry");
+ assert.equal(carry.arrows.length,1,"Stickhandling wave requires an arrow");
+ assert.ok((carry.main?.attrs.d.match(/L/g)||[]).length>30 &&
+  carry.main.attrs.d!==forward.main.attrs.d,
+  "Stickhandling is one continuous smooth wave");
+ const cross=run("crossover");
+ assert.equal(cross.arrows.length,0,"Backward crossovers have no arrow");
+ assert.ok((cross.main?.attrs.d.match(/L/g)||[]).length>=6,
+  "Backward crossovers must be an angular zigzag");
+ const y=[...cross.main.attrs.d.matchAll(/[ML](-?[\\d.]+) (-?[\\d.]+)/g)].map(m=>+m[2]);
+ assert.ok(y.length>=7&&y.every((v,i)=>i===0||v*y[i-1]<0),
+  "Backward crossovers need alternating sharp positive/negative peaks");
+ const stop=run("stop");
+ assert.equal(stop.arrows.length,0,"Sudden stop has no arrow");
+ assert.equal(stop.nodes.filter(n=>n.attrs["data-v7-stop-bar"]).length,2,
+  "Sudden stop must end in two perpendicular bars");
+
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
