@@ -589,4 +589,46 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
  assert.ok(app.includes('part.getAttribute("data-v7-net-base-opacity")'),
    "Blinking must restore each red tube's original opacity");
 }
+
+/* No-forcefield regressions: visual object edge touches the inner board face. */
+{
+ const widthMatch=app.match(/const V7_ICE_BOARD_STROKE_WIDTH=(\d+(?:\.\d+)?);/);
+ assert.ok(widthMatch,"Missing shared paint/physics board thickness");
+ const stroke=Number(widthMatch[1]);
+ assert.ok(stroke<3.5,"Boards should be slightly thinner");
+ assert.ok(!app.includes("V7_ICE_OBJECT_CLEARANCE"));
+ assert.ok(app.includes('stroke:ice.colors.boards,"stroke-width":V7_ICE_BOARD_STROKE_WIDTH'));
+ assert.ok(app.includes('stroke:"#456171","stroke-width":V7_ICE_BOARD_STROKE_WIDTH'));
+ const begin=app.indexOf("/* Board contact is the *painted inside face*");
+ const end=app.indexOf("function v7NormalizeOnIceTokens(",begin);
+ assert.ok(begin>0&&end>begin);
+ const ctx={state:{ice:normContext.iceNormalize({profile:"nhl"}),view:"whole"},
+   v7IceGeometry:normContext.iceGeometry,round,clamp,
+   v7OnIceSymbolMetrics:u=>({puckRadius:Math.max(1.6,.4*u)}),
+   V7_ICE_BOARD_STROKE_WIDTH:stroke};
+ vm.runInNewContext(app.slice(begin,end)+
+   "\nthis.puckInset=v7PuckBoardInset;this.clampPuck=v7ClampPuckToIce;"+
+   "this.clampItem=v7ClampEquipmentToIce;this.itemFits=v7EquipmentFitsIce;"+
+   "this.signedDistance=v7IceSignedDistance;",ctx,{timeout:3000});
+ const g=normContext.iceGeometry(ctx.state.ice),inset=ctx.puckInset();
+ const puck=ctx.clampPuck({x:500,y:g.yBottom+200});
+ assert.ok(Math.abs(puck.y-(g.yBottom-inset))<.02,"Puck's outside paint must meet the wall");
+ assert.ok(ctx.signedDistance(puck)<=-inset+.01,"Puck must not overlap boards");
+ for(const item of [
+   {type:"cone",geometry:{radius:6},scale:1,rotation:0},
+   {type:"tire",geometry:{radius:9},scale:1.2,rotation:0},
+   {type:"puckPile",geometry:{radius:12},scale:1,rotation:0},
+   {type:"divider",geometry:{length:58,width:11},scale:1,rotation:35},
+   {type:"stick",geometry:{length:42,width:3.5},scale:1,rotation:0},
+   {type:"net",geometry:{length:16,width:28.8},scale:1,rotation:0},
+   {type:"net",geometry:{length:16,width:28.8},scale:1,rotation:70}
+ ]){
+   const fixed=ctx.clampItem(item,{x:500,y:g.yBottom+200});
+   assert.ok(fixed&&ctx.itemFits(item,fixed),"Object must remain fully on the ice: "+item.type);
+   assert.ok(!ctx.itemFits(item,{x:fixed.x,y:fixed.y+.2}),"Object must touch board with no buffer: "+item.type);
+   const corner=ctx.clampItem(item,{x:g.x-40,y:g.yBottom+40});
+   assert.ok(corner&&ctx.itemFits(item,corner),"Rotated shape must stay inside curved boards: "+item.type);
+ }
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
