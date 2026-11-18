@@ -1102,6 +1102,25 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(forward.arrows.length,1,"Forward skating requires an arrow");
  assert.equal(forward.arrows[0].attrs.fill,"#111111");
  assert.match(forward.arrows[0].attrs.d,/ Z$/,"Forward arrowhead must be filled");
+ // Regression against the supplied interlocking-arch reference:
+ // upper and lower semi-circles overlap by 50% in the direction of travel.
+ const glyphSegments=ctx.linked(shorthand).match(/M[^M]+/g)||[];
+ assert.ok(glyphSegments.length>=8&&glyphSegments.length%2===0,
+  "Backward route must consist of separate alternating upper/lower curls");
+ const coords=segment=>(segment.match(/-?[0-9]+(?:\\.[0-9]+)?/g)||[]).map(Number);
+ const a0=coords(glyphSegments[0]),b0=coords(glyphSegments[1]),a1=coords(glyphSegments[2]);
+ assert.equal(a0.length,14,"Each curl must consist of two smooth cubic quarter-arcs");
+ assert.ok(a0[7]<0&&b0[7]>0&&a1[7]<0,
+  "Curls must alternately bow above and below the traced centerline");
+ assert.ok(Math.abs(a0[1])<.01&&Math.abs(a0[13])<.01&&
+  Math.abs(b0[1])<.01&&Math.abs(b0[13])<.01,
+  "Every semicircle starts and ends precisely on the traced centerline");
+ assert.ok(Math.abs(a0[12]-(b0[0]+b0[12])/2)<.04,
+  "An upper semicircle must end at the horizontal midpoint of the next lower one");
+ assert.ok(Math.abs(b0[12]-(a1[0]+a1[12])/2)<.04,
+  "A lower semicircle must end at the horizontal midpoint of the next upper one");
+ assert.ok(Math.abs(coords(glyphSegments.at(-1)).at(-2)-100)<.02,
+  "All curls must stay inside the traced route without overshooting its endpoint");
  const backward=run("backward");
  assert.equal(backward.arrows.length,0,"Backward skating has no arrow");
  assert.ok((backward.main?.attrs.d.match(/M/g)||[]).length>=4 &&

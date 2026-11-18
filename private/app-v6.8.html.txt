@@ -9389,22 +9389,38 @@ function v7SkatingWavy(points,amplitude,wavelength){
  out[0]={...points[0]};out[out.length-1]={...points.at(-1)};
  return out
 }
-/* BACKWARD SKATING: interlocking, hooked half-circle arches alternating
-   around the trace. These are separate overlapping C glyphs, not one sine
-   wave (which would be confused with stickhandling). */
+/* BACKWARD SKATING: the diagram's interleaved semicircular arches.
+   Upper-facing and lower-facing C-shaped half-circles are staggered by HALF
+   their width. Thus the endpoint of every curl lies horizontally at the
+   midpoint of the next opposing curl, instead of producing a connected
+   sine wave. Both families are fitted exactly inside the recorded trace. */
 function v7SkatingLinkedArches(points){
  const arc=v7SkatingSampler(points);if(arc.length<2)return pathD(points);
- const count=Math.max(1,Math.round(arc.length/19.5)),period=arc.length/count,radius=Math.min(8,period*.43);
- const place=(d,offset)=>{const s=arc.sample(clamp(d,0,arc.length));return{x:s.point.x-s.direction.y*offset,y:s.point.y+s.direction.x*offset}};
- const token=p=>round(p.x,2)+" "+round(p.y,2),shapes=[];
+ const count=Math.max(1,Math.round(arc.length/21));
+ const period=arc.length/(count+.5),half=period/2;
+ const rise=Math.min(7.4,period*.38),kappa=.55228475;
+ const token=p=>round(p.x,2)+" "+round(p.y,2);
+ const place=(d,offset=0)=>{
+  const s=arc.sample(clamp(d,0,arc.length));
+  return{x:s.point.x-s.direction.y*offset,y:s.point.y+s.direction.x*offset}
+ };
+ const curl=(from,sign)=>{
+  const h=sign*rise;
+  return "M"+token(place(from))+
+   " C"+token(place(from,h*kappa))+
+   " "+token(place(from+half*(1-kappa),h))+
+   " "+token(place(from+half,h))+
+   " C"+token(place(from+half*(1+kappa),h))+
+   " "+token(place(from+period,h*kappa))+
+   " "+token(place(from+period))
+ };
+ const curls=[];
  for(let i=0;i<count;i++){
-  const d=i*period,sign=i%2?1:-1;
-  const p=(u,side=0)=>token(place(d+u*period,side*sign*radius));
-  shapes.push("M"+p(0)+
-   " C"+p(.05,.85)+" "+p(.23,1)+" "+p(.50,1)+
-   " C"+p(.77,1)+" "+p(1.035,.32)+" "+p(.91,-.09))
+  const from=i*period;
+  curls.push(curl(from,-1));          // upper arch: ∩
+  curls.push(curl(from+half,1))     // lower arch: ∪, offset half a period
  }
- return shapes.join(" ")
+ return curls.join(" ")
 }
 /* BACKWARD CROSSOVER: sharp alternating triangular peaks, no arrow. */
 function v7SkatingZigzag(points){
