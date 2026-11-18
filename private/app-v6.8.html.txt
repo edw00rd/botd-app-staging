@@ -6136,7 +6136,7 @@ function v7ProjectInsideIce(point,accept,ice=state.ice){
  }
  return anchor
 }
-/* A small, single-layer cluster modeled after USA Hockey notation.
+/* A tight, single-layer cluster modeled after USA Hockey notation.
    Both art and board footprint use the exact playable puck radius. */
 const V7_PUCK_PILE_LAYOUT=Object.freeze([
  // Eighteen pucks, scattered like a handful dropped on the ice.
@@ -6148,8 +6148,15 @@ const V7_PUCK_PILE_LAYOUT=Object.freeze([
  [0.19,1.68],[-1.11,1.63]
 ]);
 function v7PuckPileDiscCenters(ice=state.ice){
- const r=v7OnIceSymbolMetrics(v7IceGeometry(ice).scale).puckRadius,pitch=2.8*r;
+ const r=v7OnIceSymbolMetrics(v7IceGeometry(ice).scale).puckRadius,pitch=2.6*r;
  return V7_PUCK_PILE_LAYOUT.map(([x,y])=>({x:x*pitch,y:y*pitch,r}))
+}
+// A tiny, permanent dispensing mark tucked just below the pile's right edge.
+// Calculate from actual discs rather than an arbitrary fixed icon position.
+function v7PuckPileDispenseOffset(ice=state.ice){
+ const discs=v7PuckPileDiscCenters(ice),r=discs[0].r;
+ return{x:Math.max(...discs.map(p=>p.x+p.r))+r*.55,
+        y:Math.max(...discs.map(p=>p.y+p.r))-r*.55}
 }
 /* Real SVG footprints: props touch the inside boards at their painted edge.
    Transparent hitboxes, selection rings and editor handles are not physical. */
@@ -6950,13 +6957,17 @@ function v7RinkRemoveControl(id,kind,point={x:28,y:-27},scale=1){
  return node
 }
 function v7RinkDispensePuckControl(id,point){
+  const r=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckRadius;
   const node=svgEl("g",{class:"v7-rink-dispense-puck","data-v7-dispense-puck":id,
-    role:"button",tabindex:"0","aria-label":"Dispense another puck from pile",
+    role:"button",tabindex:"0","aria-label":"Add puck from pile",
     transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",style:"cursor:pointer"});
-  node.append(svgEl("circle",{r:14,fill:"#087d53",stroke:"#fff","stroke-width":2.2,
-    "vector-effect":"non-scaling-stroke","pointer-events":"all"}));
-  node.append(svgEl("path",{d:"M-6 0H6M0 -6V6",stroke:"#fff","stroke-width":2.8,
-    "stroke-linecap":"round","pointer-events":"none"}));
+  // Comfortable invisible hit target, but visually just one puck-sized +.
+  node.append(svgEl("circle",{r:Math.max(7,r*3.5),fill:"transparent","pointer-events":"all"}));
+  node.append(svgEl("circle",{r:round(r,2),fill:"#087d53",stroke:"#fff","stroke-width":.5,
+    "pointer-events":"all"}));
+  const arm=round(r*.54,2);
+  node.append(svgEl("path",{d:"M"+(-arm)+" 0H"+arm+"M0 "+(-arm)+"V"+arm,
+    fill:"none",stroke:"#fff","stroke-width":.95,"stroke-linecap":"round","pointer-events":"none"}));
   return node
 }
 function v7RoundButton(id,point,action){
@@ -7225,6 +7236,13 @@ function v7RenderEquipment(){
     if(first)layer.insertBefore(node,first);else layer.append(node)
   }
   v7RenderNetPlacementGuide(layer);
+  // Each pile keeps a discreet dispenser even after it creates a new puck.
+  for(const pile of state.equipment||[]){
+    if(pile.type!=="puckPile")continue;
+    const offset=v7PuckPileDispenseOffset(),at={x:pile.x+offset.x,y:pile.y+offset.y};
+    const point=v59ClampVisiblePoint?v59ClampVisiblePoint(at):clampRinkPoint(at);
+    layer.append(v7RinkDispensePuckControl(pile.id,point))
+  }
   const selected=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;
   // Smaller, tighter action buttons leave the net handle more room.
   // During rotation they disappear, while the handle remains on top.
@@ -7232,10 +7250,11 @@ function v7RenderEquipment(){
   const rotatingNet=isNet&&ui.v7EquipmentTransform?.kind==="rotate"&&
     ui.v7EquipmentTransform.id===selected.id;
   if(!rotatingNet&&selected){
-    const point=v59ClampVisiblePoint?
-      v59ClampVisiblePoint({x:selected.x+(isNet?21:selected.type==="puckPile"?25:30),y:selected.y+(isNet?-24:selected.type==="puckPile"?-30:-27)}):
-      clampRinkPoint({x:selected.x+(isNet?21:selected.type==="puckPile"?25:30),y:selected.y+(isNet?-24:selected.type==="puckPile"?-30:-27)});
-    layer.append(v7RinkRemoveControl(selected.id,"equipment",point,isNet?.78:1))
+    const isPile=selected.type==="puckPile";
+    const offset=isPile?{x:-20,y:-16}:{x:isNet?21:30,y:isNet?-24:-27};
+    const at={x:selected.x+offset.x,y:selected.y+offset.y};
+    const point=v59ClampVisiblePoint?v59ClampVisiblePoint(at):clampRinkPoint(at);
+    layer.append(v7RinkRemoveControl(selected.id,"equipment",point,isPile?.64:isNet?.78:1))
   }if(!rotatingNet&&selected?.goalSide){
     const point=v59ClampVisiblePoint?
       v59ClampVisiblePoint({x:selected.x+21,y:selected.y+24}):
@@ -7247,12 +7266,6 @@ function v7RenderEquipment(){
       v59ClampVisiblePoint({x:selected.x-21,y:selected.y-24}):
       clampRinkPoint({x:selected.x-21,y:selected.y-24});
     layer.append(v7RinkNetSizeControl(selected.id,point,.78))
-  }
-  if(selected?.type==="puckPile"){
-    const point=v59ClampVisiblePoint?
-      v59ClampVisiblePoint({x:selected.x-25,y:selected.y-30}):
-      clampRinkPoint({x:selected.x-25,y:selected.y-30});
-    layer.append(v7RinkDispensePuckControl(selected.id,point))
   }
   if(selected&&V7_ROUND_SIZES[selected.type]){
    const at=(dx,dy)=>v59ClampVisiblePoint?
