@@ -6860,21 +6860,55 @@ function v7RenderNetPlacementGuide(layer){
 
 /* Net handle lives above all action buttons in SVG paint order.
    The longer arm keeps it clear even before pointerdown. */
+/* Keep the handle inside usable ice even if the selected net is next to
+   the playback bar or a corner. Prefer its usual side, then flip inward. */
+function v7NetRotateHandlePosition(item){
+  const cg=v7CollisionGeometry(item),ry=Math.max(10,cg.width/2||cg.radius+6);
+  const desired=ry+37,angle=(Number(item.rotation)||0)*Math.PI/180;
+  const co=Math.cos(angle),si=Math.sin(angle);
+  const directions=[
+    {x:si,y:-co},{x:-si,y:co},
+    {x:co,y:si},{x:-co,y:-si}
+  ];
+  const visible=state.view==="half"?v59VisibleWorldBounds():null;
+  for(const reach of [desired,desired-8,desired-16,ry+17]){
+    for(const direction of directions){
+      const x=item.x+direction.x*reach,y=item.y+direction.y*reach;
+      if(!v7PointClearOfBoards({x,y},13))continue;
+      if(visible&&(x<visible.minX+13||x>visible.maxX-13||
+         y<visible.minY+13||y>visible.maxY-13))continue;
+      // Keep clear of the two small action bubbles wherever possible.
+      const bubbleA=Math.hypot(x-item.x-21,y-item.y+24);
+      const bubbleB=Math.hypot(x-item.x+21,y-item.y+24);
+      if(Math.min(bubbleA,bubbleB)<22)continue;
+      return{x:round(x,2),y:round(y,2)}
+    }
+  }
+  // Centerward fallback for unusually large nets on narrow custom ice.
+  const anchor=v7InteriorAnchor();
+  const dx=anchor.x-item.x,dy=anchor.y-item.y,d=Math.hypot(dx,dy)||1;
+  const p=v7ProjectInsideIce({x:item.x+dx/d*desired,y:item.y+dy/d*desired},
+    point=>v7PointClearOfBoards(point,13));
+  return p||{x:item.x,y:item.y}
+}
 function v7NetRotateOverlay(item){
   const node=svgEl("g",{
     "data-equipment-id":item.id,"data-v7-net-rotate-overlay":item.id,
-    transform:"translate("+round(item.x,2)+" "+round(item.y,2)+") rotate("+item.rotation+") scale("+item.scale+")",
+    transform:"translate("+round(item.x,2)+" "+round(item.y,2)+")",
     style:"cursor:grab"
   });
-  const cg=v7CollisionGeometry(item),ry=Math.max(10,cg.width/2||cg.radius+6),cy=-ry-52;
-  node.append(svgEl("line",{x1:0,y1:-ry-5,x2:0,y2:cy+12,
+  const point=v7NetRotateHandlePosition(item);
+  const dx=point.x-item.x,dy=point.y-item.y,d=Math.hypot(dx,dy)||1;
+  const ux=dx/d,uy=dy/d;
+  const start=Math.min(19,d*.40),finish=Math.max(start,d-11);
+  node.append(svgEl("line",{x1:round(ux*start,2),y1:round(uy*start,2),
+    x2:round(ux*finish,2),y2:round(uy*finish,2),
     class:"v7-object-handle-line","pointer-events":"none"}));
-  node.append(svgEl("circle",{cx:0,cy,r:10,
+  node.append(svgEl("circle",{cx:round(dx,2),cy:round(dy,2),r:10,
     class:"v7-object-handle","data-v7-object-handle":"rotate",
     role:"button",tabindex:"0","aria-label":"Rotate net","pointer-events":"all"}));
   return node
 }
-
 function v7RenderEquipment(){
   const layer=$("#objectLayer");if(!layer)return;
   const first=layer.firstChild;
@@ -7481,7 +7515,7 @@ function v7SetupEquipmentEvents(){
     const point=svgPoint(event),handle=event.target.closest?.("[data-v7-object-handle]")?.dataset.v7ObjectHandle;
     if(handle){
       const dx=point.x-item.x,dy=point.y-item.y;
-      ui.v7EquipmentTransform={id,pointerId:event.pointerId,kind:handle,startRotation:Number(item.rotation)||0,startScale:Number(item.scale)||1,startDistance:Math.max(1,Math.hypot(dx,dy)),historyPushed:false,changed:false};
+      ui.v7EquipmentTransform={id,pointerId:event.pointerId,kind:handle,startRotation:Number(item.rotation)||0,startScale:Number(item.scale)||1,startDistance:Math.max(1,Math.hypot(dx,dy)),origin:{x:item.x,y:item.y},startPointerAngle:Math.atan2(dy,dx)*180/Math.PI,historyPushed:false,changed:false};
     }else{
       ui.v7EquipmentDrag={id,pointerId:event.pointerId,start:point,origin:{x:item.x,y:item.y},historyPushed:false,moved:false};
     }
@@ -7496,7 +7530,11 @@ function v7SetupEquipmentEvents(){
       pushTransformHistory(transform);transform.changed=true;
       if(item.goalSide)item.iceAnchor=false;
       if(transform.kind==="rotate"){
-        const angle=Math.atan2(p.y-item.y,p.x-item.x)*180/Math.PI+90;
+        const angle=item.type==="net"?
+          transform.startRotation+
+          ((Math.atan2(p.y-transform.origin.y,p.x-transform.origin.x)*180/Math.PI-
+             transform.startPointerAngle+540)%360-180):
+          Math.atan2(p.y-item.y,p.x-item.x)*180/Math.PI+90;
         item.rotation=item.type==="net"?
           v7SnapNetCardinalAngle(angle):round(((angle+180)%360)-180,1);
         if(item.type==="net"){
