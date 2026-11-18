@@ -5815,8 +5815,8 @@ function v7DefaultGoalieCreasePosition(teamId,index=0){
  const depth=(Number(state?.ice?.creaseRadius)||6)*g.scale*.5;
  return{x:round(line+(left?depth:-depth),2),y:round(300+Math.max(0,index)*1.4*g.scale,2)}
 }
-/* Regulation goals are persistent rink objects. Added during legacy play
-   migration and variation restores; normal extra nets stay separate. */
+/* Default nets are removable like every other object. Legacy/new plays start
+   with the pair, but an explicitly saved empty rink stays empty. */
 function v7DefaultGoalNet(side){
   const left=side==="left";
   return v7NormalizeEquipmentItem({
@@ -5833,7 +5833,9 @@ v7NormalizeEquipmentList=function(items){
     if(item.goalSide){if(found.has(item.goalSide))continue;found.add(item.goalSide)}
     result.push(item)
   }
-  for(const side of ["left","right"])if(!found.has(side))result.push(v7DefaultGoalNet(side));
+  // Only missing/legacy equipment gets defaults; [] and partial arrays are authoritative.
+  if(!Array.isArray(items))for(const side of ["left","right"])
+    if(!found.has(side))result.push(v7DefaultGoalNet(side));
   return result
 };
 function v7EnsureSemanticTimeline(timeline){
@@ -5993,7 +5995,7 @@ loadPlay=function(play){
   loadPlayV682ForV7(play);
   state.platform=v7NormalizePlatformMeta(play?.platform||state.platform);
   state.ice=v7NormalizeIce(play?.ice||state.ice);
-  state.equipment=v7NormalizeEquipmentList(play?.equipment||state.equipment);
+  state.equipment=v7NormalizeEquipmentList(play?.equipment);
   const loadedVariation=Array.isArray(play?.variations)?play.variations.find(v=>v.id===state.activeVariationId):null;
   state.primaryPuckVisible=(loadedVariation?.primaryPuckVisible??play?.primaryPuckVisible)!==false;
   state.additionalPucks=v7NormalizeAdditionalPucks(loadedVariation?.additionalPucks??play?.additionalPucks,v7MaxAdditionalPucks(state.primaryPuckVisible));
@@ -6039,7 +6041,7 @@ newBoard=function(){
   newBoardV682ForV7();
   state=v7EnsurePlatformState(state);
   state.ice=v7NormalizeIce({profile:"nhl"});
-  state.equipment=v7NormalizeEquipmentList([]);
+  state.equipment=v7NormalizeEquipmentList([v7DefaultGoalNet("left"),v7DefaultGoalNet("right")]);
   state.additionalPucks=[];
   state.primaryPuckVisible=true;
   state.puckStart={x:500,y:300};
@@ -6999,15 +7001,15 @@ function v7RenderEquipment(){
   const isNet=selected?.type==="net";
   const rotatingNet=isNet&&ui.v7EquipmentTransform?.kind==="rotate"&&
     ui.v7EquipmentTransform.id===selected.id;
-  if(!rotatingNet&&selected&&!selected.goalSide){
+  if(!rotatingNet&&selected){
     const point=v59ClampVisiblePoint?
       v59ClampVisiblePoint({x:selected.x+(isNet?21:30),y:selected.y+(isNet?-24:-27)}):
       clampRinkPoint({x:selected.x+(isNet?21:30),y:selected.y+(isNet?-24:-27)});
     layer.append(v7RinkRemoveControl(selected.id,"equipment",point,isNet?.78:1))
-  }else if(!rotatingNet&&selected?.goalSide){
+  }if(!rotatingNet&&selected?.goalSide){
     const point=v59ClampVisiblePoint?
-      v59ClampVisiblePoint({x:selected.x+21,y:selected.y-24}):
-      clampRinkPoint({x:selected.x+21,y:selected.y-24});
+      v59ClampVisiblePoint({x:selected.x+21,y:selected.y+24}):
+      clampRinkPoint({x:selected.x+21,y:selected.y+24});
     layer.append(v7RinkGoalResetControl(selected.id,point,.78))
   }
   if(isNet&&!rotatingNet){
@@ -7484,7 +7486,7 @@ function v7AddEquipment(type,point,overrides={}){
   syncActiveVariation();renderAll();return item
 }
 function v7DeleteEquipment(id){
-  if(!v7EquipmentById(id)||v7EquipmentById(id).goalSide)return false;
+  if(!v7EquipmentById(id))return false;
   pushHistory();state.equipment=state.equipment.filter(item=>item.id!==id);
   if(ui.selectedType==="equipment"&&ui.selectedId===id){ui.selectedType=null;ui.selectedId=null;ui.v60DirectSelection=false}
   syncActiveVariation();renderAll();scheduleSave();return true
@@ -8191,8 +8193,7 @@ function v7MultiPivot(snapshot,degrees){
 }
 function v7MultiDelete(){
  const selected=v7MultiTokensSelected();if(selected.length<2)return false;
- const items=selected.filter(t=>t.type!=="equipment"||!t.item.goalSide);
- if(!items.length){toast("Permanent regulation nets cannot be removed; use Reset.",2800);return false}
+ const items=selected; // Default nets can be removed by the group minus, too.
  pushHistory();
  const eq=new Set(items.filter(t=>t.type==="equipment").map(t=>t.id));
  const players=new Set(items.filter(t=>t.type==="player").map(t=>t.id));
@@ -8207,8 +8208,7 @@ function v7MultiDelete(){
  if(pucks.has(ui.v7ActivePuckId))ui.v7ActivePuckId=state.primaryPuckVisible===false?
   (state.additionalPucks[0]?.id||null):"puck";
  ui.v60Mode=null;ui.targetMode=null;v7MultiClear();syncActiveVariation();renderAll();scheduleSave();
- const retained=selected.length-items.length;
- toast("Removed "+items.length+" selected objects"+(retained?"; "+retained+" permanent net(s) retained":"")+".",3000);
+ toast("Removed "+items.length+" selected objects.",3000);
  return true
 }
 function v7MultiLayer(){
