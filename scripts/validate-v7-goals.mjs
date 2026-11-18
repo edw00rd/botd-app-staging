@@ -253,12 +253,15 @@ const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
 /* Match the diagram reference: same small puck radius, no puck overlap,
    with the board footprint calculated from the actual visible discs. */
 const pileDiscs=normContext.v7PuckPileDiscCenters();
-assert.equal(pileDiscs.length,24,"Puck pile should show 24 loose pucks");
+assert.equal(pileDiscs.length,18,"Puck pile should show exactly 18 loose pucks");
+assert.ok(new Set(pileDiscs.map(p=>p.x)).size>=16 &&
+ new Set(pileDiscs.map(p=>p.y)).size>=16,
+ "Puck pile layout should be organically scattered, never rows or a grid");
 const pileR=visual.puckRadius+Math.max(.65,visual.puckRadius*.35)/2;
 for(let i=0;i<pileDiscs.length;i++)for(let j=i+1;j<pileDiscs.length;j++)
  assert.ok(Math.hypot(pileDiscs[i].x-pileDiscs[j].x,pileDiscs[i].y-pileDiscs[j].y)>2*pileR+.1,
   "Puck pile pucks must not touch or overlap");
-assert.equal(normContext.v7EquipmentFootprint({type:"puckPile",geometry:{radius:12}}).length,24,
+assert.equal(normContext.v7EquipmentFootprint({type:"puckPile",geometry:{radius:12}}).length,18,
  "Pile boards containment must check each disc");
 assert.ok(app.includes('v7RinkDispensePuckControl(selected.id,point)'),"Keep the puck pile + action");
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
