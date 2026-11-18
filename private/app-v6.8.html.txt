@@ -8265,8 +8265,10 @@ function v7MultiWorldPoint(event){
  p.x=event.clientX;p.y=event.clientY;
  const matrix=(cam||svg).getScreenCTM();
  if(!matrix)return{x:500,y:300};
- const q=p.matrixTransform(matrix.inverse()),b=v59VisibleWorldBounds();
- return{x:clamp(q.x,b.minX,b.maxX),y:clamp(q.y,b.minY,b.maxY)}
+ const q=p.matrixTransform(matrix.inverse());
+ // Group rotation handles remain usable outside the painted ice.
+ // Never clip pointer coordinates to the wall; only the objects themselves.
+ return{x:q.x,y:q.y}
 }
 function v7MultiInstall(){
  if(window.__BOTD_MULTI_INSTALLED)return;window.__BOTD_MULTI_INSTALLED=true;
@@ -8328,10 +8330,10 @@ function v7MultiInstall(){
   if(!drag.moved){v7MultiChoose(drag.prior);return}
   const a=drag.start,b=drag.end,rect={minX:Math.min(a.x,b.x),minY:Math.min(a.y,b.y),
    maxX:Math.max(a.x,b.x),maxY:Math.max(a.y,b.y)};
-  const hits=v7MultiTokens().filter(v7MultiVisible).filter(t=>{
-   const b=v7MultiBounds(v7MultiParts(t));
-   return b.minX>=rect.minX&&b.maxX<=rect.maxX&&b.minY>=rect.minY&&b.maxY<=rect.maxY
-  }).map(t=>t.key);
+  // Select physical object centers, including nets/pucks flush with the boards.
+  const hits=v7MultiTokens().filter(v7MultiVisible).filter(t=>
+   t.pos.x>=rect.minX&&t.pos.x<=rect.maxX&&
+   t.pos.y>=rect.minY&&t.pos.y<=rect.maxY).map(t=>t.key);
   v7MultiChoose([...drag.prior,...hits])
  };
  window.addEventListener("pointerup",finish,true);
