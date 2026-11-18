@@ -7606,7 +7606,7 @@ function v7SetupEquipmentEvents(){
     const transform=ui.v7EquipmentTransform;
     if(transform&&transform.pointerId===event.pointerId){
       event.preventDefault();event.stopImmediatePropagation();
-      const item=v7EquipmentById(transform.id);if(!item)return;const p=svgPoint(event);
+      const item=v7EquipmentById(transform.id);if(!item)return;const p=v7MultiWorldPoint(event);
       pushTransformHistory(transform);transform.changed=true;
       if(item.goalSide)item.iceAnchor=false;
       if(transform.kind==="rotate"){
@@ -8364,6 +8364,197 @@ const v7MultiPriorChangeView=changeView;
 changeView=function(view){v7MultiClear();return v7MultiPriorChangeView(view)};
 const v7MultiPriorInit=init;
 init=function(){v7MultiPriorInit();v7MultiInstall();renderFrame(ui.playhead)};
+
+
+/* V7 GLOBAL FLOATING CONTROLS */
+/* Render editable objects and selection handles in a body-level SVG. A high
+   z-index inside the rink cannot escape .rink-shell or .stage overflow:hidden,
+   so the portaled controls use the actual world-camera screen matrix. */
+function v7FloatingRoot(){
+ let root=$("#v7FloatingRoot");
+ if(root)return root;
+ root=svgEl("svg",{id:"v7FloatingRoot",xmlns:"http://www.w3.org/2000/svg",
+  "aria-label":"Hockey rink selection controls"});
+ root.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;overflow:visible;"+
+  "z-index:2147483000;pointer-events:none;touch-action:none";
+ root.append(svgEl("g",{id:"v7FloatingWorld"}));
+ document.body.append(root);return root
+}
+function v7FloatingSync(){
+ const root=v7FloatingRoot(),world=$("#v7FloatingWorld"),cam=v59EnsureWorldCamera();
+ const matrix=cam?.getScreenCTM();
+ if(!world||!matrix){world?.replaceChildren();return}
+ root.setAttribute("viewBox","0 0 "+window.innerWidth+" "+window.innerHeight);
+ root.setAttribute("preserveAspectRatio","none");
+ world.setAttribute("transform","matrix("+[matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f].join(" ")+")");
+ world.replaceChildren();
+ if(ui.playing)return;
+ const layer=$("#objectLayer");
+ // Move the original selected controls, not copies; their artwork stays on ice.
+ for(const node of layer?.querySelectorAll(
+  ".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-dispense-puck")||[])
+  world.append(node);
+ const netLayer=$("#v7NetHandleLayer");
+ while(netLayer?.firstChild)world.append(netLayer.firstChild);
+ const selected=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;
+ if(selected&&selected.type!=="net"){
+  const group=[...layer?.querySelectorAll("[data-equipment-id]")||[]]
+   .find(node=>node.dataset.equipmentId===selected.id);
+  if(group){
+   const nodes=[...group.querySelectorAll(".v7-object-handle,.v7-object-handle-line")];
+   if(nodes.length){
+    const wrapper=svgEl("g",{"data-equipment-id":selected.id,
+     transform:group.getAttribute("transform")||""});
+    for(const node of nodes)wrapper.append(node);
+    world.append(wrapper)
+   }
+  }
+ }
+ // The dashed group box and label remain on the rink. Only the turn arm,
+ // handle and minus float over the benches, ribbon and bottom controls.
+ const group=$("#v7MultiLayer"),turn=group?.querySelector(".v7-multi-rotate"),
+  remove=group?.querySelector(".v7-multi-remove"),
+  arm=group?.querySelector(".v7-multi-arm"),
+  turnIcon=turn?.nextElementSibling,minus=remove?.nextElementSibling;
+ for(const node of [arm,turn,turnIcon,remove,minus])if(node)world.append(node)
+}
+function v7FloatingAction(target){
+ const remove=target.closest("[data-v7-remove-equipment]");
+ if(remove)return v7DeleteEquipment(remove.dataset.v7RemoveEquipment);
+ const reset=target.closest("[data-v7-reset-goal]");
+ if(reset)return v7ResetGoalNet(reset.dataset.v7ResetGoal);
+ const size=target.closest("[data-v7-net-size]");
+ if(size)return v7CycleNetSize(size.dataset.v7NetSize);
+ const pile=target.closest("[data-v7-dispense-puck]");
+ if(pile)return v7DispensePuckFromPile(pile.dataset.v7DispensePuck);
+ return false
+}
+function v7FloatingStartEquipment(event){
+ const handle=event.target.closest("[data-v7-object-handle]"),
+  equipment=event.target.closest("[data-equipment-id]"),
+  item=equipment?v7EquipmentById(equipment.dataset.equipmentId):null;
+ if(!item||!handle)return false;
+ const p=v7MultiWorldPoint(event),dx=p.x-item.x,dy=p.y-item.y;
+ ui.selectedType="equipment";ui.selectedId=item.id;ui.pendingTap=null;
+ ui.v7NetAlignmentGuide=null;ui.v7EquipmentDrag=null;
+ ui.v7EquipmentTransform={
+  id:item.id,pointerId:event.pointerId,kind:handle.dataset.v7ObjectHandle,
+  startRotation:Number(item.rotation)||0,startScale:Number(item.scale)||1,
+  startDistance:Math.max(1,Math.hypot(dx,dy)),
+  origin:{x:item.x,y:item.y},
+  startPointerAngle:Math.atan2(dy,dx)*180/Math.PI,
+  historyPushed:false,changed:false
+ };
+ try{$("#rinkSvg")?.setPointerCapture(event.pointerId)}catch{}
+ renderInspector();renderFrame(ui.playhead);return true
+}
+function v7FloatingStartGroup(event){
+ const snapshot=v7MultiSnapshot();if(!snapshot)return false;
+ const p=v7MultiWorldPoint(event);
+ ui.v7MultiRotate={
+  pointerId:event.pointerId,snapshot,
+  last:Math.atan2(p.y-snapshot.center.y,p.x-snapshot.center.x),
+  total:0,changed:false
+ };
+ try{$("#rinkSvg")?.setPointerCapture(event.pointerId)}catch{}
+ return true
+}
+function v7FloatingPlaceMenu(menu,anchor,{gap=10}={}){
+ const rect=anchor?.getBoundingClientRect();if(!menu||!rect?.width)return false;
+ menu.hidden=false;menu.style.visibility="hidden";menu.classList.remove("below");
+ const width=menu.offsetWidth,height=menu.offsetHeight;
+ const left=clamp(rect.left+rect.width/2-width/2,8,Math.max(8,window.innerWidth-width-8));
+ let top=rect.top-height-gap;
+ if(top<8){top=rect.bottom+gap;menu.classList.add("below")}
+ top=clamp(top,8,Math.max(8,window.innerHeight-height-8));
+ menu.style.left=round(left,1)+"px";menu.style.top=round(top,1)+"px";
+ menu.style.visibility="visible";return true
+}
+function v7FloatingInstall(){
+ if(window.__BOTD_FLOATING_INSTALLED)return;
+ window.__BOTD_FLOATING_INSTALLED=true;
+ const root=v7FloatingRoot(),style=document.createElement("style");
+ style.id="v7FloatingStyles";
+ style.textContent="#v7FloatingRoot .v7-object-handle,"+
+  "#v7FloatingRoot .v7-multi-rotate,#v7FloatingRoot .v7-multi-remove,"+
+  "#v7FloatingRoot .v7-rink-remove,#v7FloatingRoot .v7-rink-reset,"+
+  "#v7FloatingRoot .v7-rink-net-size,#v7FloatingRoot .v7-rink-dispense-puck"+
+  "{pointer-events:all;cursor:pointer}"+
+  "#v60ContextMenu[hidden]{display:none!important}";
+ document.head.append(style);
+ root.addEventListener("pointerdown",event=>{
+  if(event.button!==0)return;
+  const target=event.target;
+  if(target.closest("[data-v7-multi-remove]")){
+   event.preventDefault();event.stopImmediatePropagation();v7MultiDelete();return
+  }
+  if(target.closest("[data-v7-multi-rotate]")){
+   event.preventDefault();event.stopImmediatePropagation();v7FloatingStartGroup(event);return
+  }
+  if(target.closest("[data-v7-object-handle]")){
+   event.preventDefault();event.stopImmediatePropagation();v7FloatingStartEquipment(event);return
+  }
+  if(target.closest(".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-dispense-puck")){
+   event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
+   v7FloatingAction(target)
+  }
+ },true);
+ root.addEventListener("keydown",event=>{
+  if(event.key!=="Enter"&&event.key!==" ")return;
+  const target=event.target;
+  if(target.closest("[data-v7-multi-remove]")){
+   event.preventDefault();v7MultiDelete();return
+  }
+  if(target.closest(".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-dispense-puck")){
+   event.preventDefault();v7FloatingAction(target)
+  }
+ },true);
+ // The puck/player action menu is HTML and was also clipped by the rink frame.
+ // Keep the same node so the existing Puck Director's minus listener survives.
+ const menu=$("#v60ContextMenu");
+ if(menu){
+  document.body.append(menu);
+  menu.style.position="fixed";menu.style.zIndex="2147483001";
+  const oldPlace=v60PlaceFloating;
+  v60PlaceFloating=function(element,anchor,options={}){
+   return element===menu?v7FloatingPlaceMenu(element,anchor,options):
+    oldPlace(element,anchor,options)
+  };
+  menu.addEventListener("click",event=>{
+   const action=event.target.closest("[data-v60-action]")?.dataset.v60Action;
+   if(action==="move"&&ui.selectedType==="player")
+    startDirectPlayerMove(ui.selectedId,"playhead",ui.playhead);
+   else if(action==="bench"&&ui.selectedType==="player")returnToBench(ui.selectedId);
+   else if(action==="pass")v60StartPass();
+   else if(action==="shoot")v60StartShot();
+   else if(action==="commit-shot")v60CommitShot();
+   else if(action==="cancel")v60CancelTransientMode({clearSelection:true})
+   // Existing menu listener continues handling remove-puck.
+  })
+ }
+ // Camera/bench layout changes may shift the rink without a state change.
+ const refresh=()=>renderFrame(ui.playhead);
+ window.addEventListener("resize",refresh,{passive:true});
+ window.addEventListener("scroll",refresh,{passive:true});
+ if(typeof ResizeObserver==="function"){
+  const observer=new ResizeObserver(refresh);
+  observer.observe($("#rinkFrame"));observer.observe($("#rinkSvg"));
+  window.__BOTD_FLOATING_OBSERVER=observer
+ }
+ v7FloatingSync()
+}
+const v7FloatingOldMultiDraw=v7MultiDraw;
+v7MultiDraw=function(){
+ const result=v7FloatingOldMultiDraw();
+ if(window.__BOTD_FLOATING_INSTALLED)v7FloatingSync();
+ return result
+};
+const v7FloatingOldInit=init;
+init=function(){
+ v7FloatingOldInit();
+ v7FloatingInstall();
+ renderFrame(ui.playhead)
+};
 
 init();
 v682SetupGlowRangeEvents();
