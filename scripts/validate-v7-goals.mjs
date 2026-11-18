@@ -183,13 +183,13 @@ assert.deepEqual(topDrawn,["rotate-overlay"],
 
 
 /* Physical on-ice containment includes rotated object silhouettes and pucks. */
-const safeStart=app.indexOf("const V7_ICE_OBJECT_CLEARANCE=4;");
+const safeStart=app.indexOf("/* Board contact is the *painted inside face*");
 const safeEnd=app.indexOf("/* Smart net placement:",safeStart);
 assert.ok(safeStart>0&&safeEnd>safeStart);
 vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens};this.v7PuckBoardInset=v7PuckBoardInset;this.v7PuckTravelPerimeter=v7PuckTravelPerimeter;this.v7PuckSafeVisibleLift=v7PuckSafeVisibleLift",normContext,{timeout:2000});
 const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
-assert.ok(safe.point(cornerPuck,5.9),"Puck at a rounded corner must move onto playable ice");
+assert.ok(safe.point(cornerPuck,normContext.v7PuckBoardInset()),"Puck at a rounded corner must move onto playable ice");
 for(const type of ["net","cone","tire","divider","bumper","pad","stick","rebounder","puckPile"]){
  const geometry=type==="net"?normContext.v7NetDimensions("pro"):
    type==="puckPile"?{radius:12}:type==="cone"||type==="tire"?{radius:9}:{length:58,width:12};
@@ -205,8 +205,8 @@ assert.equal(safe.clamp(left,left).x,left.x,"Existing regulation goal must not m
 const loaded={ice:normContext.state.ice,equipment:[{type:"cone",geometry:{radius:6},rotation:0,scale:1,x:-100,y:-100}],additionalPucks:[{x:1100,y:700}],puckStart:{x:-100,y:700}};
 safe.normalize(loaded);
 assert.ok(safe.fit(loaded.equipment[0],loaded.equipment[0]));
-assert.ok(safe.point(loaded.additionalPucks[0],5.9));
-assert.ok(safe.point(loaded.puckStart,5.9));
+assert.ok(safe.point(loaded.additionalPucks[0],normContext.v7PuckBoardInset()));
+assert.ok(safe.point(loaded.puckStart,normContext.v7PuckBoardInset()));
 const handleStart=app.indexOf("function v7NetRotateHandlePosition(");
 const handleEnd=app.indexOf("\nfunction v7NetRotateOverlay(",handleStart);
 assert.ok(handleStart>0&&handleEnd>handleStart);
@@ -238,7 +238,7 @@ assert.ok(app.includes('v64ClampPlayablePoint=function(point){return v7ClampPuck
 assert.ok(app.includes('v7PuckSafeVisibleLift(pos,flight?.lift)'));
 const bankInset=normContext.v7PuckBoardInset(normContext.state.ice);
 const bankPath=normContext.v7PuckTravelPerimeter(normContext.state.ice);
-assert.ok(bankInset>=5.9,"Puck center must include radius, stroke and wall clearance");
+assert.ok(bankInset>3&&bankInset<4.5,"Puck center must follow the exact rendered radius, outline and board face without extra gap");
 assert.ok(bankPath.length>=190,"Corners must remain smoothly sampled");
 for(const p of bankPath)assert.ok(safe.point(p,bankInset-.04),
  "Board bank path cannot intersect boards "+JSON.stringify(p));
