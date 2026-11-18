@@ -186,6 +186,9 @@ assert.deepEqual(topDrawn,["rotate-overlay"],
 const safeStart=app.indexOf("/* Board contact is the *painted inside face*");
 const safeEnd=app.indexOf("/* Smart net placement:",safeStart);
 assert.ok(safeStart>0&&safeEnd>safeStart);
+const puckMetricsStart=app.indexOf("function v7OnIceSymbolMetrics("),puckMetricsEnd=app.indexOf("function v7ScalePlayerSymbols(",puckMetricsStart);
+assert.ok(puckMetricsStart>0&&puckMetricsEnd>puckMetricsStart);
+vm.runInNewContext(app.slice(puckMetricsStart,puckMetricsEnd),normContext,{timeout:1500});
 vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens};this.v7PuckBoardInset=v7PuckBoardInset;this.v7PuckTravelPerimeter=v7PuckTravelPerimeter;this.v7PuckSafeVisibleLift=v7PuckSafeVisibleLift",normContext,{timeout:2000});
 const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
