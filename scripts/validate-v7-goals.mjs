@@ -634,4 +634,47 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
  }
 }
 
+
+/* Marquee selects player tokens, loose pucks and rink objects; tangential
+   projection follows rounded boards and never permits a painted overlap. */
+{
+ const start=app.indexOf("function v7MultiRadius("),end=app.indexOf("/* A single undoable pivot",start);
+ assert.ok(start>0&&end>start,"Grouped selection and board solver must exist");
+ assert.ok(app.includes('t.pos.x>=rect.minX&&t.pos.x<=rect.maxX'),"Marquee must include wall-side objects");
+ assert.ok(app.includes('v7MultiPivot(drag.snapshot,drag.total*180/Math.PI)'),"Group turn handle must drive shared pivot");
+ assert.ok(app.includes('v7MultiPriorRenderFrame(time);v7MultiDraw()'),"Group overlay must redraw with the rink");
+ assert.ok(app.includes('if(item.goalSide)item.iceAnchor=false'),"Group turn must release net crease anchoring");
+ assert.ok(app.includes('!t.item.goalSide'),"Permanent goal nets cannot be batch-deleted");
+ assert.ok(app.includes('state.timeline.movements=state.timeline.movements.filter(c=>!players.has(c.playerId))'));
+ assert.ok(app.includes('!pucks.has(e.puckId||"puck")'),"Bulk removal must clean puck routes");
+ assert.ok(app.includes(".v7-object-handle-line,.v7-multi-overlay,.timeline-player-focus-ring"),
+  "Video exports must not show group editor controls");
+ const pieces=[
+  "const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));",
+  "const round=(v,n=3)=>Number(Number(v).toFixed(n));",
+  modelSource,app.slice(safeStart,safeEnd),
+  "function v7OnIceSymbolMetrics(u){return{skaterDiameter:3*u,goalieWidth:3.6*u,puckRadius:Math.max(1.6,.4*u)}}",
+  "const state={ice:v7NormalizeIce({profile:'nhl'}),view:'whole',halfSide:'right'};",
+  "function playerById(){return{role:'skater'}}",
+  app.slice(start,end),
+  "return {slide:v7MultiSlide,penetration:v7MultiPenetration,geometry:v7IceGeometry,state}"
+ ];
+ const solver=new Function(pieces.join("\n"))();
+ const g=solver.geometry(solver.state.ice);
+ const samples=[
+  {type:"puck",id:"puck",pos:{x:500,y:300}},
+  {type:"player",id:"P1",pos:{x:500,y:300}},
+  {type:"equipment",id:"cone",item:{type:"cone",geometry:{radius:6},rotation:0,scale:1},pos:{x:500,y:300}},
+  {type:"equipment",id:"divider",item:{type:"divider",geometry:{length:58,width:11},rotation:43,scale:1},pos:{x:500,y:300}},
+  {type:"equipment",id:"net",item:{type:"net",geometry:{length:16,width:28.8},rotation:70,scale:1},pos:{x:500,y:300}}
+ ];
+ for(const item of samples){
+  const straight=solver.slide(item,{x:620,y:g.yBottom+20});
+  assert.ok(straight&&!solver.penetration(item,straight),item.id+" must stay on ice at bottom board");
+  assert.ok(Math.abs(straight.x-620)<1,item.id+" must slide along wall without centerward drift");
+  const corner=solver.slide(item,{x:g.x-20,y:g.yBottom+20});
+  assert.ok(corner&&!solver.penetration(item,corner),item.id+" must remain on ice near rounded corner");
+ }
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
