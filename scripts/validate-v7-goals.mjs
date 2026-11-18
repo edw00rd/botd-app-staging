@@ -1107,7 +1107,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const glyphSegments=ctx.linked(shorthand).match(/M[^M]+/g)||[];
  assert.ok(glyphSegments.length>=8&&glyphSegments.length%2===0,
   "Backward route must consist of separate alternating upper/lower curls");
- const coords=segment=>(segment.match(/-?[0-9]+(?:\\.[0-9]+)?/g)||[]).map(Number);
+ const coords=segment=>(segment.match(/-?[0-9]+(?:[.][0-9]+)?/g)||[]).map(Number);
  const a0=coords(glyphSegments[0]),b0=coords(glyphSegments[1]),a1=coords(glyphSegments[2]);
  assert.equal(a0.length,14,"Each curl must consist of two smooth cubic quarter-arcs");
  assert.ok(a0[7]<0&&b0[7]>0&&a1[7]<0,
