@@ -9003,6 +9003,241 @@ Object.assign(window.BOTD_TEST,{
   shotPopupPosition:()=>ui.v7ShotPanelPosition?{...ui.v7ShotPanelPosition}:null
 });
 
+
+/* V7 UNIVERSAL RINK OBJECT PICKER AND CLONE CONTROLS */
+/* Match the Rink Objects thumbnails to the actual in-editor SVG artist.
+   These are instances of the SAME renderer, with visual hitboxes omitted. */
+function v7EquipmentThumbnail(type,preset=null,serial=0){
+  const svg=svgEl("svg",{class:"v7-equipment-thumbnail","aria-hidden":"true",
+    focusable:"false",preserveAspectRatio:"xMidYMid meet"});
+  if(type==="puck"){
+    svg.setAttribute("viewBox","-9 -9 18 18");
+    svg.append(svgEl("circle",{r:4.6,fill:"#090c0f",stroke:"#e5eef2","stroke-width":1.5}));
+    svg.append(svgEl("path",{d:"M-2.3 -1.2 Q0 -3.5 2.4 -1",fill:"none",stroke:"#74838c","stroke-width":.65}));
+    return svg
+  }
+  const options={id:"picker-"+serial,type,x:0,y:0,rotation:0,scale:1};
+  if(type==="net")options.netPreset=preset||"pro";
+  else if(V7_ROUND_SIZES[type])options.sizePreset=preset||Object.keys(V7_ROUND_SIZES[type])[0];
+  const item=v7NormalizeEquipmentItem(options),geo=item.geometry;
+  let extentX=20,extentY=18;
+  if(type==="cone"||type==="tire")extentX=extentY=(Number(geo.radius)||8)+4;
+  else if(type==="puckPile")extentX=extentY=22;
+  else if(type==="net"){extentX=(Number(geo.length)||20)/2+5;extentY=(Number(geo.width)||30)/2+5}
+  else{extentX=(Number(geo.length)||34)/2+5;extentY=(Number(geo.width)||10)/2+(type==="stick"?14:6)}
+  svg.setAttribute("viewBox",[-extentX,-extentY,extentX*2,extentY*2].join(" "));
+  const artwork=v7EquipmentSvg(item);
+  // The first transparent rect is a hit target, not part of the physical art.
+  artwork.querySelector(':scope > rect[fill="rgba(0,0,0,0)"]')?.remove();
+  artwork.removeAttribute("role");artwork.removeAttribute("tabindex");
+  artwork.style.pointerEvents="none";
+  svg.append(artwork);
+  return svg
+}
+function v7PrepareEquipmentThumbnails(){
+  const dialog=$("#v7EquipmentDialog");
+  if(!dialog||dialog.dataset.v7Thumbnails==="1")return;
+  dialog.dataset.v7Thumbnails="1";
+  const choices=dialog.querySelectorAll(".v7-equipment-choice");
+  choices.forEach((choice,i)=>{
+    const type=choice.hasAttribute("data-v7-add-puck")?"puck":choice.dataset.v7Equipment;
+    if(!type)return;
+    const preset=choice.dataset.v7NetPreset||choice.dataset.v7ObjectSize||null;
+    choice.prepend(v7EquipmentThumbnail(type,preset,i));
+  });
+  const style=document.createElement("style");
+  style.id="v7EquipmentThumbnailStyles";
+  style.textContent=
+    '#v7EquipmentDialog{max-height:min(90vh,760px);overflow-y:auto}'+
+    '#v7EquipmentDialog .v7-equipment-choice{min-height:91px;padding:7px 5px 8px;gap:2px;grid-template-rows:40px auto auto}'+
+    '#v7EquipmentDialog .v7-equipment-thumbnail{display:block;max-width:94%;width:112px;height:40px;margin:auto;overflow:visible;pointer-events:none}'+
+    '#v7EquipmentDialog .v7-equipment-choice strong{font-size:11px}'+
+    '#v7EquipmentDialog .v7-equipment-choice span{letter-spacing:.025em}';
+  document.head.append(style)
+}
+
+/* Cloning uses a new identity and an exact copy of the CURRENT stored
+   geometry, rotation, preset, material physics, scale, and customization.
+   Use local silhouette samples to find the nearest room on the white ice. */
+function v7CloneEquipmentDiscs(item,at={x:item.x,y:item.y}){
+  const geo=item.geometry||{},L=Number(geo.length)||34,W=Number(geo.width)||10;
+  const local=[];
+  const add=(x,y,r)=>local.push({x,y,r});
+  if(item.type==="cone"||item.type==="tire")add(0,0,(Number(geo.radius)||8)+1.5);
+  else if(item.type==="puckPile"){
+    for(const p of v7EquipmentFootprint(item))add(p.x,p.y,p.r+.7)
+  }else if(["bumper","divider","pad","rebounder","net"].includes(item.type)){
+    const rad=W/2+1.7,range=Math.max(0,L/2-Math.min(L/2,W/2)),steps=Math.max(1,Math.ceil(2*range/Math.max(5,W*.7)));
+    for(let i=0;i<=steps;i++)add(-range+(2*range*i/steps),0,rad)
+  }else if(item.type==="stick"){
+    for(let i=0;i<=9;i++)add(-L/2+L*i/9,0,W/2+1.4);
+    add(L/2,W*1.7,W/2+1.4)
+  }else for(const part of v7EquipmentFootprint(item))add(part.x,part.y,part.r+1);
+  const a=(Number(item.rotation)||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a),scale=Number(item.scale)||1;
+  return local.map(p=>({x:at.x+(p.x*c-p.y*s)*scale,
+    y:at.y+(p.x*s+p.y*c)*scale,r:p.r*scale}))
+}
+function v7CloneEquipmentFits(item,at){
+  if(!v7EquipmentFitsIce(item,at))return false;
+  const discs=v7CloneEquipmentDiscs(item,at);
+  for(const other of state.equipment||[]){
+    const existing=v7CloneEquipmentDiscs(other);
+    for(const a of discs){
+      for(const b of existing)if(Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r+1.5)return false
+    }
+  }
+  const pucks=[...(state.primaryPuckVisible===false?[]:[state.puckStart]),...(state.additionalPucks||[])];
+  for(const puck of pucks)for(const disc of discs){
+    if(Math.hypot(disc.x-puck.x,disc.y-puck.y)<disc.r+V7_PUCK_RADIUS+3)return false
+  }
+  return true
+}
+function v7DuplicateEquipmentExact(id){
+  const original=v7EquipmentById(id);if(!original)return null;
+  // A copied regulation goal becomes an independent extra net, never a
+  // second auto-anchored permanent goal. All visible specifications remain.
+  const copy=v7NormalizeEquipmentItem({
+    ...deepClone(original),id:uid("eq"),
+    goalSide:null,iceAnchor:false
+  });
+  const step=Math.max(9,Math.min(17,(Number(copy.geometry?.width)||10)*.8));
+  let found=null;
+  for(let ring=1;ring<=42&&!found;ring++){
+    const radius=step*ring,slots=ring<4?24:32;
+    for(let i=0;i<slots;i++){
+      const theta=2*Math.PI*i/slots;
+      const point={x:round(original.x+Math.cos(theta)*radius,2),
+        y:round(original.y+Math.sin(theta)*radius,2)};
+      if(v7CloneEquipmentFits(copy,point)){found=point;break}
+    }
+  }
+  if(!found){toast("No room on the ice for an exact copy of this object.",2400);return null}
+  copy.x=found.x;copy.y=found.y;
+  pushHistory();state.equipment.push(copy);
+  // Keep the source selected so repeated '+' presses copy that same size.
+  ui.selectedType="equipment";ui.selectedId=original.id;
+  syncActiveVariation();renderAll();scheduleSave();
+  return copy
+}
+// The historical + action was restricted to cones and tires.
+v7DuplicateRound=function(id){return v7DuplicateEquipmentExact(id)};
+const v7EquipmentRenderBeforeUniversalClone=v7RenderEquipment;
+v7RenderEquipment=function(){
+  v7EquipmentRenderBeforeUniversalClone();
+  const selected=ui.selectedType==="equipment"?v7EquipmentById(ui.selectedId):null;
+  if(!selected||V7_ROUND_SIZES[selected.type])return;
+  const rotatingNet=selected.type==="net"&&ui.v7EquipmentTransform?.kind==="rotate"&&
+    ui.v7EquipmentTransform.id===selected.id;
+  if(rotatingNet)return;
+  const isNet=selected.type==="net";
+  const at=v59ClampVisiblePoint?
+    v59ClampVisiblePoint({x:selected.x-(isNet?21:30),y:selected.y+(isNet?24:-27)}):
+    clampRinkPoint({x:selected.x-(isNet?21:30),y:selected.y+(isNet?24:-27)});
+  $("#objectLayer")?.append(v7RoundButton(selected.id,at,"duplicate"))
+};
+/* Puck Pile still dispenses a puck, but its dispensing button is a puck
+   symbol, reserving the visible '+' to duplicate the actual Puck Pile. */
+const v7PuckPileDispenserBeforeClone=v7RinkDispensePuckControl;
+v7RinkDispensePuckControl=function(id,point){
+  const control=v7PuckPileDispenserBeforeClone(id,point);
+  control.querySelector("path")?.remove();
+  control.append(svgEl("circle",{r:6,fill:"#101820",stroke:"#fff","stroke-width":1.5,
+    "pointer-events":"none"}));
+  return control
+};
+/* The puck is first-class equipment too: selected puck gets a + and -
+   beside it, without modifying the Pass/Shoot action popup. */
+function v7PuckCloneControl(id,point){
+  const node=svgEl("g",{
+    class:"v7-puck-clone","data-v7-clone-puck":id,
+    role:"button",tabindex:"0","aria-label":"Clone puck",
+    transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",
+    style:"cursor:pointer;pointer-events:all"
+  });
+  node.append(svgEl("circle",{r:14,fill:"#087d53",stroke:"#fff",
+    "stroke-width":2.2,"vector-effect":"non-scaling-stroke","pointer-events":"all"}));
+  node.append(svgEl("path",{d:"M-6 0H6M0 -6V6",stroke:"#fff",
+    "stroke-width":2.8,"stroke-linecap":"round","pointer-events":"none"}));
+  return node
+}
+function v7DuplicatePuckExact(id){
+  if(v7PuckCount()>=V7_MAX_PUCKS){toast("Maximum of 50 pucks on ice.",2200);return null}
+  if(id==="puck"&&state.primaryPuckVisible===false)return null;
+  const original=v7PuckStartPosition(id);if(!original)return null;
+  const ps=puckStateAt(ui.playhead,buildPuckTimeline(id)),base=ps?.pos||original;
+  const existing=[...(state.primaryPuckVisible===false?[]:[puckStateAt(ui.playhead,buildPuckTimeline("puck")).pos]),
+    ...(state.additionalPucks||[]).map(item=>puckStateAt(ui.playhead,buildPuckTimeline(item.id)).pos)];
+  let point=null;
+  for(let ring=1;ring<=30&&!point;ring++){
+    const distance=12+ring*6;
+    for(let i=0;i<24;i++){
+      const angle=i*Math.PI/12,raw={x:base.x+Math.cos(angle)*distance,y:base.y+Math.sin(angle)*distance};
+      const at=v7ClampPuckToIce(raw);
+      if(!at||dist(at,raw)>1||existing.some(p=>dist(p,at)<12))continue;
+      point=at;break
+    }
+  }
+  if(!point){toast("No room on the ice to clone this puck.",2200);return null}
+  const clone={id:uid("puck"),x:point.x,y:point.y,glow:deepClone(v7PuckGlowById(id))};
+  pushHistory();
+  state.additionalPucks=v7NormalizeAdditionalPucks([...(state.additionalPucks||[]),clone],v7MaxAdditionalPucks());
+  syncActiveVariation();renderAll();scheduleSave();
+  return clone
+}
+const v7FloatingSyncBeforePuckClone=v7FloatingSync;
+v7FloatingSync=function(){
+  const result=v7FloatingSyncBeforePuckClone();
+  if(ui.playing||ui.v60Mode)return result;
+  const id=ui.selectedType==="puck"?"puck":
+    ui.selectedType==="additionalPuck"?ui.selectedId:null;
+  if(!id||!v7PuckStartPosition(id))return result;
+  const world=$("#v7FloatingWorld");
+  if(!world)return result;
+  const ps=puckStateAt(ui.playhead,buildPuckTimeline(id)),p=ps?.pos;
+  if(!p)return result;
+  const at=(dx,dy)=>v59ClampVisiblePoint?
+    v59ClampVisiblePoint({x:p.x+dx,y:p.y+dy}):
+    clampRinkPoint({x:p.x+dx,y:p.y+dy});
+  const remove=v7RinkRemoveControl(id,id==="puck"?"primaryPuck":"additionalPuck",at(24,29));
+  // Separate class avoids the equipment-only delegate intercepting puck minus.
+  remove.classList.remove("v7-rink-remove");remove.classList.add("v7-puck-remove");
+  remove.style.pointerEvents="all";
+  world.append(v7PuckCloneControl(id,at(-24,29)),remove);
+  return result
+};
+function v7InstallUniversalPuckButtons(){
+  const root=v7FloatingRoot();
+  if(root.dataset.v7UniversalPuckButtons==="1")return;
+  root.dataset.v7UniversalPuckButtons="1";
+  root.addEventListener("pointerdown",event=>{
+    if(event.button!==0)return;
+    const duplicate=event.target.closest?.("[data-v7-clone-puck]");
+    const remove=event.target.closest?.("[data-v7-remove-primary-puck],[data-v7-remove-additional-puck]");
+    if(!duplicate&&!remove)return;
+    event.preventDefault();event.stopImmediatePropagation();ui.pendingTap=null;
+    if(duplicate)v7DuplicatePuckExact(duplicate.dataset.v7ClonePuck);
+    else if(remove.hasAttribute("data-v7-remove-primary-puck"))v7DeletePrimaryPuck();
+    else v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)
+  },true);
+  root.addEventListener("keydown",event=>{
+    if(event.key!=="Enter"&&event.key!==" ")return;
+    const duplicate=event.target.closest?.("[data-v7-clone-puck]");
+    const remove=event.target.closest?.("[data-v7-remove-primary-puck],[data-v7-remove-additional-puck]");
+    if(!duplicate&&!remove)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    if(duplicate)v7DuplicatePuckExact(duplicate.dataset.v7ClonePuck);
+    else if(remove.hasAttribute("data-v7-remove-primary-puck"))v7DeletePrimaryPuck();
+    else v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)
+  },true)
+}
+v7PrepareEquipmentThumbnails();
+v7InstallUniversalPuckButtons();
+Object.assign(window.BOTD_TEST,{
+  equipmentThumbnailCount:()=>$("#v7EquipmentDialog")?.querySelectorAll(".v7-equipment-thumbnail").length||0,
+  cloneEquipmentExact:id=>deepClone(v7DuplicateEquipmentExact(id)),
+  clonePuckExact:id=>deepClone(v7DuplicatePuckExact(id))
+});
+
 </script>
 </body>
 </html>

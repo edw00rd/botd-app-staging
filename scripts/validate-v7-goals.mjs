@@ -942,4 +942,32 @@ assert.ok(app.includes("/* V7 DRAGGABLE POPUPS:"),"Shot dialog drag controls mis
 assert.ok(app.includes("ui.v7ShotPanelPosition={left:x,top:y}"),"Shot popup must retain its dragged coordinates");
 assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable");
 
+
+/* New picker art, consistent clone/remove semantics, and persisted length. */
+{
+ const start=app.indexOf("/* V7 UNIVERSAL RINK OBJECT PICKER AND CLONE CONTROLS */");
+ assert.ok(start>0,"Universal controls upgrade missing");
+ const updated=app.slice(start);
+ for(const needle of [
+   "function v7EquipmentThumbnail(type,preset=null,serial=0)",
+   "v7EquipmentSvg(item)",
+   "choice.prepend(v7EquipmentThumbnail(type,preset,i))",
+   "function v7DuplicateEquipmentExact(id)",
+   "v7DuplicateRound=function(id){return v7DuplicateEquipmentExact(id)}",
+   "goalSide:null,iceAnchor:false",
+   "v7NormalizeEquipmentItem({",
+   "v7CloneEquipmentFits(copy,point)",
+   "v7PuckPileDispenserBeforeClone",
+   'class:"v7-puck-clone"',
+   "function v7DuplicatePuckExact(id)",
+   "v7InstallUniversalPuckButtons();"
+ ])assert.ok(updated.includes(needle),"V7 picker/clone regression: "+needle);
+ for(const type of ["divider","pad","rebounder"]){
+   const config=app.slice(app.indexOf("const V7_RINK_OBJECT_TYPES="),app.indexOf("const V7_EQUIPMENT_TYPES="));
+   assert.match(config,new RegExp(type+":[\\s\\S]*?capabilities:\\{rotatable:true,resize:\"length\""),type+" must rotate and stretch");
+ }
+ assert.ok(app.includes('if(item.capabilities?.rotatable&&item.type!=="net")'));
+ assert.ok(app.includes('if(resize==="length")'));
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
