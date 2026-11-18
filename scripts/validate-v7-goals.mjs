@@ -718,4 +718,40 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
  assert.equal(normContext.v7NormalizeEquipmentList(context.state.equipment).length,0);
 }
 
+/* Floating controls must escape the actual bench/stage overflow clipping. */
+{
+ const floatingStart=app.indexOf("/* V7 GLOBAL FLOATING CONTROLS */");
+ const floatingEnd=app.indexOf("\ninit();",floatingStart);
+ assert.ok(floatingStart>0&&floatingEnd>floatingStart,"Page-level control portal must exist");
+ const src=app.slice(floatingStart,floatingEnd);
+ for(const term of [
+  'document.body.append(root)',
+  'z-index:2147483000;pointer-events:none',
+  'cam?.getScreenCTM()',
+  'world.setAttribute("transform","matrix("',
+  'root.setAttribute("viewBox","0 0 "+window.innerWidth+" "+window.innerHeight)',
+  '".v7-rink-remove,.v7-rink-reset,.v7-rink-net-size,.v7-rink-dispense-puck"',
+  'while(netLayer?.firstChild)world.append(netLayer.firstChild)',
+  '.v7-object-handle,.v7-object-handle-line',
+  '.v7-multi-arm',
+  'world.append(node)',
+  'event.preventDefault();event.stopImmediatePropagation();v7FloatingStartGroup(event)',
+  'v7FloatingStartEquipment(event)',
+  'try{$("#rinkSvg")?.setPointerCapture(event.pointerId)}catch{}',
+  'menu.style.position="fixed";menu.style.zIndex="2147483001"',
+  'document.body.append(menu)',
+  'element===menu?v7FloatingPlaceMenu(element,anchor,options)',
+  'if(top<8){top=rect.bottom+gap;menu.classList.add("below")}',
+  'v7FloatingOldMultiDraw();',
+  'new ResizeObserver(refresh)'
+ ])assert.ok(src.includes(term),"Floating control regression: "+term);
+ assert.ok(app.includes('const item=v7EquipmentById(transform.id);if(!item)return;const p=v7MultiWorldPoint(event);'),
+  "Rotating above boards must use unclipped world pointer coordinates");
+ assert.ok(src.includes('const snapshot=v7MultiSnapshot();if(!snapshot)return false;'),
+  "Group turn must retain original center and member positions");
+ assert.ok(src.includes('if(action==="move"&&ui.selectedType==="player")')&&
+  src.includes('else if(action==="pass")v60StartPass()'),
+  "Portaled player/puck action menu must retain its original actions");
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
