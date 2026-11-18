@@ -263,7 +263,16 @@ for(let i=0;i<pileDiscs.length;i++)for(let j=i+1;j<pileDiscs.length;j++)
   "Puck pile pucks must not touch or overlap");
 assert.equal(normContext.v7EquipmentFootprint({type:"puckPile",geometry:{radius:12}}).length,18,
  "Pile boards containment must check each disc");
-assert.ok(app.includes('v7RinkDispensePuckControl(selected.id,point)'),"Keep the puck pile + action");
+const pileButtonOffset=normContext.v7PuckPileDispenseOffset();
+const pileRight=Math.max(...pileDiscs.map(p=>p.x+p.r));
+const pileBottom=Math.max(...pileDiscs.map(p=>p.y+p.r));
+assert.ok(pileButtonOffset.x>pileRight&&pileButtonOffset.y>0&&pileButtonOffset.y<pileBottom,
+ "Puck-size + must sit at the pile's lower-right edge");
+assert.ok(app.includes('layer.append(v7RinkDispensePuckControl(pile.id,point))'),
+ "Always display the dispenser for each pile, even if another puck is selected");
+assert.ok(!app.includes('v7RinkDispensePuckControl(selected.id,point)'),
+ "Remove the oversized selected-only + button");
+assert.ok(app.includes('isPile?.64:isNet?.78:1'),"Pile minus must be smaller than other controls");
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
 assert.ok(safe.point(cornerPuck,normContext.v7PuckBoardInset()),"Puck at a rounded corner must move onto playable ice");
 for(const type of ["net","cone","tire","divider","bumper","pad","stick","rebounder","puckPile"]){
