@@ -265,14 +265,38 @@ assert.equal(normContext.v7EquipmentFootprint({type:"puckPile",geometry:{radius:
  "Pile boards containment must check each disc");
 const pileButtonOffset=normContext.v7PuckPileDispenseOffset();
 const pileRight=Math.max(...pileDiscs.map(p=>p.x+p.r));
-const pileBottom=Math.max(...pileDiscs.map(p=>p.y+p.r));
-assert.ok(pileButtonOffset.x>pileRight&&pileButtonOffset.y>0&&pileButtonOffset.y<pileBottom,
- "Puck-size + must sit at the pile's lower-right edge");
+const pileTop=Math.min(...pileDiscs.map(p=>p.y-p.r));
+assert.ok(pileButtonOffset.x>pileRight&&pileButtonOffset.y<pileTop,
+ "Tiny dispenser must sit at the upper right like the supplied reference");
+const pileWidth=pileRight-Math.min(...pileDiscs.map(p=>p.x-p.r));
+const pileHeight=Math.max(...pileDiscs.map(p=>p.y+p.r))-pileTop;
+assert.ok(pileWidth<28&&pileHeight<22&&pileWidth/pileHeight>1.2&&pileWidth/pileHeight<1.5,
+ "Pile must be compact and approximately 4:3 like the illustration");
 assert.ok(app.includes('layer.append(v7RinkDispensePuckControl(pile.id,point))'),
- "Always display the dispenser for each pile, even if another puck is selected");
-assert.ok(!app.includes('v7RinkDispensePuckControl(selected.id,point)'),
- "Remove the oversized selected-only + button");
-assert.ok(app.includes('isPile?.64:isNet?.78:1'),"Pile minus must be smaller than other controls");
+ "Each pile must keep its dispensing mark after spawning a puck");
+assert.ok(!app.includes('v7PuckPileDispenserBeforeClone'),
+ "Old late override must not turn the small + into a big puck");
+assert.ok(app.includes('isPile?{x:31,y:34}')&&app.includes('isPile?31:30')&&
+ app.includes('isPile?34:-27'),
+ "Selected pile must use the same below-puck +/- positions");
+assert.ok(!app.includes('isPile?.64:isNet?.78:1'),
+ "Selected pile minus must match standard puck-control size");
+const markStart=app.indexOf("function v7RinkDispensePuckControl(id,point){");
+const markEnd=app.indexOf("function v7RoundButton(",markStart);
+assert.ok(markStart>0&&markEnd>markStart);
+const markContext={
+ state:{ice:normContext.state.ice},v7IceGeometry:normContext.iceGeometry,
+ v7OnIceSymbolMetrics:normContext.v7OnIceSymbolMetrics,round,
+ svgEl:(tag,attributes)=>({tag,attributes,children:[],append(child){this.children.push(child)}})
+};
+vm.runInNewContext(app.slice(markStart,markEnd)+"\nthis.make=v7RinkDispensePuckControl",markContext);
+const inkPlus=markContext.make("pile",{x:500,y:300});
+assert.equal(inkPlus.children.length,2,"Tiny + requires only invisible hitbox and ink stroke");
+assert.equal(inkPlus.children[0].attributes.fill,"transparent","Hit target must be invisible");
+assert.equal(inkPlus.children[1].attributes.stroke,"#101820","Plus should be drawn in dark ink");
+assert.equal(inkPlus.children[1].tag,"path","No oversized green circle or redundant puck token");
+assert.ok(inkPlus.attributes.style.includes("pointer-events:all"),
+ "Small dispenser must receive pointer events in floating SVG");
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
 assert.ok(safe.point(cornerPuck,normContext.v7PuckBoardInset()),"Puck at a rounded corner must move onto playable ice");
 for(const type of ["net","cone","tire","divider","bumper","pad","stick","rebounder","puckPile"]){
@@ -1007,11 +1031,12 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
    "goalSide:null,iceAnchor:false",
    "v7NormalizeEquipmentItem({",
    "v7CloneEquipmentFits(copy,point)",
-   "v7PuckPileDispenserBeforeClone",
+   /* Removed old late override that hid the small +. */
    'class:"v7-puck-clone"',
    "function v7DuplicatePuckExact(id)",
    "v7InstallUniversalPuckButtons();"
  ])assert.ok(updated.includes(needle),"V7 picker/clone regression: "+needle);
+ assert.ok(!updated.includes("v7PuckPileDispenserBeforeClone"),"No late dispenser decorator");
  for(const type of ["divider","pad","rebounder"]){
    const config=app.slice(app.indexOf("const V7_RINK_OBJECT_TYPES="),app.indexOf("const V7_EQUIPMENT_TYPES="));
    assert.match(config,new RegExp(type+":[\\s\\S]*?capabilities:\\{rotatable:true,resize:\"length\""),type+" must rotate and stretch");
