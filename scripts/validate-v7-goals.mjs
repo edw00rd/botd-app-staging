@@ -37,7 +37,7 @@ const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const deepClone=v=>structuredClone(v);
 const types={
   net:{geometry:{length:16,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
-  cone:{geometry:{radius:9},physics:{collidable:true,response:"soft_block",restitution:.06},capabilities:{rotatable:false,resize:"none",puckSource:false}},
+  cone:{geometry:{radius:4.2},physics:{collidable:true,response:"soft_block",restitution:.06},capabilities:{rotatable:false,resize:"none",puckSource:false}},
   tire:{geometry:{radius:10.5},physics:{collidable:true,response:"bounce",restitution:.60},capabilities:{rotatable:false,resize:"none",puckSource:false}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
@@ -78,8 +78,8 @@ assert.equal(right.x,935.2);assert.equal(right.rotation,180);
 
 /* Cone and tire presets must survive normalization with no rotation or drag resize. */
 for(const [type,choices] of [
- ["cone",[["mini",5.6],["training",9],["traffic",13.5]]],
- ["tire",[["kart",7],["small",10.5],["car",14.5],["truck",20.5]]]
+ ["cone",[["mini",2.8],["training",4.2],["traffic",5.6]]],
+ ["tire",[["mini",4.8],["kart",7],["small",10.5],["car",14.5]]]
 ]){
  for(const [preset,radius] of choices){
   const item=normContext.v7NormalizeEquipmentItem({id:type+"-"+preset,type,x:500,y:300,
@@ -92,8 +92,10 @@ for(const [type,choices] of [
   assert.equal(item.capabilities.rotatable,false);
  }
 }
-assert.equal(normContext.v7NormalizeEquipmentItem({type:"cone",x:500,y:300,geometry:{radius:6}}).sizePreset,"mini",
- "Existing small cones should migrate to the closest preset");
+assert.equal(normContext.v7NormalizeEquipmentItem({type:"cone",x:500,y:300,geometry:{radius:6}}).sizePreset,"traffic",
+ "Legacy cones must migrate to the closest new size");
+assert.equal(normContext.v7NormalizeEquipmentItem({type:"tire",x:500,y:300,sizePreset:"truck",geometry:{radius:20.5}}).sizePreset,"car",
+ "Retired truck tires should map to the largest available tire");
 assert.ok(app.includes('collision.type==="cone"?clamp(inMag*.04,1.5,7)'),
  "Cone impacts must die quickly");
 assert.ok(app.includes('function v7DuplicateRound(id)')&&app.includes('v7EquipmentFitsIce(original,at)'),

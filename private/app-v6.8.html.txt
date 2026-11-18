@@ -5675,18 +5675,18 @@ function v7NetDimensions(preset="pro"){
 function v7NetPostRadius(item){return Math.max(.75,(Number(item.geometry?.width)||28.8)/36)}
 const V7_PUCK_RADIUS=2.8;
 const V7_ROUND_SIZES=Object.freeze({
- cone:{mini:{label:"Mini Cone",radius:5.6,note:"About twice a puck"},
-       training:{label:"Training Cone",radius:9,note:"Medium training cone"},
-       traffic:{label:"Traffic Cone",radius:13.5,note:"Full-sized cone"}},
- tire:{kart:{label:"Go-Kart Tire",radius:7,note:"Hand-sized"},
+ cone:{mini:{label:"Tiny Cone",radius:2.8,note:"Extra small"},
+       training:{label:"Small Cone",radius:4.2,note:"Small training cone"},
+       traffic:{label:"Large Cone",radius:5.6,note:"Previous mini size"}},
+ tire:{mini:{label:"Mini Tire",radius:4.8,note:"Smaller than go-kart"},
+       kart:{label:"Go-Kart Tire",radius:7,note:"Hand-sized"},
        small:{label:"Small Tire",radius:10.5,note:"Youth training tire"},
-       car:{label:"Car Tire",radius:14.5,note:"Passenger tire"},
-       truck:{label:"Truck Tire",radius:20.5,note:"Large truck tire"}}
+       car:{label:"Car Tire",radius:14.5,note:"Passenger tire"}}
 });
 const V7_RINK_OBJECT_TYPES=Object.freeze({
   cone:{
     label:"Cone",short:"CONE",shape:"circle",
-    geometry:{radius:9},physics:{collidable:true,response:"soft_block",restitution:.06},
+    geometry:{radius:4.2},physics:{collidable:true,response:"soft_block",restitution:.06},
     capabilities:{rotatable:false,resize:"none",puckSource:false}
   },
   tire:{
