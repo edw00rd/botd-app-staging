@@ -36,8 +36,9 @@ assert.ok(playerScaleSource.includes('ring.removeAttribute("transform")')&&
  playerScaleSource.includes('ring.setAttribute("r",String(outline.radius))')&&
  playerScaleSource.includes('ring.setAttribute("pointer-events","none")'),
  "Animated player selection rings must use actual small geometry, not a CSS-overridden scale transform");
-assert.ok(app.includes(".selection-ring.v7-tight-player-selection{stroke-width:2.25;stroke-dasharray:4.5 3.5"),
- "Compact player-selection dashes must be scaled to the smaller ring");
+assert.ok(app.includes(".selection-ring{fill:none;stroke:#050505;stroke-width:2.8;stroke-dasharray:7 5"),
+ "Selected players and pucks must use identical dash styling");
+assert.ok(!app.includes(".selection-ring.v7-tight-player-selection{"),"No different player-only dash style");
 assert.ok(Math.abs(visual.skaterDiameter-14.4)<.001);
 assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
 assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
@@ -1124,10 +1125,13 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const arrow=forward.arrows[0].attrs;
  const vertex=[...arrow.d.matchAll(/[ML](-?[0-9.]+) (-?[0-9.]+)/g)].map(m=>({x:+m[1],y:+m[2]}));
  assert.equal(vertex.length,3,"Arrowhead must be a triangle");
- assert.ok(vertex[0].x-vertex[1].x>=16,"Forward arrowhead must be long enough to read");
- assert.ok(Math.abs(vertex[1].y-vertex[2].y)>=18,"Forward arrowhead must have a wide base");
+ const tip=vertex[0],l=vertex[1],r=vertex[2],center={x:(l.x+r.x)/2,y:(l.y+r.y)/2};
+ const headLength=Math.hypot(tip.x-center.x,tip.y-center.y),headWidth=Math.hypot(l.x-r.x,l.y-r.y);
+ assert.ok(headLength>=9&&headLength<=12,"Arrowhead must be visible but no longer oversized");
+ assert.ok(headWidth>=7&&headWidth<=11,"Arrowhead must be narrower than the player");
+ assert.ok(headLength<14.4&&headWidth<14.4,"Arrowhead must be smaller than skater token");
  assert.equal(arrow["fill-opacity"],.94,"Arrowhead must be visibly solid");
- assert.equal(arrow["stroke-width"],1.1,"Arrowhead needs a subtle contrasting outline");
+ assert.equal(arrow["stroke-width"],.65,"Arrowhead needs a subtle contrasting outline");
  assert.equal(forward.main.attrs["stroke-width"],2.16,"Forward colored line must be exactly 80% of old width");
  assert.equal(forward.main.attrs["stroke-opacity"],.84,"Forward route must be slightly transparent");
  assert.equal(forward.nodes[0].attrs["stroke-width"],3.2,"Dark underlay must also be 80% width");
@@ -1195,6 +1199,55 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(stop.nodes.filter(n=>n.attrs["data-v7-stop-bar"]).length,2,
   "Sudden stop must end in two perpendicular bars");
 
+}
+
+/* Regression: puck menu alignment and aim-click capture safety. */
+{
+ const s=app.indexOf("function v60AnchorElement(){"),e=app.indexOf("function v60PlaceFloating(",s);
+ assert.ok(app.slice(s,e).includes('if(ui.selectedType==="puck")return $("#puckLayer [data-puck]");'),
+  "Primary puck menu should use full outer puck as anchor");
+ const p0=app.indexOf("function v7PuckActionAnchor(){"),p1=app.indexOf("function v7RefreshAddPuckButton()",p0);
+ assert.ok(app.slice(p0,p1).includes('return $("#puckLayer [data-puck]")'),
+  "Puck 1 must anchor like added pucks");
+ assert.ok(!app.includes('data-v60-action="remove-puck"'),"Redundant HTML minus next to Shoot must be removed");
+ assert.ok(app.includes('remove.classList.add("v7-puck-remove")'),
+  "Keep the existing on-ice puck minus");
+ assert.ok(app.includes("at(-31,34)")&&app.includes("at(31,34)"),
+  "On-ice plus/minus must clear the selected-puck ring");
+ const posStart=app.indexOf("function v7FloatingPlaceMenu("),posEnd=app.indexOf("function v7FloatingInstall(",posStart);
+ const placement={ui:{selectedType:"puck"},window:{innerWidth:500,innerHeight:500},
+  clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),round:(v,d=1)=>Math.round(v*10**d)/10**d};
+ vm.runInNewContext(app.slice(posStart,posEnd)+"\nthis.place=v7FloatingPlaceMenu;",placement,{timeout:1500});
+ const menu={hidden:true,offsetWidth:150,offsetHeight:40,style:{},classList:{add(){},remove(){}}};
+ const anchor={getBoundingClientRect:()=>({left:200,top:120,bottom:160,width:40,height:40})};
+ assert.equal(placement.place(menu,anchor,{gap:12}),true);
+ assert.ok(parseFloat(menu.style.top)+menu.offsetHeight<=104,
+  "Puck 1 Pass/Shoot buttons must clear selection ring by at least 16px");
+ const start=app.indexOf("function v7SetupEquipmentEvents(){"),end=app.indexOf("/* Shot collision options",start);
+ assert.ok(start>0&&end>start);
+ const listeners={},svg={dataset:{},addEventListener:(type,fn,capture)=>(listeners[type]??=[]).push({fn,capture})};
+ let passTarget=null,consumed=0,selected=0;
+ const ui={v60Mode:{type:"shot",stage:"aim"},tool:"select",selectedType:"puck",selectedId:"puck"};
+ const context={
+  $:sel=>sel==="#rinkSvg"?svg:null,ui,window:{addEventListener(){}},document:{activeElement:null},
+  svgPoint:()=>({x:170,y:300}),v60CommitPassToPoint:p=>{passTarget=p},
+  v7EquipmentById:()=>{selected++;return{id:"tire",x:170,y:300}}
+ };
+ vm.runInNewContext(app.slice(start,end)+"\nthis.setup=v7SetupEquipmentEvents;",context,{timeout:1500});
+ context.setup();
+ const target={closest:sel=>sel==="[data-equipment-id]"?{dataset:{equipmentId:"tire"}}:null};
+ const event={button:0,target,pointerId:17,preventDefault(){},stopImmediatePropagation(){consumed++}};
+ const capture=listeners.pointerdown.find(x=>x.capture).fn;
+ capture(event);
+ assert.equal(selected,0,"Shooting at tire must not select tire");
+ assert.equal(ui.selectedType,"puck","Shot target must keep original puck selected");
+ assert.equal(ui.v7EquipmentDrag,undefined,"Shot target must not start an equipment drag");
+ ui.v60Mode={type:"pass"};capture(event);
+ assert.equal(passTarget?.x,170,"Passing to tire center must use exact click target");
+ assert.equal(selected,0,"Passing to tire must not select tire");
+ assert.equal(consumed,1,"Passing to tire must consume equipment pointerdown");
+ assert.ok(app.includes('event.preventDefault();event.stopImmediatePropagation();if(ui.v60Mode.stage!=="aim")return;'),
+  "Shot pointerdown must prevent later SVG selection listeners");
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
