@@ -9457,35 +9457,46 @@ function v7SkatingZigzag(points){
 }
 function v7AppendFilledDrillArrow(layer,route,color,kind){
  const arc=v7SkatingSampler(route),tip=arc.sample(arc.length).point;
- const before=arc.sample(Math.max(0,arc.length-4)).point;
+ // Read the terminal tangent over enough distance that the arrow stays
+ // aligned with the traced line, even if the last pointer points are noisy.
+ const before=arc.sample(Math.max(0,arc.length-8)).point;
  const length=Math.hypot(tip.x-before.x,tip.y-before.y);if(length<.001)return;
  const d={x:(tip.x-before.x)/length,y:(tip.y-before.y)/length},n={x:-d.y,y:d.x};
- const size=Math.min(10,Math.max(5.5,arc.length*.16));
+ // A wide, visibly solid arrowhead as in the hockey notation reference.
+ const size=Math.min(18,Math.max(10,arc.length*.20));
  const base={x:tip.x-d.x*size,y:tip.y-d.y*size};
- const left={x:base.x+n.x*size*.48,y:base.y+n.y*size*.48};
- const right={x:base.x-n.x*size*.48,y:base.y-n.y*size*.48};
+ const left={x:base.x+n.x*size*.56,y:base.y+n.y*size*.56};
+ const right={x:base.x-n.x*size*.56,y:base.y-n.y*size*.56};
  const token=p=>round(p.x,2)+" "+round(p.y,2);
  layer.append(svgEl("path",{d:"M"+token(tip)+" L"+token(left)+" L"+token(right)+" Z",
-  fill:color,stroke:"none","pointer-events":"none","data-v7-skate-arrow":kind}))
+  fill:color,"fill-opacity":.94,stroke:"#122330","stroke-width":1.1,
+  "stroke-opacity":.68,"stroke-linejoin":"round",
+  "pointer-events":"none","data-v7-skate-arrow":kind}))
 }
 function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
  if(!points||points.length<2)return;
  const type=V7_DRILL_MOVES[kind]?kind:kind==="pivot"?"crossover":"forward";
  const arc=v7SkatingSampler(points);if(arc.length<.5)return;
+ // All skating notation strokes are 80% of their previous width.
+ // Keep the player movement trace, puck routes and physics untouched.
+ const outlineWidth=preview?2.88:3.2,routeWidth=preview?1.84:2.16;
+ const outlineOpacity=preview?.68:.64,routeOpacity=preview?.88:.84;
  const draw=(shape,width,stroke,extra={})=>
   layer.append(svgEl("path",{d:pathD(shape),fill:"none",stroke,"stroke-width":width,
+   "stroke-opacity":stroke==="#122330"?outlineOpacity:routeOpacity,
    "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
  const drawPath=(d,width,stroke,extra={})=>
   layer.append(svgEl("path",{d,fill:"none",stroke,"stroke-width":width,
+   "stroke-opacity":stroke==="#122330"?outlineOpacity:routeOpacity,
    "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
  const layered=(shape,join="round")=>{
-  draw(shape,preview?3.6:4,"#122330",{"stroke-linejoin":join});
-  draw(shape,preview?2.3:2.7,color,{"stroke-linejoin":join,"data-v7-skate-kind":type})
+  draw(shape,outlineWidth,"#122330",{"stroke-linejoin":join});
+  draw(shape,routeWidth,color,{"stroke-linejoin":join,"data-v7-skate-kind":type})
  };
  if(type==="backward"){
   const arches=v7SkatingLinkedArches(points);
-  drawPath(arches,preview?3.6:4,"#122330");
-  drawPath(arches,preview?2.3:2.7,color,{"data-v7-skate-kind":type});
+  drawPath(arches,outlineWidth,"#122330");
+  drawPath(arches,routeWidth,color,{"data-v7-skate-kind":type});
   return
  }
  if(type==="crossover"){layered(v7SkatingZigzag(points),"miter");return}
@@ -9500,7 +9511,7 @@ function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
   for(let d=margin;d<=arc.length-margin;d+=spacing){
    const s=arc.sample(d),n={x:-s.direction.y,y:s.direction.x};
    draw([{x:s.point.x-n.x*tick,y:s.point.y-n.y*tick},
-    {x:s.point.x+n.x*tick,y:s.point.y+n.y*tick}],preview?2.2:2.5,color,
+    {x:s.point.x+n.x*tick,y:s.point.y+n.y*tick}],preview?1.76:2.0,color,
     {"data-v7-lateral-tick":"1"})
   }
   v7AppendFilledDrillArrow(layer,points,color,type);
@@ -9510,7 +9521,7 @@ function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
   for(const setback of [0,5]){
    const s=arc.sample(Math.max(0,arc.length-setback)),n={x:-s.direction.y,y:s.direction.x};
    draw([{x:s.point.x-n.x*9,y:s.point.y-n.y*9},
-    {x:s.point.x+n.x*9,y:s.point.y+n.y*9}],preview?2.4:2.8,color,
+    {x:s.point.x+n.x*9,y:s.point.y+n.y*9}],preview?1.92:2.24,color,
     {"data-v7-stop-bar":"1"})
   }
   return

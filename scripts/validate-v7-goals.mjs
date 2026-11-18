@@ -1118,6 +1118,27 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(forward.arrows.length,1,"Forward skating requires an arrow");
  assert.equal(forward.arrows[0].attrs.fill,"#111111");
  assert.match(forward.arrows[0].attrs.d,/ Z$/,"Forward arrowhead must be filled");
+
+ // Arrowhead is prominent relative to a thinner shaft, with translucent fill
+ // and a small dark edge; not the old tiny triangular tip.
+ const arrow=forward.arrows[0].attrs;
+ const vertex=[...arrow.d.matchAll(/[ML](-?[0-9.]+) (-?[0-9.]+)/g)].map(m=>({x:+m[1],y:+m[2]}));
+ assert.equal(vertex.length,3,"Arrowhead must be a triangle");
+ assert.ok(vertex[0].x-vertex[1].x>=16,"Forward arrowhead must be long enough to read");
+ assert.ok(Math.abs(vertex[1].y-vertex[2].y)>=18,"Forward arrowhead must have a wide base");
+ assert.equal(arrow["fill-opacity"],.94,"Arrowhead must be visibly solid");
+ assert.equal(arrow["stroke-width"],1.1,"Arrowhead needs a subtle contrasting outline");
+ assert.equal(forward.main.attrs["stroke-width"],2.16,"Forward colored line must be exactly 80% of old width");
+ assert.equal(forward.main.attrs["stroke-opacity"],.84,"Forward route must be slightly transparent");
+ assert.equal(forward.nodes[0].attrs["stroke-width"],3.2,"Dark underlay must also be 80% width");
+ assert.equal(forward.nodes[0].attrs["stroke-opacity"],.64,"Dark underlay must be translucent");
+ const previewNodes=[];
+ ctx.paint({append:n=>previewNodes.push(n)},shorthand,"forward","#111111",{preview:true});
+ const previewLine=previewNodes.find(n=>n.attrs["data-v7-skate-kind"]==="forward");
+ assert.equal(previewNodes[0].attrs["stroke-width"],2.88,"Preview underlay width must also be 80%");
+ assert.equal(previewLine.attrs["stroke-width"],1.84,"Preview colored line width must also be 80%");
+ assert.equal(previewLine.attrs["stroke-opacity"],.88,"Preview route must be slightly transparent");
+
  // Regression against the supplied interlocking-arch reference:
  // upper and lower semi-circles overlap by 50% in the direction of travel.
  const glyphSegments=ctx.linked(shorthand).match(/M[^M]+/g)||[];
@@ -1160,6 +1181,15 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const y=[...cross.main.attrs.d.matchAll(/[ML](-?[0-9.]+) (-?[0-9.]+)/g)].map(m=>+m[2]);
  assert.ok(y.length>=7&&y.every((v,i)=>i===0||v*y[i-1]<0),
   "Backward crossovers need alternating sharp positive/negative peaks");
+ // All six symbols, including their crossbars and curled segments,
+ // get the same 20% weight reduction and translucency.
+ for(const kind of ["forward","backward","lateral","carry","crossover","stop"]){
+  const glyph=run(kind);
+  assert.equal(glyph.main.attrs["stroke-width"],2.16,kind+" colored route thickness");
+  assert.equal(glyph.main.attrs["stroke-opacity"],.84,kind+" route opacity");
+ }
+ assert.equal(run("lateral").nodes.find(n=>n.attrs["data-v7-lateral-tick"]).attrs["stroke-width"],2.0);
+ assert.equal(run("stop").nodes.find(n=>n.attrs["data-v7-stop-bar"]).attrs["stroke-width"],2.24);
  const stop=run("stop");
  assert.equal(stop.arrows.length,0,"Sudden stop has no arrow");
  assert.equal(stop.nodes.filter(n=>n.attrs["data-v7-stop-bar"]).length,2,
