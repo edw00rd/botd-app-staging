@@ -367,7 +367,7 @@ const collisionEnd=app.indexOf("/* Detect physical objects crossed",collisionSta
 assert.ok(collisionStart>0&&collisionEnd>collisionStart);
 vm.runInNewContext(app.slice(collisionStart,collisionEnd),ctx,{timeout:3000});
 ctx.V7_PUCK_RADIUS=2.8;
-ctx.V7_RINK_OBJECT_TYPES={net:{shape:"net"},cone:{shape:"circle"}};
+ctx.V7_RINK_OBJECT_TYPES={net:{shape:"net"},cone:{shape:"circle"},tire:{shape:"ring"}};
 ctx.pointLerp=(a,b,u)=>({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u});
 ctx.lerp=(a,b,t)=>a+(b-a)*t;
 ctx.clamp=clamp;
@@ -391,7 +391,14 @@ const nearPost={x:goalStart.x,y:300};
 assert.equal(ctx.v7NetOpenMouthEgress(leftNet,nearPost,{x:100,y:360}),false,"Passing through a goalpost is blocked");
 ctx.state.equipment.push({id:"blocking-cone",type:"cone",x:220,y:300,rotation:0,scale:1,
  geometry:{radius:7},physics:{collidable:true,response:"bounce",restitution:.65}});
-assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce],0,1)?.objectId,"blocking-cone","Other objects still block passes from net");
+assert.equal(ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce],0,1)?.objectId,"blocking-cone",
+ "Cone must remain collidable for shots; Pass will bypass it");
+const tire={id:"test-tire",type:"tire",x:500,y:300,rotation:0,scale:1,
+ geometry:{radius:14.5},physics:{collidable:true,response:"bounce",restitution:.6}};
+assert.equal(ctx.v7EquipmentCollisionAt(tire,{x:500,y:300}),null,
+ "Puck in the tire center must not collide with empty space");
+assert.equal(ctx.v7EquipmentCollisionAt(tire,{x:514.5,y:300})?.type,"tire",
+ "A shot must still collide with the rubber");
 ctx.state.equipment=structuredClone(initial);
 const hitOnReentry=ctx.v7FirstEquipmentCollisionOnPath([goalStart,centerIce,goalStart],0,2);
 assert.equal(hitOnReentry?.objectId,leftNet.id,"Same net must collide after the puck has exited and reentered");
@@ -407,6 +414,7 @@ ctx.state={equipment:structuredClone(initial),puckStart:goalStart,onIce:{},
 ctx.activeTake=()=>puckTake;
 ctx.passSpeedUnits=()=>420;
 ctx.clampRinkPoint=p=>p;
+ctx.v7ClampPuckToIce=p=>p;
 ctx.firstCollisionOnPath=(points,start,end)=>ctx.v7FirstEquipmentCollisionOnPath(points,start,end);
 ctx.buildPuckTimeline=null;
 vm.runInNewContext(app.slice(timelineStart,timelineEnd),ctx,{timeout:3000});
@@ -417,6 +425,40 @@ assert.equal(passResult?.collision,null,"Pass-out must not falsely collide at or
 assert.ok(Math.abs(passResult.path.at(-1).x-centerIce.x)<.001,"Pass-out must reach selected target");
 assert.ok(simulated.intervals.some(i=>i.kind==="travel"&&i.motion==="pass"&&i.end>i.start+.1),
  "Pass-out must create an observable travel segment");
+
+// Pass-to-space must reach the precise tire center through any intervening
+// players, cones or nets, without consulting the collision routine.
+ctx.state.equipment=[...structuredClone(initial),tire,{
+ id:"blocking-cone",type:"cone",x:300,y:300,rotation:0,scale:1,
+ geometry:{radius:5.6},physics:{collidable:true,response:"soft_block",restitution:.06}
+}];
+ctx.state.puckStart={x:150,y:300};
+puckTake.events=[{id:"inside-tire",type:"passSpace",time:0,target:{x:500,y:300},
+ speed:6,ignoreDefense:false}];
+ctx.firstCollisionOnPath=()=>{throw new Error("PASS must never evaluate collision")};
+let passSimulation=ctx.buildPuckTimeline(),landed=passSimulation.results.get("inside-tire");
+assert.equal(landed?.valid,true);
+assert.equal(landed?.path?.at(-1)?.x,500);
+assert.equal(landed?.path?.at(-1)?.y,300);
+assert.equal(landed?.collision,undefined);
+
+ctx.state.onIce={receiver:{x:600,y:300}};
+ctx.stickPosition=()=>({x:600,y:300});
+ctx.predictReceiverTarget=()=>({point:{x:600,y:300}});
+puckTake.events=[{id:"player-pass",type:"pass",time:0,targetId:"receiver",speed:6}];
+passSimulation=ctx.buildPuckTimeline();
+const received=passSimulation.results.get("player-pass");
+assert.equal(received?.valid,true);
+assert.equal(received?.path.at(-1)?.x,600);
+
+const passCode=app.slice(app.indexOf('if(event.type==="pass"){',timelineStart),
+ app.indexOf('if(event.type==="shot"){',timelineStart));
+assert.ok(!passCode.includes("firstCollisionOnPath(")&&!passCode.includes("boardBankPath("),
+ "Pass must not use shot collision or board banks");
+assert.ok(app.includes("includeObjects:!event.ignoreObjects,includeGoalNets:false"),
+ "Shoot must retain obstacle collisions");
+assert.ok(app.includes('"fill-rule":"evenodd"')&&app.includes('r:inner,fill:"none"'),
+ "Tire SVG must have a transparent opening");
 
 for(const marker of ['label:"Regulation Goal"','label:"Cross-Ice Goal"','label:"Mini Goal"',
   'function v7PuckInsideNet(net,point)','function v7SyncGoalNetOccupancy(puckPosition)',

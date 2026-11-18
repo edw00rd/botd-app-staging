@@ -3224,7 +3224,7 @@ addPass=function(targetId,time=ui.playhead){
   return addPuckEvent({type:"pass",targetId,time,speed:ui.puckOptions.passSpeed,sauce:ui.puckOptions.sauce,ignoreDefense:ui.puckOptions.passIgnore},{select:false})
 };
 function v60AddPassToSpace(target,time=ui.playhead){
-  const ps=puckStateAt(time);if(ps.mode==="travel")return null;return addPuckEvent({type:"passSpace",target:clampRinkPoint(target),time,speed:ui.puckOptions.passSpeed,sauce:ui.puckOptions.sauce,ignoreDefense:ui.puckOptions.passIgnore},{select:false})
+  const ps=puckStateAt(time);if(ps.mode==="travel")return null;return addPuckEvent({type:"passSpace",target:v7ClampPuckToIce(clampRinkPoint(target))||clampRinkPoint(target),time,speed:ui.puckOptions.passSpeed,sauce:ui.puckOptions.sauce,ignoreDefense:ui.puckOptions.passIgnore},{select:false})
 }
 function v60CommitPassToPlayer(playerId){
   const ps=puckStateAt(ui.playhead);if(ps.mode==="attached"&&ps.holder===playerId)return toast(`${playerById(playerId)?.name||"That player"} already has the puck.`,2200);
@@ -3232,7 +3232,7 @@ function v60CommitPassToPlayer(playerId){
   const event=addPass(playerId,ui.playhead);if(event)v60FinishPuckAction()
 }
 function v60CommitPassToPoint(point){
-  const editId=ui.v60Mode?.editingEventId;if(editId){const event=activeTake().events.find(item=>item.id===editId);if(!event)return;pushHistory();event.type="passSpace";event.target=clampRinkPoint(point);delete event.targetId;event.speed=event.speed||ui.puckOptions.passSpeed;event.sauce=event.sauce??ui.puckOptions.sauce;event.ignoreDefense=event.ignoreDefense??ui.puckOptions.passIgnore;v60FinishPuckAction();return}
+  const editId=ui.v60Mode?.editingEventId;if(editId){const event=activeTake().events.find(item=>item.id===editId);if(!event)return;pushHistory();event.type="passSpace";event.target=v7ClampPuckToIce(clampRinkPoint(point))||clampRinkPoint(point);delete event.targetId;event.speed=event.speed||ui.puckOptions.passSpeed;event.sauce=event.sauce??ui.puckOptions.sauce;event.ignoreDefense=event.ignoreDefense??ui.puckOptions.passIgnore;v60FinishPuckAction();return}
   const event=v60AddPassToSpace(point,ui.playhead);if(event)v60FinishPuckAction()
 }
 function v60CommitShot(){
@@ -6313,9 +6313,16 @@ function v7EquipmentCollisionAt(item,worldPoint){
   const local=v7WorldToLocal(item,worldPoint),g=item.geometry||{},shape=V7_RINK_OBJECT_TYPES[item.type]?.shape;
   let normalLocal=null,inside=false;
   if(shape==="circle"||shape==="ring"){
-    const r=(Number(g.radius)||6)+V7_PUCK_RADIUS/Math.max(.45,item.scale||1),d=Math.hypot(local.x,local.y);
-    inside=d<=r;
-    if(inside)normalLocal=d>.001?{x:local.x/d,y:local.y/d}:{x:1,y:0}
+    const radius=Number(g.radius)||6,puckR=V7_PUCK_RADIUS/Math.max(.45,item.scale||1);
+    const d=Math.hypot(local.x,local.y),outer=radius+puckR;
+    // Tire rubber is collidable on shots, not the empty opening.
+    const hole=shape==="ring"?radius*.60:0;
+    inside=d<=outer&&(shape!=="ring"||d>=Math.max(0,hole-puckR));
+    if(inside){
+      const radial=d>.001?{x:local.x/d,y:local.y/d}:{x:1,y:0};
+      normalLocal=shape==="ring"&&d<(hole+radius)/2?
+        {x:-radial.x,y:-radial.y}:radial
+    }
   }else if(shape==="capsule"||shape==="stick"||shape==="rebounder"){
     const length=Number(g.length)||30,width=Number(g.width)||8,half=Math.max(0,length/2-width/2);
     const closest=v7ClosestPointSegment(local,{x:-half,y:0},{x:half,y:0});
@@ -6568,43 +6575,26 @@ buildPuckTimeline=function(puckId="puck"){
       const duration=requestedDuration(event,naturalDuration),arrival=at+duration;
       const explicit=Number(event.travelDuration);
       const target=Number.isFinite(explicit)&&explicit>.01?stickPosition(event.targetId,arrival):prediction.point;
-      let path=[start,target];
-      let collision=firstCollisionOnPath(path,at,arrival,[source,event.targetId].filter(Boolean),{includePlayers:!event.ignoreDefense,includeObjects:true});
-      if(collision?.kind==="player"&&!event.ignoreDefense){
-        const bank=boardBankPath(start,target);
-        if(bank){
-          const bankHit=firstCollisionOnPath(bank.points,at,arrival,[source,event.targetId].filter(Boolean),{includePlayers:true,includeObjects:true});
-          if(!bankHit){path=bank.points;collision=null}
-        }
-      }
-      if(collision){
-        const response=v7CollisionPath(start,target,collision);
-        const travelEnd=collision.time+response.extraTime;
-        intervals.push({start:at,end:travelEnd,kind:"travel",path:response.path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass",collision});
-        cursor=travelEnd;mode="loose";holder=null;loose=response.end;
-        results.set(event.id,{valid:true,blocked:true,source,target:event.targetId,arrival:travelEnd,duration:travelEnd-at,path:response.path,collision});continue
-      }
+      // Pass to a player is a direct delivery; it cannot be blocked.
+      const path=[start,target];
       intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass"});
       cursor=arrival;mode="attached";holder=event.targetId;
-      results.set(event.id,{valid:true,source,target:event.targetId,arrival,duration,path,bank:path.length>2});continue
+      results.set(event.id,{valid:true,source,target:event.targetId,arrival,duration,path});continue
     }
     if(event.type==="passSpace"){
       // Preserve the open-ice pass action, regardless of current possession.
       const source=mode==="attached"?holder:null;
       const start=source?stickPosition(source,at):currentPos;
-      const target=clampRinkPoint(event.target||currentPos);
+      // Pass-to-space travels directly, clears all obstacles, and lands
+      // at the selected point (clamped only when it enters the boards).
+      const requested=clampRinkPoint(event.target||currentPos);
+      const target=v7ClampPuckToIce(requested)||requested;
       const speed=passSpeedUnits(event.speed||6);
-      const naturalDuration=polylineLength([start,target])/speed;
-      const duration=requestedDuration(event,naturalDuration);
-      let path=[start,target],arrival=at+duration;
-      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:true});
-      if(collision){
-        const response=v7CollisionPath(start,target,collision);
-        path=response.path;arrival=collision.time+response.extraTime
-      }
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass",collision});
-      cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
-      results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,collision,passToSpace:true});continue
+      const duration=requestedDuration(event,dist(start,target)/speed);
+      const arrival=at+duration,path=[start,target];
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,sauce:!!event.sauce,eventId:event.id,motion:"pass"});
+      cursor=arrival;mode="loose";holder=null;loose=target;
+      results.set(event.id,{valid:true,source,target:null,arrival,duration,path,passToSpace:true});continue
     }
     if(event.type==="shot"){
       const source=mode==="attached"?holder:null;
@@ -6910,9 +6900,13 @@ function v7EquipmentSvg(item){
     g.append(svgEl("circle",{r,fill:orange,stroke,"stroke-width":1.6}));
     g.append(svgEl("circle",{r:r*.42,fill:"#ffd38b",stroke:"none"}))
   }else if(item.type==="tire"){
-    const r=Number(geo.radius)||9;
-    g.append(svgEl("circle",{r,fill:"#17191b",stroke:"#050607","stroke-width":2}));
-    g.append(svgEl("circle",{r:r*.48,fill:"#dfeff4",stroke:"#60686d","stroke-width":1.2}))
+    const r=Number(geo.radius)||9,inner=r*.60;
+    // The even-odd fill cuts a real transparent hole through the rubber.
+    const ring="M"+r+" 0 A"+r+" "+r+" 0 1 0 "+(-r)+" 0 A"+r+" "+r+" 0 1 0 "+r+" 0 Z "+
+      "M"+inner+" 0 A"+inner+" "+inner+" 0 1 0 "+(-inner)+" 0 A"+inner+" "+inner+" 0 1 0 "+inner+" 0 Z";
+    g.append(svgEl("path",{d:ring,fill:"#17191b","fill-rule":"evenodd",stroke:"none"}));
+    g.append(svgEl("circle",{r,fill:"none",stroke:"#050607","stroke-width":2}));
+    g.append(svgEl("circle",{r:inner,fill:"none",stroke:"#60686d","stroke-width":1.2}))
   }else if(item.type==="bumper"||item.type==="divider"||item.type==="pad"){
     const L=Number(geo.length)||34,W=Number(geo.width)||10,fill=item.type==="divider"?blue:item.type==="bumper"?"#e08d27":"#6f7b82";
     g.append(svgEl("rect",{x:-L/2,y:-W/2,width:L,height:W,rx:W/2,fill,stroke,"stroke-width":1.7}));
