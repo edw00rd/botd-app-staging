@@ -6075,14 +6075,21 @@ function v7InteriorAnchor(ice=state.ice){
 }
 function v7ProjectInsideIce(point,accept,ice=state.ice){
  const p={x:Number(point?.x),y:Number(point?.y)};
- if(accept(p))return{x:round(p.x,4),y:round(p.y,4)};
+ if(accept(p)){const result={x:round(p.x,4),y:round(p.y,4)};if(accept(result))return result}
  const anchor=v7InteriorAnchor(ice);if(!accept(anchor))return null;
  if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return anchor;
  let lo=0,hi=1;
  for(let n=0;n<34;n++){const t=(lo+hi)/2,q={x:anchor.x+(p.x-anchor.x)*t,y:anchor.y+(p.y-anchor.y)*t};
   if(accept(q))lo=t;else hi=t}
- const t=Math.max(0,lo-1e-7);
- return{x:round(anchor.x+(p.x-anchor.x)*t,4),y:round(anchor.y+(p.y-anchor.y)*t,4)}
+ // Verify the final rounded position too: SVG precision must not permit
+ // a corner, net rail or puck outline to enter the painted boards.
+ let t=Math.max(0,lo-1e-6);
+ for(let n=0;n<16;n++){
+  const result={x:round(anchor.x+(p.x-anchor.x)*t,4),y:round(anchor.y+(p.y-anchor.y)*t,4)};
+  if(accept(result))return result;
+  t=Math.max(0,t-2e-6)
+ }
+ return anchor
 }
 /* Real SVG footprints: props touch the inside boards at their painted edge.
    Transparent hitboxes, selection rings and editor handles are not physical. */
