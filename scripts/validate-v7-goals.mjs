@@ -119,9 +119,12 @@ crossbarPlan=planNet({...looseNet,rotation:37},{x:456,y:292},[{...parallelOther,
 assert.equal(crossbarPlan.rotation,32,"Non-cardinal crossbars must align too");
 assert.ok(app.includes('state.equipment,true'),"Turning nets should align to nearby parallel crossbars");
 assert.ok(app.includes('function v7NetRotateOverlay(item)')&&
-  app.includes('if(isNet&&selected.capabilities?.rotatable)layer.append(v7NetRotateOverlay(selected))'),
-  "Net handle must render above buttons");
-assert.ok(app.includes('desired=ry+37'),"Shortened net rotation arm must stay clear of compact controls");
+  app.includes('(handleLayer||layer).append(v7NetRotateOverlay(selected))')&&
+  app.includes('id="v7NetHandleLayer"')&&
+  app.includes('"targetLayer","v7NetHandleLayer"'),
+  "Net handle must render in its own topmost world-camera layer above the boards");
+assert.ok(app.includes('desired=ry+37'),"Shortened rotation arm must be preserved");
+assert.ok(!app.includes('for(const reach of [desired,'),"No disappearing or flipping handle near boards");
 assert.ok(app.includes('v7RinkNetSizeControl(selected.id,point,.78)')&&
   app.includes('v7RinkGoalResetControl(selected.id,point,.78)'),
   "Net action buttons must be compact and grouped closer together");
@@ -148,13 +151,14 @@ assert.notEqual(strictSnap.snap,"alignment","Parallel-net alignment tolerance sh
 const renderStart=app.indexOf("function v7RenderEquipment(){");
 const renderEnd=app.indexOf("/* V7 on-ice visual scale",renderStart);
 assert.ok(renderStart>0&&renderEnd>renderStart);
-const drawn=[];
+const drawn=[],topDrawn=[];
 const layer={firstChild:null,insertBefore(node){drawn.push(node.kind)},append(node){drawn.push(node.kind)}};
+const handleLayer={replaceChildren(){topDrawn.length=0},append(node){topDrawn.push(node.kind)}};
 const renderContext={
  state:{equipment:[{...looseNet,id:"scrimmage",goalSide:null}]},
  ui:{selectedType:"equipment",selectedId:"scrimmage",
   v7EquipmentTransform:{id:"scrimmage",kind:"rotate"}},
- $:()=>layer,
+ $:selector=>selector==="#v7NetHandleLayer"?handleLayer:layer,
  v7EquipmentSvg:()=>({kind:"net-art"}),
  v7RenderNetPlacementGuide:()=>{},
  v7EquipmentById:()=>({id:"scrimmage",type:"net",x:450,y:300,goalSide:null,capabilities:{rotatable:true}}),
@@ -167,11 +171,15 @@ const renderContext={
 };
 vm.runInNewContext(app.slice(renderStart,renderEnd)+"\nthis.draw=v7RenderEquipment",renderContext,{timeout:1500});
 renderContext.draw();
-assert.deepEqual(drawn,["net-art","rotate-overlay"],
- "The rotation handle must remain topmost while the action buttons disappear");
+assert.deepEqual(drawn,["net-art"],
+ "Rotating a net must omit only its two floating action buttons");
+assert.deepEqual(topDrawn,["rotate-overlay"],
+ "Rotation handle must remain visible in the layer above the rink wall");
 drawn.length=0;renderContext.ui.v7EquipmentTransform=null;renderContext.draw();
-assert.deepEqual(drawn,["net-art","remove-control","size-control","rotate-overlay"],
- "On release, compact net controls return UNDER the always-accessible handle");
+assert.deepEqual(drawn,["net-art","remove-control","size-control"],
+ "On release, compact net buttons return beneath the separate handle layer");
+assert.deepEqual(topDrawn,["rotate-overlay"],
+ "Net handle must still be visible after the rotation ends");
 
 
 /* Physical on-ice containment includes rotated object silhouettes and pucks. */
@@ -207,8 +215,19 @@ normContext.v59VisibleWorldBounds=()=>({minX:geo.x,maxX:geo.xRight,minY:geo.y,ma
 vm.runInNewContext(app.slice(handleStart,handleEnd)+"\nthis.rotatePosition=v7NetRotateHandlePosition",normContext,{timeout:1500});
 const edgeNet={...left,x:500,y:geo.yBottom-30,rotation:180};
 const handle=normContext.rotatePosition(edgeNet);
-assert.ok(handle.y<edgeNet.y,"Rotation handle should flip inward near bottom boards");
-assert.ok(safe.point(handle,13),"Rotation handle must remain on playable ice");
+assert.ok(handle.y>edgeNet.y,"At bottom boards, rotation handle should stay outward, not flip inward");
+assert.equal(handle.y,geo.yBottom-2,"Handle must be drawn above the wall, inside SVG viewport");
+assert.ok(!safe.point(handle,13),"The rotation control is allowed to overlay boards; the net is not");
+// Rotating beside the wall keeps the same angle direction in all cardinal orientations.
+for(const [rot,axis,sign] of [[0,"y",-1],[90,"x",1],[180,"y",1],[270,"x",-1]]){
+ const center={...edgeNet,x:500,y:300,rotation:rot};
+ const loc=normContext.rotatePosition(center);
+ assert.ok(sign*(loc[axis]-center[axis])>0,
+   "Rotation angle "+rot+" must keep the handle on the expected side");
+}
+assert.ok(app.includes('const inset=12; // Circle radius 10'),
+ "Handle should clip to the visible SVG frame, not to the ice perimeter");
+
 assert.ok(app.includes('startPointerAngle:Math.atan2(dy,dx)*180/Math.PI')&&
  app.includes('transform.startRotation+'),"Flipped rotation handle should turn without angle jumping");
 

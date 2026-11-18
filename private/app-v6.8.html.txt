@@ -1044,7 +1044,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
           <rect x="10" y="10" width="580" height="680" rx="72" fill="none" stroke="#456171" stroke-width="4"/>
           <g clip-path="url(#halfLogoClip)" opacity=".32" id="centerLogoHalfGroup"><image id="centerLogoHalf" href="" x="204" y="594" width="192" height="192" preserveAspectRatio="xMidYMid meet" transform="rotate(90 300 690)"/></g>
         </g>
-        <g id="drawingLayer"></g><g id="routeLayer"></g><g id="previewLayer"></g><g id="objectLayer"></g><g id="puckLayer"></g><g id="targetLayer"></g>
+        <g id="drawingLayer"></g><g id="routeLayer"></g><g id="previewLayer"></g><g id="objectLayer"></g><g id="puckLayer"></g><g id="targetLayer"></g><g id="v7NetHandleLayer"></g>
       </svg>
       <div class="v60-context-layer" id="v60ContextLayer" aria-live="polite">
         <div class="v60-context-menu" id="v60ContextMenu" hidden></div>
@@ -2940,7 +2940,7 @@ v58OffsideModel=function(teamId){return teamId==="A"?{axis:"x",direction:1,edge:
 function v59EnsureWorldCamera(){
   let camera=$("#worldCameraV59");if(camera)return camera;const svg=$("#rinkSvg"),full=$("#fullRink");if(!svg||!full)return null;
   camera=svgEl("g",{id:"worldCameraV59","data-coordinate-space":V59_COORDINATE_SPACE});svg.insertBefore(camera,full);camera.append(full);
-  for(const id of ["drawingLayer","routeLayer","previewLayer","objectLayer","puckLayer","targetLayer"]){const node=$("#"+id);if(node)camera.append(node)}
+  for(const id of ["drawingLayer","routeLayer","previewLayer","objectLayer","puckLayer","targetLayer","v7NetHandleLayer"]){const node=$("#"+id);if(node)camera.append(node)}
   return camera
 }
 function v59CameraMatrix(side=state.halfSide){return side==="left"?"matrix(0 1 -1 0 600 0)":"matrix(0 -1 1 0 0 1000)"}
@@ -6858,38 +6858,24 @@ function v7RenderNetPlacementGuide(layer){
 }
 
 
-/* Net handle lives above all action buttons in SVG paint order.
-   The longer arm keeps it clear even before pointerdown. */
-/* Keep the handle inside usable ice even if the selected net is next to
-   the playback bar or a corner. Prefer its usual side, then flip inward. */
+/* Net rotation stays on its normal side. Never flip, hide or turn inward
+   near a wall. Clamp only to the camera viewport, so the circle paints OVER
+   the boards but remains visible above the playback bar and SVG crop. */
 function v7NetRotateHandlePosition(item){
   const cg=v7CollisionGeometry(item),ry=Math.max(10,cg.width/2||cg.radius+6);
   const desired=ry+37,angle=(Number(item.rotation)||0)*Math.PI/180;
-  const co=Math.cos(angle),si=Math.sin(angle);
-  const directions=[
-    {x:si,y:-co},{x:-si,y:co},
-    {x:co,y:si},{x:-co,y:-si}
-  ];
-  const visible=state.view==="half"?v59VisibleWorldBounds():null;
-  for(const reach of [desired,desired-8,desired-16,ry+17]){
-    for(const direction of directions){
-      const x=item.x+direction.x*reach,y=item.y+direction.y*reach;
-      if(!v7PointClearOfBoards({x,y},13))continue;
-      if(visible&&(x<visible.minX+13||x>visible.maxX-13||
-         y<visible.minY+13||y>visible.maxY-13))continue;
-      // Keep clear of the two small action bubbles wherever possible.
-      const bubbleA=Math.hypot(x-item.x-21,y-item.y+24);
-      const bubbleB=Math.hypot(x-item.x+21,y-item.y+24);
-      if(Math.min(bubbleA,bubbleB)<22)continue;
-      return{x:round(x,2),y:round(y,2)}
-    }
-  }
-  // Centerward fallback for unusually large nets on narrow custom ice.
-  const anchor=v7InteriorAnchor();
-  const dx=anchor.x-item.x,dy=anchor.y-item.y,d=Math.hypot(dx,dy)||1;
-  const p=v7ProjectInsideIce({x:item.x+dx/d*desired,y:item.y+dy/d*desired},
-    point=>v7PointClearOfBoards(point,13));
-  return p||{x:item.x,y:item.y}
+  const raw={x:item.x+Math.sin(angle)*desired,
+             y:item.y-Math.cos(angle)*desired};
+  const rink=v7IceGeometry(state.ice),half=state.view==="half",right=state.halfSide==="right";
+  // These are the WORLD-coordinate bounds mapped into the full/half SVG viewBox.
+  const limits={
+    minX:half?(right?rink.centerX-10:rink.x-10):0,
+    maxX:half?(right?rink.xRight+10:rink.centerX+10):1000,
+    minY:rink.y-10,maxY:rink.yBottom+10
+  };
+  const inset=12; // Circle radius 10 plus a small stroke/touch margin.
+  return{x:round(clamp(raw.x,limits.minX+inset,limits.maxX-inset),2),
+         y:round(clamp(raw.y,limits.minY+inset,limits.maxY-inset),2)}
 }
 function v7NetRotateOverlay(item){
   const node=svgEl("g",{
@@ -6911,6 +6897,8 @@ function v7NetRotateOverlay(item){
 }
 function v7RenderEquipment(){
   const layer=$("#objectLayer");if(!layer)return;
+  const handleLayer=$("#v7NetHandleLayer");
+  if(handleLayer)handleLayer.replaceChildren();
   const first=layer.firstChild;
   for(const item of state.equipment||[]){
     const node=v7EquipmentSvg(item);
@@ -6946,8 +6934,9 @@ function v7RenderEquipment(){
       clampRinkPoint({x:selected.x+30,y:selected.y+27});
     layer.append(v7RinkDispensePuckControl(selected.id,point))
   }
-  // Last SVG sibling: this handle cannot be buried underneath a control.
-  if(isNet&&selected.capabilities?.rotatable)layer.append(v7NetRotateOverlay(selected))
+  // Render above the boards, pucks, targets AND floating rink buttons.
+  if(isNet&&selected.capabilities?.rotatable)
+    (handleLayer||layer).append(v7NetRotateOverlay(selected))
 }
 
 /* V7 on-ice visual scale. Never resize stored routes or rink equipment.
