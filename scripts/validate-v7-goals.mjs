@@ -55,7 +55,8 @@ const deepClone=v=>structuredClone(v);
 const types={
   net:{geometry:{length:16,width:28.8},physics:{collidable:true,response:"stop",restitution:0},capabilities:{rotatable:true,resize:"none",puckSource:false}},
   cone:{geometry:{radius:4.2},physics:{collidable:true,response:"soft_block",restitution:.06},capabilities:{rotatable:false,resize:"none",puckSource:false}},
-  tire:{geometry:{radius:10.5},physics:{collidable:true,response:"bounce",restitution:.60},capabilities:{rotatable:false,resize:"none",puckSource:false}}
+  tire:{geometry:{radius:10.5},physics:{collidable:true,response:"bounce",restitution:.60},capabilities:{rotatable:false,resize:"none",puckSource:false}},
+  puckPile:{geometry:{radius:12},physics:{collidable:false,response:"none",restitution:0},capabilities:{rotatable:false,resize:"none",puckSource:true}}
 };
 const normalizerStart=app.indexOf("function v7CloneObjectDefaults(type)");
 const normalizerEnd=app.indexOf("function v7EnsureSemanticTimeline(",normalizerStart);
@@ -113,6 +114,15 @@ assert.equal(normContext.v7NormalizeEquipmentItem({type:"cone",x:500,y:300,geome
  "Legacy cones must migrate to the closest new size");
 assert.equal(normContext.v7NormalizeEquipmentItem({type:"tire",x:500,y:300,sizePreset:"truck",geometry:{radius:20.5}}).sizePreset,"car",
  "Retired truck tires should map to the largest available tire");
+/* Saved old puck piles may have had handles and a large scale. */
+const migratedPile=normContext.v7NormalizeEquipmentItem({
+ type:"puckPile",x:500,y:300,rotation:80,scale:2.75,
+ capabilities:{rotatable:true,resize:"uniform"}
+});
+assert.equal(migratedPile.rotation,0,"Puck pile must not rotate");
+assert.equal(migratedPile.scale,1,"Puck pile must use native scale");
+assert.equal(migratedPile.capabilities.rotatable,false,"No pile rotation handle");
+assert.equal(migratedPile.capabilities.resize,"none","No pile resize handle");
 assert.ok(app.includes('collision.type==="cone"?clamp(inMag*.04,1.5,7)'),
  "Cone impacts must die quickly");
 assert.ok(app.includes('function v7DuplicateRound(id)')&&app.includes('v7EquipmentFitsIce(original,at)'),
@@ -240,6 +250,17 @@ assert.ok(puckMetricsStart>0&&puckMetricsEnd>puckMetricsStart);
 vm.runInNewContext(app.slice(puckMetricsStart,puckMetricsEnd),normContext,{timeout:1500});
 vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens};this.v7PuckBoardInset=v7PuckBoardInset;this.v7PuckTravelPerimeter=v7PuckTravelPerimeter;this.v7PuckSafeVisibleLift=v7PuckSafeVisibleLift",normContext,{timeout:2000});
 const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
+/* Match the diagram reference: same small puck radius, no puck overlap,
+   with the board footprint calculated from the actual visible discs. */
+const pileDiscs=normContext.v7PuckPileDiscCenters();
+assert.equal(pileDiscs.length,24,"Puck pile should show 24 loose pucks");
+const pileR=visual.puckRadius+Math.max(.65,visual.puckRadius*.35)/2;
+for(let i=0;i<pileDiscs.length;i++)for(let j=i+1;j<pileDiscs.length;j++)
+ assert.ok(Math.hypot(pileDiscs[i].x-pileDiscs[j].x,pileDiscs[i].y-pileDiscs[j].y)>2*pileR+.1,
+  "Puck pile pucks must not touch or overlap");
+assert.equal(normContext.v7EquipmentFootprint({type:"puckPile",geometry:{radius:12}}).length,24,
+ "Pile boards containment must check each disc");
+assert.ok(app.includes('v7RinkDispensePuckControl(selected.id,point)'),"Keep the puck pile + action");
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
 assert.ok(safe.point(cornerPuck,normContext.v7PuckBoardInset()),"Puck at a rounded corner must move onto playable ice");
 for(const type of ["net","cone","tire","divider","bumper","pad","stick","rebounder","puckPile"]){
