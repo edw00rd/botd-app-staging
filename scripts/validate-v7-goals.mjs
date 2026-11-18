@@ -1021,4 +1021,88 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.ok(smooth.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));
 }
 
+
+/* Trace the player's actual cursor pace and preserve the original coaching
+   legend: backward arches versus broad puck-carry waves. */
+{
+ const start=app.indexOf("/* V7 DRILL MOVEMENT NOTATION AND SMOOTH SKATING");
+ const a=app.indexOf("const V7_DRILL_MOVES=",start),b=app.indexOf("const v7RenderRoutesBeforeSkating=",a);
+ assert.ok(start>0&&a>start&&b>a);
+ const section=app.slice(a,b);
+ for(const str of [
+  "function v7RecordedMovementProgress(",
+  "function v7BuildRecordedTraceTiming(",
+  "function v7SkatingLinkedArches(",
+  "function v7PaintSkatingRoute(",
+  'type==="backward"||type==="pivot"',
+  'type==="lateral"',
+  'type==="carry"'
+ ])assert.ok(section.includes(str),"Movement regression: "+str);
+ const extra=app.slice(b);
+ for(const str of [
+  'ui.v7PendingRecordedTrace',
+  'const duration=clamp(actual,.05,',
+  'v7PointerDownBeforeTraceTiming=onRinkPointerDown',
+  'v7PointerMoveBeforeTraceTiming=onRinkPointerMove',
+  'rec.traceTimes.push(',
+  'v7RecordedMovementProgress(clip,time)',
+  'trimMovementClip=function(clip,start,end)',
+  'if(timing)clip.traceTiming=timing'
+ ])assert.ok(extra.includes(str),"Missing timing capture/integration: "+str);
+ assert.ok(!extra.includes("distance/108"),"Movement speed must not be imposed by path length");
+ const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
+ const length=points=>points.slice(1).reduce((s,p,i)=>s+dist(points[i],p),0);
+ const pointAt=(pts,f)=>{
+  let left=Math.min(1,Math.max(0,f))*length(pts);
+  for(let i=1;i<pts.length;i++){
+   const d=dist(pts[i-1],pts[i]);
+   if(left<=d||i===pts.length-1){
+    const t=d?Math.max(0,Math.min(1,left/d)):0;
+    return{x:pts[i-1].x+(pts[i].x-pts[i-1].x)*t,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*t}
+   }
+   left-=d
+  }
+  return pts[0]
+ };
+ const arrows=[];
+ const ctx={
+  dist,polylineLength:length,pointAtPolyline:pointAt,
+  clamp:(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),
+  round:(n,d=2)=>Number(Number(n).toFixed(d)),
+  pathD:pts=>pts.map((p,i)=>(i?"L":"M")+p.x+" "+p.y).join(" "),
+  svgEl:(tag,attrs)=>({tag,attrs}),
+  v61AppendOpenArrow:(...args)=>arrows.push(args),
+  playerPositionAt:()=>{},movementClipsFor:()=>[],
+  state:{onIce:{A:{x:0,y:0}}}
+ };
+ vm.runInNewContext(section+
+  "\nthis.traceTiming=v7BuildRecordedTraceTiming;this.pace=v7RecordedMovementProgress;"+
+  "this.paint=v7PaintSkatingRoute;this.linked=v7SkatingLinkedArches;",ctx,{timeout:3000});
+ const route=[{x:0,y:0},{x:20,y:0},{x:40,y:0},{x:60,y:0}];
+ const timing=ctx.traceTiming(route,[0,.1,.5,1.5],1.5);
+ assert.equal(timing.length,4,"Record an elapsed timestamp at each traced segment");
+ const timedClip={start:0,duration:1.5,traceTiming:timing};
+ assert.ok(Math.abs(ctx.pace(timedClip,.1)-1/3)<.002);
+ assert.ok(Math.abs(ctx.pace(timedClip,.5)-2/3)<.002);
+ assert.equal(ctx.pace(timedClip,1.5),1);
+ assert.ok(Math.abs(ctx.pace({start:0,duration:1.5},.5)-1/3)<.002,
+  "Old untimed plays remain playable");
+ const shorthand=[{x:0,y:0},{x:100,y:0}];
+ const run=kind=>{
+  const drawn=[],base=arrows.length;
+  ctx.paint({append:node=>drawn.push(node)},shorthand,kind,"#111111");
+  return{nodes:drawn,arrows:arrows.length-base}
+ };
+ const backward=run("backward");
+ assert.equal(backward.arrows,0,"Backward line has no end arrow in this source key");
+ const arch=backward.nodes.find(n=>n.attrs["data-v7-skate-kind"]==="backward");
+ assert.ok((arch?.attrs?.d?.match(/ C/g)||[]).length>=9,
+  "Backward path must use repeated curled Bézier arches, not a sine wave");
+ assert.equal(run("lateral").arrows,0,"Lateral bars do not carry an arrow");
+ assert.equal(run("stop").arrows,0,"Stopping ends with double bars");
+ assert.equal(run("carry").arrows,1,"Puck carrying retains a broad-wave arrow");
+ assert.equal(run("forward").arrows,1);
+ assert.equal(run("pivot").arrows,1);
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

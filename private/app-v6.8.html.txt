@@ -9247,9 +9247,9 @@ Object.assign(window.BOTD_TEST,{
    independent of puck physics and does not dictate sprite artwork. */
 const V7_DRILL_MOVES=Object.freeze({
  forward:{label:"Forward skating",detail:"Solid line + arrow",semantic:"skate.forward",legacy:"forward"},
- backward:{label:"Backward skating",detail:"Tight repeating wave",semantic:"skate.backward",legacy:"backward"},
- lateral:{label:"Lateral crossovers",detail:"Repeated perpendicular bars",semantic:"skate.lateral",legacy:"lateral"},
- pivot:{label:"Pivoting",detail:"Curved pivot hook",semantic:"skate.pivot",legacy:"forward"},
+ backward:{label:"Backward skating",detail:"Interlocking curled arches",semantic:"skate.backward",legacy:"backward"},
+ lateral:{label:"Lateral crossovers",detail:"Parallel perpendicular bars (no arrow)",semantic:"skate.lateral",legacy:"lateral"},
+ pivot:{label:"Pivoting",detail:"Backward arches leading into a hooked turn",semantic:"skate.pivot",legacy:"forward"},
  carry:{label:"Skating with puck control",detail:"Broad wave + arrow · puck possession required",semantic:"puck.carry",legacy:"forward"},
  stop:{label:"Stopping",detail:"Line ending in two bars",semantic:"skate.stop",legacy:"hold"}
 });
@@ -9301,6 +9301,50 @@ function v7SkatingClipPoints(clip){
  v7SkatingCurveCache.set(points,{signature,points:smooth});
  return smooth
 }
+
+/* Time is stored with each recorded trace sample. Smoothed geometry is
+   independent of pace: time interpolation retains stops, bursts and
+   acceleration instead of assuming constant player speed. */
+function v7RecordedMovementProgress(clip,time){
+ const f=clamp((Number(time)-Number(clip.start))/Math.max(.001,Number(clip.duration)),0,1);
+ const timing=clip.traceTiming;
+ if(!Array.isArray(timing)||timing.length<2)return f; // legacy plays
+ if(f<=timing[0].t)return timing[0].p;
+ for(let i=1;i<timing.length;i++){
+  const a=timing[i-1],b=timing[i];
+  if(f<=b.t){
+   const dt=b.t-a.t;
+   const u=dt>1e-6?clamp((f-a.t)/dt,0,1):1;
+   return clamp(a.p+(b.p-a.p)*u,0,1)
+  }
+ }
+ return clamp(timing.at(-1).p,0,1)
+}
+function v7BuildRecordedTraceTiming(points,times,duration){
+ const length=polylineLength(points);
+ if(!Array.isArray(times)||times.length!==points.length||!length||!duration)return null;
+ const entries=[{t:0,p:0}];
+ let distanceSoFar=0,lastTime=0;
+ for(let i=1;i<points.length;i++){
+  distanceSoFar+=dist(points[i-1],points[i]);
+  const t=clamp(Number(times[i])/duration,0,1),p=clamp(distanceSoFar/length,0,1);
+  if(!Number.isFinite(t))continue;
+  // Two coalesced events can have the same timestamp. Preserve their last
+  // position instead of introducing a zero-time division on playback.
+  if(t<=lastTime+1e-6){
+   if(entries.length===1&&t<1e-6&&p>0){
+    // A trace may begin a few pixels away from the token; do not teleport.
+    const tiny=Math.min(.04,Math.max(.001,.016/duration));
+    entries.push({t:round(tiny,6),p:round(p,6)});lastTime=tiny
+   }else entries[entries.length-1].p=p
+  }else{entries.push({t:round(t,6),p:round(p,6)});lastTime=t}
+ }
+ // Releasing the pointer after stopping should hold the last position.
+ if(entries.at(-1).t<1-1e-6)entries.push({t:1,p:1});
+ else entries[entries.length-1].p=1;
+ return entries.length>=2?entries:null
+}
+
 /* Do not change pointAtPolyline: board/object ricochets are intentionally
    sharp. Only skaters take the smoothed trajectory. */
 playerPositionAt=function(playerId,time){
@@ -9310,7 +9354,7 @@ playerPositionAt=function(playerId,time){
   const points=v7SkatingClipPoints(clip);
   if(!points?.length)continue;
   if(time<=clip.start+clip.duration){
-   const fraction=clamp((time-clip.start)/Math.max(.001,clip.duration),0,1);
+   const fraction=v7RecordedMovementProgress(clip,time);
    return pointAtPolyline(points,fraction)
   }
   pos={...points.at(-1)}
@@ -9343,40 +9387,93 @@ function v7SkatingWavy(points,amplitude,wavelength){
  out[0]={...points[0]};out[out.length-1]={...points.at(-1)};
  return out
 }
+
+/* The backward glyph is a chain of curling, partially overlapping arches.
+   A simple sine wave is reserved for carrying/stickhandling a puck. */
+function v7SkatingLinkedArches(points,{start=0,end=1}={}){
+ if(!Array.isArray(points)||points.length<2)return "";
+ const arc=v7SkatingSampler(points),from=arc.length*start,to=arc.length*end,span=to-from;
+ if(span<2)return pathD(points);
+ const count=Math.max(1,Math.round(span/22)),period=span/count,amplitude=Math.min(5.8,period*.31);
+ const pt=(d,n=0)=>{
+  const s=arc.sample(clamp(d,0,arc.length));
+  return{x:s.point.x-s.direction.y*n,y:s.point.y+s.direction.x*n}
+ };
+ const token=p=>round(p.x,2)+" "+round(p.y,2);
+ let path="M"+token(pt(from));
+ for(let i=0;i<count;i++){
+  const base=from+i*period,step=(u,n)=>pt(base+u*period,n);
+  // First lobe sweeps upward. The second rolls underneath and back
+  // on itself, making the unmistakable linked-hook hockey symbol.
+  path+=" C"+token(step(.06,-amplitude))+" "+token(step(.46,-amplitude))+" "+token(step(.58,-amplitude*.35));
+  path+=" C"+token(step(.73,amplitude*.16))+" "+token(step(.43,amplitude*.95))+" "+token(step(.62,amplitude*.91));
+  path+=" C"+token(step(.83,amplitude*.92))+" "+token(step(.96,amplitude*.19))+" "+token(step(1,0))
+ }
+ return path
+}
 function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
  if(!points||points.length<2)return;
  const type=V7_DRILL_MOVES[kind]?kind:"forward",arc=v7SkatingSampler(points);
  if(arc.length<.5)return;
- const visual=type==="backward"?v7SkatingWavy(points,3.4,15):type==="carry"?v7SkatingWavy(points,4.8,36):points;
- const draw=(path,width,stroke,extra={})=>{
-  layer.append(svgEl("path",{d:pathD(path),fill:"none",stroke,"stroke-width":width,
-   "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}))
+ const draw=(shape,width,stroke,extra={})=>
+  layer.append(svgEl("path",{d:pathD(shape),fill:"none",stroke,"stroke-width":width,
+   "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
+ const drawPath=(d,width,stroke,extra={})=>
+  layer.append(svgEl("path",{d,fill:"none",stroke,"stroke-width":width,
+   "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
+ const layered=shape=>{
+  draw(shape,preview?3.6:4,"#122330");
+  draw(shape,preview?2.3:2.7,color,{"data-v7-skate-kind":type})
  };
- draw(visual,preview?4:4.6,"#122330");
- draw(visual,preview?2.8:3.2,color,{"data-v7-skate-kind":type});
- if(type==="lateral")for(let d=9;d<arc.length-3;d+=9){
-  const s=arc.sample(d),normal={x:-s.direction.y,y:s.direction.x};
-  draw([
-   {x:s.point.x-normal.x*6,y:s.point.y-normal.y*6},
-   {x:s.point.x+normal.x*6,y:s.point.y+normal.y*6}
-  ],2.4,color)
+ if(type==="backward"||type==="pivot"){
+  const backEnd=type==="pivot"?.83:1;
+  const d=v7SkatingLinkedArches(points,{end:backEnd});
+  drawPath(d,preview?3.7:4,"#122330");
+  drawPath(d,preview?2.3:2.7,color,{"data-v7-skate-kind":type});
+  if(type==="pivot"){
+   const from=arc.sample(arc.length*.83),tip=arc.sample(arc.length);
+   const dir=tip.direction,n={x:-dir.y,y:dir.x},p=tip.point;
+   const start=from.point;
+   const hook="M"+round(start.x,2)+" "+round(start.y,2)+
+    " Q"+round(p.x+dir.x*7-n.x*9,2)+" "+round(p.y+dir.y*7-n.y*9,2)+
+    " "+round(p.x+dir.x*1+n.x*8,2)+" "+round(p.y+dir.y*1+n.y*8,2)+
+    " Q"+round(p.x-dir.x*13+n.x*12,2)+" "+round(p.y-dir.y*13+n.y*12,2)+
+    " "+round(p.x,2)+" "+round(p.y,2);
+   drawPath(hook,preview?2.3:2.7,color);
+   v61AppendOpenArrow(layer,[arc.sample(arc.length-7).point,p],{color,width:2.4,size:8})
+  }
+  // Backward skating intentionally has NO arrow in this drill-symbol key.
+  return
  }
- if(type==="pivot"&&arc.length>14){
-  const end=arc.sample(arc.length),t=end.direction,n={x:-t.y,y:t.x},p=end.point;
-  const from=arc.sample(Math.max(0,arc.length-15)).point;
-  const hook="M"+round(from.x,2)+" "+round(from.y,2)+
-   " Q"+round(p.x+n.x*12,2)+" "+round(p.y+n.y*12,2)+
-   " "+round(p.x+n.x*7-t.x*8,2)+" "+round(p.y+n.y*7-t.y*8,2)+
-   " Q"+round(p.x+n.x*3-t.x*11,2)+" "+round(p.y+n.y*3-t.y*11,2)+
-   " "+round(p.x,2)+" "+round(p.y,2);
-  layer.append(svgEl("path",{d:hook,fill:"none",stroke:color,
-   "stroke-width":2.6,"stroke-linecap":"round","pointer-events":"none"}))
+ if(type==="lateral"){
+  // International Drill Symbols: individual parallel tick marks, not a
+  // continuous centerline, dash pattern or directional arrow.
+  const spacing=5.7;
+  for(let d=2;d<arc.length-1;d+=spacing){
+   const s=arc.sample(d),n={x:-s.direction.y,y:s.direction.x};
+   draw([{x:s.point.x-n.x*6,y:s.point.y-n.y*6},
+     {x:s.point.x+n.x*6,y:s.point.y+n.y*6}],preview?2:2.3,color)
+  }
+  return
  }
- if(type==="stop")for(const setback of [0,5]){
-  const s=arc.sample(Math.max(0,arc.length-setback)),n={x:-s.direction.y,y:s.direction.x};
-  draw([{x:s.point.x-n.x*9,y:s.point.y-n.y*9},{x:s.point.x+n.x*9,y:s.point.y+n.y*9}],2.8,color)
- }else v61AppendOpenArrow(layer,visual,{color,width:preview?2.5:2.8,size:10})
+ if(type==="carry"){
+  const visual=v7SkatingWavy(points,4.8,36);
+  layered(visual);
+  v61AppendOpenArrow(layer,visual,{color,width:2.5,size:10});
+  return
+ }
+ layered(points);
+ if(type==="stop"){
+  for(const setback of [0,5]){
+   const s=arc.sample(Math.max(0,arc.length-setback)),n={x:-s.direction.y,y:s.direction.x};
+   draw([{x:s.point.x-n.x*9,y:s.point.y-n.y*9},
+     {x:s.point.x+n.x*9,y:s.point.y+n.y*9}],preview?2.4:2.8,color)
+  }
+  return
+ }
+ v61AppendOpenArrow(layer,points,{color,width:preview?2.5:2.8,size:10})
 }
+
 const v7RenderRoutesBeforeSkating=renderRoutes;
 renderRoutes=function(time){
  v7RenderRoutesBeforeSkating(time);
@@ -9391,7 +9488,7 @@ renderRoutes=function(time){
   const all=v7SkatingClipPoints(clip);if(!all||all.length<2)continue;
   let shown=all;
   if(state.display.routeMode==="ahead"&&time>=clip.start&&time<=clip.start+clip.duration){
-   const p=clamp((time-clip.start)/Math.max(.001,clip.duration),0,1);
+   const p=v7RecordedMovementProgress(clip,time);
    shown=slicePolylineByProgress(all,p,1)
   }
   const player=playerById(clip.playerId),color=player?playerColors(player).primary:"#39d8ff";
@@ -9411,18 +9508,24 @@ renderMovePreview=function(){
 const v7CommitBeforeSkating=commitMoveFromPlayhead;
 commitMoveFromPlayhead=function(payload={}){
  const type=V7_DRILL_MOVES[ui.v7PendingMoveNotation]?ui.v7PendingMoveNotation:"forward";
- const curve=v7SkatingSmoothPoints(payload.points||[]);
- const distance=polylineLength(curve),time=Number(payload.startTime)||0;
- const duration=clamp(Math.max(Number(payload.duration)||.35,distance/108,.65),
-  .35,Math.max(.35,Math.min(20,60-time)));
+ const trace=ui.v7PendingRecordedTrace||null;
+ const time=Number(payload.startTime)||0;
+ // The ACTUAL pointer trace determines duration, not path length or any
+ // preset skating speed. A quick stroke plays quickly; a slow stroke slowly.
+ const actual=trace?.duration??Number(payload.duration)??.35;
+ const duration=clamp(actual,.05,Math.max(.05,60-time));
  const clip=v7CommitBeforeSkating({...payload,duration,render:false});
  if(clip){
   clip.movementNotation=type;
   clip.actionType=V7_DRILL_MOVES[type].legacy;
   clip.semanticAction=V7_DRILL_MOVES[type].semantic;
+  const timing=trace&&trace.pointCount===payload.points?.length?
+   v7BuildRecordedTraceTiming(payload.points,trace.times,duration):null;
+  if(timing)clip.traceTiming=timing;
   renderAll();syncActiveVariation();scheduleSave()
  }
  ui.v7PendingMoveNotation=null;
+ ui.v7PendingRecordedTrace=null;
  return clip
 };
 const v7SemanticBeforeSkating=v7EnsureSemanticTimeline;
@@ -9518,6 +9621,81 @@ cancelMoveRecording=function(){
  ui.v7PendingMoveNotation=null;
  return v7CancelBeforeSkating()
 };
+
+/* The existing pointer handler owns route geometry. Time samples are
+   collected alongside it without altering how mouse/pen paths are drawn. */
+const v7PointerDownBeforeTraceTiming=onRinkPointerDown;
+onRinkPointerDown=function(event){
+ const result=v7PointerDownBeforeTraceTiming(event),rec=ui.recordingMove;
+ if(rec?.started&&rec.pointerId===event.pointerId&&!rec.traceTimes)
+  rec.traceTimes=rec.points.map(()=>0);
+ return result
+};
+const v7PointerMoveBeforeTraceTiming=onRinkPointerMove;
+onRinkPointerMove=function(event){
+ const rec=ui.recordingMove;
+ if(!rec?.started||rec.pointerId!==event.pointerId)return v7PointerMoveBeforeTraceTiming(event);
+ if(!Array.isArray(rec.traceTimes))rec.traceTimes=rec.points.map(()=>0);
+ const previous=rec.points.length;
+ const coalesced=event.getCoalescedEvents?.()||[event];
+ const samples=coalesced.length?coalesced:[event];
+ const times=[];
+ let last=rec.points.at(-1);
+ for(const sample of samples){
+  const point=svgPoint(sample);
+  if(dist(point,last)>2){
+   const timestamp=Number(sample.timeStamp);
+   const seconds=Number.isFinite(timestamp)&&timestamp>=rec.startStamp?
+    (timestamp-rec.startStamp)/1000:(performance.now()-rec.startStamp)/1000;
+   times.push(Math.max(0,seconds));
+   last=point
+  }
+ }
+ const result=v7PointerMoveBeforeTraceTiming(event);
+ const added=rec.points.length-previous;
+ for(let i=0;i<added;i++){
+  const t=times[i]??(performance.now()-rec.startStamp)/1000;
+  rec.traceTimes.push(Math.max(rec.traceTimes.at(-1)||0,t))
+ }
+ return result
+};
+const v7FinishBeforeTraceTiming=finishMoveRecording;
+finishMoveRecording=function(){
+ const rec=ui.recordingMove;
+ if(rec?.started&&Array.isArray(rec.traceTimes)&&rec.points?.length===rec.traceTimes.length){
+  ui.v7PendingRecordedTrace={
+   pointCount:rec.points.length,
+   times:[...rec.traceTimes],
+   duration:(performance.now()-rec.startStamp)/1000
+  }
+ }else ui.v7PendingRecordedTrace=null;
+ return v7FinishBeforeTraceTiming()
+};
+/* Splitting a recorded movement must split its speed curve too, otherwise
+   revisions at the playhead could jump or change the pace of earlier frames. */
+const v7TrimBeforeTraceTiming=trimMovementClip;
+trimMovementClip=function(clip,start,end){
+ if(!Array.isArray(clip?.traceTiming)||clip.traceTiming.length<2)
+  return v7TrimBeforeTraceTiming(clip,start,end);
+ const originalDuration=Math.max(.001,Number(clip.duration)||.001);
+ const s=clamp(Number(start),clip.start,clip.start+originalDuration);
+ const e=clamp(Number(end),s,clip.start+originalDuration);
+ const a=v7RecordedMovementProgress(clip,s),b=v7RecordedMovementProgress(clip,e);
+ const result=v7TrimBeforeTraceTiming(clip,s,e);
+ result.points=slicePolylineByProgress(clip.points,a,b);
+ const span=Math.max(.00001,(e-s)/originalDuration),range=Math.max(.00001,b-a);
+ const timing=[{t:0,p:0}];
+ for(const key of clip.traceTiming){
+  const absolute=clip.start+key.t*originalDuration;
+  if(absolute>s+.00001&&absolute<e-.00001)
+   timing.push({t:clamp((absolute-s)/Math.max(.00001,e-s),0,1),
+    p:clamp((key.p-a)/range,0,1)})
+ }
+ timing.push({t:1,p:1});
+ result.traceTiming=timing;
+ return result
+};
+
 Object.assign(window.BOTD_TEST,{
  skatingMovementTypes:()=>Object.keys(V7_DRILL_MOVES),
  skatingCurve:points=>deepClone(v7SkatingSmoothPoints(points)),
