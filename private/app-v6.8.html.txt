@@ -3293,7 +3293,13 @@ onRinkPointerDown=function(event){
   v60SetSelectionSource("rink");
   const playerNode=event.target.closest?.("[data-player-id]"),puckNode=event.target.closest?.("[data-puck]");
   if(ui.v60Mode?.type==="pass"){
-    event.preventDefault();event.stopPropagation();if(playerNode)v60CommitPassToPlayer(playerNode.dataset.playerId);else if(!puckNode)v60CommitPassToPoint(svgPoint(event));return
+    // This click is a placement target, never a new selection or drag.
+    // Stop subsequent SVG capture handlers from reselecting the tire/net.
+    event.preventDefault();event.stopImmediatePropagation();
+    ui.pendingTap=null;ui.v7EquipmentDrag=null;ui.v7EquipmentTransform=null;
+    if(playerNode)v60CommitPassToPlayer(playerNode.dataset.playerId);
+    else if(!puckNode)v60CommitPassToPoint(svgPoint(event));
+    return
   }
   if(ui.v60Mode?.type==="shot"){
     event.preventDefault();event.stopPropagation();if(!puckNode){ui.v60ShotDrag={pointerId:event.pointerId};ui.v60Mode.aim=svgPoint(event);try{$("#rinkSvg").setPointerCapture(event.pointerId)}catch{}renderFrame(ui.playhead)}return
@@ -3682,7 +3688,9 @@ puckStateAt=function(time,timeline=buildPuckTimeline()){
   if(interval.kind==="attached")return{mode:"attached",holder:interval.holder,pos:stickPosition(interval.holder,time),spin:false,interval};
   if(interval.kind==="travel"){
     const raw=clamp((time-interval.start)/Math.max(.001,interval.end-interval.start),0,1);let progress=raw;
-    if(interval.motion==="shot")progress=1-Math.pow(1-raw,interval.boardFollow?1.58:1.35);
+    if(interval.motion==="shot")progress=interval.motionProfile?.length?
+      v7ShotMotionProgress(interval.motionProfile,raw):
+      1-Math.pow(1-raw,interval.boardFollow?1.58:1.35);
     else if(interval.motion==="pass")progress=clamp(raw+.055*Math.sin(Math.PI*raw),0,1);
     return{mode:"travel",holder:null,pos:pointAtPolyline(interval.path,progress),spin:true,sauce:interval.sauce,goal:interval.goal,interval,progress}
   }
@@ -3738,7 +3746,7 @@ v60StartShot=function({editingEventId=null}={}){
 v60RenderShotPanel=function(){
   const panel=$("#v60ShotPanel");if(!panel)return;if(ui.v60Mode?.type!=="shot"||ui.v60Mode.stage!=="power"){panel.hidden=true;return}
   const anchor=v7PuckActionAnchor();if(!anchor){panel.hidden=true;return}
-  const power=clamp(Number(ui.v60Mode.power)||7,1,10),output=panel.querySelector("output"),slider=panel.querySelector("input"),travel=$("#v61ShotTravel"),built=v60BuildShotPath(v60ModeOrigin(),ui.v60Mode.aim,power);
+  const power=clamp(Number(ui.v60Mode.power)||7,1,10),output=panel.querySelector("output"),slider=panel.querySelector("input"),travel=$("#v61ShotTravel"),built=v7PhysicalShotTrajectory(v60ModeOrigin(),ui.v60Mode.aim,power,{time:ui.playhead,ignoreDefense:ui.v60Mode.ignoreDefense!==false,ignoreObjects:!!ui.v60Mode.ignoreObjects});
   if(slider&&document.activeElement!==slider)slider.value=String(power);if(output)output.textContent=`${Math.round(power*10)}%`;if(travel)travel.textContent=`${Math.round(built.distance)} units${built.boardFollow?" · along boards":""}`;v60PlaceFloating(panel,anchor,{gap:15})
 };
 /* The corner Cancel remains available while aiming. Once the local power card
@@ -3761,7 +3769,7 @@ v60RenderModePreview=function(){
     if(mode.stage==="aim"){
       const guide=[origin,mode.aim||v60DefaultShotAim(origin)];layer.append(svgEl("path",{d:pathD(guide),class:"v61-shot-guide"}));v61AppendOpenArrow(layer,guide,{color:"#c92b3d",width:2.3,size:11});const end=guide.at(-1);layer.append(svgEl("circle",{cx:end.x,cy:end.y,r:5,class:"v61-shot-aim-dot"}))
     }else{
-      const built=v60BuildShotPath(origin,mode.aim,mode.power);mode.previewPath=built.path;mode.previewBoardFollow=built.boardFollow;layer.style.setProperty("--v61-shot-flow",`${lerp(1.05,.42,(mode.power-1)/9).toFixed(2)}s`);layer.append(svgEl("path",{d:pathD(built.path),class:"v61-shot-path-base"}));layer.append(svgEl("path",{d:pathD(built.path),class:"v61-shot-path-flow"}));v61AppendOpenArrow(layer,built.path,{color:"#d92b3e",width:2.4,size:12});const end=built.path.at(-1);layer.append(svgEl("circle",{cx:end.x,cy:end.y,r:4.5,class:"v61-shot-end"}))
+      const built=v7PhysicalShotTrajectory(origin,mode.aim,mode.power,{time:ui.playhead,ignoreDefense:mode.ignoreDefense!==false,ignoreObjects:!!mode.ignoreObjects});mode.previewPath=built.path;mode.previewBoardFollow=built.boardFollow;layer.style.setProperty("--v61-shot-flow",`${lerp(1.05,.42,(mode.power-1)/9).toFixed(2)}s`);layer.append(svgEl("path",{d:pathD(built.path),class:"v61-shot-path-base"}));layer.append(svgEl("path",{d:pathD(built.path),class:"v61-shot-path-flow"}));v61AppendOpenArrow(layer,built.path,{color:"#d92b3e",width:2.4,size:12});const end=built.path.at(-1);layer.append(svgEl("circle",{cx:end.x,cy:end.y,r:4.5,class:"v61-shot-end"}))
     }
   }
 };
@@ -4443,9 +4451,9 @@ function v64ClampPlayablePoint(point,inset=.35){
 /* Direct board impacts now ricochet. Shallow impacts retain the useful rim/
    wall-follow behavior. The back and both side meshes of each net are physical
    surfaces and absorb more energy than the boards. */
-v60BuildShotPath=function(start,aimPoint,power){
+v60BuildShotPath=function(start,aimPoint,power,distanceOverride=null){
   const rawStart={x:Number(start?.x)||0,y:Number(start?.y)||0},dx=Number(aimPoint?.x)-rawStart.x,dy=Number(aimPoint?.y)-rawStart.y,mag=Math.hypot(dx,dy)||1,initial={x:dx/mag,y:dy/mag};
-  let direction={...initial},remaining=v60ShotTravelDistance(power),current=v64ClampPlayablePoint(rawStart,.8),path=[{...rawStart}],boardFollow=false,bounced=false,netBounce=false,bounceCount=0,contacts=[];
+  let direction={...initial},remaining=Number.isFinite(distanceOverride)?Math.max(0,distanceOverride):v60ShotTravelDistance(power),current=v64ClampPlayablePoint(rawStart,.8),path=[{...rawStart}],boardFollow=false,bounced=false,netBounce=false,bounceCount=0,contacts=[];
   v64AppendPoint(path,current);
   for(let guard=0;guard<10&&remaining>.75;guard++){
     const goal=v64GoalCandidate(current,direction,remaining),surface=v64NearestShotSurface(current,direction,remaining);
@@ -4467,12 +4475,30 @@ v60BuildShotPath=function(start,aimPoint,power){
 };
 
 function v64RenderAimPreview(layer,origin,mode){
-  const aim=mode.aim||v60DefaultShotAim(origin),built=v60BuildShotPath(origin,aim,mode.power),total=Math.max(.001,built.distance),contactDistance=clamp(dist(origin,aim),0,total),fraction=clamp(contactDistance/total,0,1),projection=slicePolylineByProgress(built.path,fraction,1);
+  const aim=mode.aim||v60DefaultShotAim(origin);
+  const built=v7PhysicalShotTrajectory(origin,aim,mode.power,{
+    time:ui.playhead,ignoreDefense:mode.ignoreDefense!==false,
+    ignoreObjects:!!mode.ignoreObjects
+  });
+  // In both aiming and power stages, the arrow is the ACTUAL complete flight,
+  // including every object deflection, energy loss, and board continuation.
+  const projection=built.path;
   layer.style.setProperty("--v61-shot-flow",`${lerp(1.05,.42,(mode.power-1)/9).toFixed(2)}s`);
-  if(projection.length>1&&polylineLength(projection)>.5){layer.append(svgEl("path",{d:pathD(projection),class:"v64-shot-projection"}));v61AppendOpenArrow(layer,projection,{color:"#aeb8c2",width:2.2,size:11,className:"v64-shot-projection-arrow"})}
-  const live=[origin,aim];if(dist(origin,aim)>1){layer.append(svgEl("path",{d:pathD(live),class:"v64-shot-aim-live"}));layer.append(svgEl("circle",{cx:aim.x,cy:aim.y,r:4.7,class:"v64-shot-contact"}))}
-  for(const contact of built.contacts||[])layer.append(svgEl("circle",{cx:contact.point.x,cy:contact.point.y,r:3.1,class:"v64-shot-bounce"}));
-  mode.previewPath=built.path;mode.previewBoardFollow=built.boardFollow;mode.previewBounced=built.bounced;mode.previewNetBounce=built.netBounce
+  if(projection.length>1&&polylineLength(projection)>.5){
+    layer.append(svgEl("path",{d:pathD(projection),class:"v64-shot-projection"}));
+    v61AppendOpenArrow(layer,projection,{color:"#aeb8c2",width:2.2,size:11,className:"v64-shot-projection-arrow"})
+  }
+  // Only mark the intended aim point; no deceptive straight-line shot arrow.
+  if(dist(origin,aim)>1)layer.append(svgEl("circle",{
+    cx:aim.x,cy:aim.y,r:4.7,class:"v64-shot-contact"
+  }));
+  for(const contact of built.contacts||[])layer.append(svgEl("circle",{
+    cx:contact.point.x,cy:contact.point.y,r:3.1,class:"v64-shot-bounce"
+  }));
+  const end=built.path.at(-1);
+  if(end)layer.append(svgEl("circle",{cx:end.x,cy:end.y,r:4.5,class:"v61-shot-end"}));
+  mode.previewPath=built.path;mode.previewBoardFollow=built.boardFollow;
+  mode.previewBounced=built.bounced;mode.previewNetBounce=built.netBounce
 }
 v60RenderModePreview=function(){
   const layer=$("#previewLayer");if(!layer)return;if(ui.recordingMove)return;layer.innerHTML="";const mode=ui.v60Mode;if(!mode)return;const origin=v60ModeOrigin();
@@ -6373,7 +6399,7 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNet
     ?(state.equipment||[]).filter(item=>v7NetOpenMouthEgress(item,points[0],points[1])).map(item=>item.id):[]);
   let walked=0;
   for(let s=1;s<points.length;s++){
-    const a=points[s-1],b=points[s],seg=dist(a,b),steps=Math.max(18,Math.ceil(seg/3));
+    const a=points[s-1],b=points[s],seg=dist(a,b),steps=Math.max(18,Math.ceil(seg/1.5));
     for(let i=0;i<=steps;i++){
       const u=i/steps,along=(walked+seg*u)/total,p=pointLerp(a,b,u);
       for(const item of state.equipment||[]){
@@ -6386,7 +6412,25 @@ function v7FirstEquipmentCollisionOnPath(points,startTime,endTime,includeGoalNet
         }
         const hit=v7EquipmentCollisionAt(item,p);
         if(hit&&(!best||along<best.progress)){
-          best={...hit,time:lerp(startTime,endTime,along),progress:along};
+          // Samples find the first entry, then binary-search the actual
+          // contact boundary so tiny cones and grazing tire hits bounce at
+          // the correct normal instead of up to one full sample inside.
+          let uHit=u,contact=hit;
+          if(i>0){
+            let lo=(i-1)/steps,hi=u;
+            const previous=pointLerp(a,b,lo);
+            if(!v7EquipmentCollisionAt(item,previous)){
+              for(let bisection=0;bisection<9;bisection++){
+                const mid=(lo+hi)/2;
+                if(v7EquipmentCollisionAt(item,pointLerp(a,b,mid)))hi=mid;
+                else lo=mid
+              }
+              uHit=hi;
+              contact=v7EquipmentCollisionAt(item,pointLerp(a,b,uHit))||hit
+            }
+          }
+          const refined=clamp((walked+seg*uHit)/total,0,1);
+          best={...contact,time:lerp(startTime,endTime,refined),progress:refined};
         }
       }
       if(best&&best.progress<=along+.0001)break
@@ -6535,6 +6579,138 @@ function v7CollisionPath(start,target,collision){
   const end=clampRinkPoint({x:point.x+reflected.x*amount,y:point.y+reflected.y*amount});
   return{path:[start,point,end],end,extraTime:collision.response==="bounce"?.22:.12}
 }
+
+/* One deterministic shot solver drives BOTH the interactive arrow and saved
+   playback. Oblique contact retains tangential velocity while restitution
+   reverses only the surface-normal component; kinetic stopping distance falls
+   with the square of speed. Tuned, intentionally non-laboratory coefficients. */
+function v7ShotImpactVelocity(incoming,collision){
+  const material={
+    cone:{e:.12,tangent:.43},
+    tire:{e:.55,tangent:.85},
+    bumper:{e:.68,tangent:.86},
+    divider:{e:.14,tangent:.70},
+    pad:{e:.19,tangent:.65},
+    rebounder:{e:.89,tangent:.96},
+    stick:{e:.36,tangent:.77},
+    player:{e:.18,tangent:.52}
+  }[collision?.type||collision?.kind]||{e:.25,tangent:.72};
+  const mag=Math.hypot(incoming.x,incoming.y)||1;
+  const velocity={x:incoming.x/mag,y:incoming.y/mag};
+  let n=collision?.normal||{x:-velocity.x,y:-velocity.y};
+  const nm=Math.hypot(n.x,n.y)||1;n={x:n.x/nm,y:n.y/nm};
+  let vn=velocity.x*n.x+velocity.y*n.y;
+  // A collision normal must face the incoming puck.
+  if(vn>0){n={x:-n.x,y:-n.y};vn=-vn}
+  const out={
+    x:(velocity.x-vn*n.x)*material.tangent-vn*material.e*n.x,
+    y:(velocity.y-vn*n.y)*material.tangent-vn*material.e*n.y
+  };
+  const speed=Math.hypot(out.x,out.y);
+  return{direction:speed>.00001?{x:out.x/speed,y:out.y/speed}:{x:0,y:0},
+    speedFraction:clamp(speed,0,1),normal:n,restitution:material.e}
+}
+function v7ShotMotionProgress(profile,raw){
+  if(!profile?.length)return raw;
+  const t=clamp(raw,0,1);
+  for(let i=1;i<profile.length;i++){
+    const a=profile[i-1],b=profile[i];
+    if(t<=b.time+.000001){
+      const f=clamp((t-a.time)/Math.max(.000001,b.time-a.time),0,1);
+      return clamp(a.progress+(b.progress-a.progress)*f,0,1)
+    }
+  }
+  return 1
+}
+function v7PhysicalShotTrajectory(start,aim,power,options={}){
+  const original=v60BuildShotPath(start,aim,power);
+  const points=[],contacts=[],collisions=[],legs=[];
+  const append=point=>{
+    if(point&&Number.isFinite(point.x)&&Number.isFinite(point.y)&&
+       (!points.length||dist(points.at(-1),point)>.04))
+      points.push({x:round(point.x,4),y:round(point.y,4)})
+  };
+  let leg=original,relativeSpeed=1,boardFollow=false,goal=false,netId=null;
+  const ignoreObjects=options.ignoreObjects===true,ignoreDefense=options.ignoreDefense!==false;
+  for(let bounce=0;bounce<=5;bounce++){
+    const length=polylineLength(leg.path);
+    const hit=bounce<5&&length>.1&&(!ignoreObjects||!ignoreDefense)?
+      firstCollisionOnPath(leg.path,Number(options.time)||0,(Number(options.time)||0)+1,
+        options.sourceId?[options.sourceId]:[],{
+          includePlayers:!ignoreDefense,includeObjects:!ignoreObjects,includeGoalNets:false
+        }):null;
+    const progress=Number(hit?.progress);
+    if(!hit||!Number.isFinite(progress)||progress<0||progress>1||length<.1){
+      for(const point of leg.path)append(point);
+      legs.push({length,speed:relativeSpeed});
+      for(const c of leg.contacts||[])contacts.push(c);
+      boardFollow=boardFollow||!!leg.boardFollow;
+      goal=!!leg.goal;netId=goal?(leg.netId||null):null;
+      break
+    }
+    const traveled=clamp(progress,0,1)*length;
+    if(traveled<.01&&bounce>0){
+      // Degenerate overlap: don't enter a zero-distance bounce loop.
+      for(const p of leg.path)append(p);
+      legs.push({length,speed:relativeSpeed});
+      boardFollow=boardFollow||!!leg.boardFollow;
+      break
+    }
+    const portion=slicePolylineByProgress(leg.path,0,progress);
+    for(const p of portion)append(p);
+    append(hit.point);
+    legs.push({length:Math.max(.001,traveled),speed:relativeSpeed});
+    collisions.push({...hit,kind:hit.kind||"object"});
+    for(const c of leg.contacts||[]){
+      if(v7ContactProgress(portion,c.point)!==null)contacts.push(c)
+    }
+    boardFollow=boardFollow||!!leg.boardFollow;
+    const from=pointAtPolyline(leg.path,Math.max(0,progress-Math.min(.006,2/length)));
+    const tangent={x:hit.point.x-from.x,y:hit.point.y-from.y};
+    const direction=Math.hypot(tangent.x,tangent.y)>.001?tangent:{
+      x:leg.path.at(-1).x-leg.path[0].x,y:leg.path.at(-1).y-leg.path[0].y
+    };
+    const response=v7ShotImpactVelocity(direction,hit);
+    const remaining=Math.max(0,length-traveled)*response.speedFraction*response.speedFraction;
+    if(remaining<1.2||response.speedFraction<.09){goal=false;break}
+    relativeSpeed*=response.speedFraction;
+    // Offset the new ray away from the struck material by one sub-puck unit.
+    // It prevents hitting the same surface again at t=0.
+    const next={
+      x:hit.point.x+response.normal.x*1.35+response.direction.x*.35,
+      y:hit.point.y+response.normal.y*1.35+response.direction.y*.35
+    };
+    const safe=v7ClampPuckToIce(next);
+    const position=safe||next;
+    append(position);
+    leg=v60BuildShotPath(position,{
+      x:position.x+response.direction.x*240,
+      y:position.y+response.direction.y*240
+    },power,remaining);
+  }
+  if(!points.length)for(const p of original.path)append(p);
+  const distance=polylineLength(points);
+  let totalWeight=0,totalTravel=0;
+  for(const legPart of legs){
+    totalWeight+=legPart.length/Math.max(.08,legPart.speed);
+    totalTravel+=legPart.length
+  }
+  let timeSoFar=0,lengthSoFar=0;
+  const motionProfile=[{time:0,progress:0}];
+  for(const legPart of legs){
+    timeSoFar+=legPart.length/Math.max(.08,legPart.speed);
+    lengthSoFar+=legPart.length;
+    motionProfile.push({time:totalWeight?clamp(timeSoFar/totalWeight,0,1):1,
+      progress:totalTravel?clamp(lengthSoFar/totalTravel,0,1):1})
+  }
+  if(motionProfile.length>1)motionProfile[motionProfile.length-1]={time:1,progress:1};
+  const uniqueContacts=[...contacts,...collisions.map(c=>({
+    kind:"object",surface:c.type,objectId:c.objectId,point:c.point
+  }))];
+  return{...original,path:points,distance,goal,netId,boardFollow,
+    collisions,contacts:uniqueContacts,motionProfile:collisions.length?motionProfile:null,
+    durationWeight:totalWeight, bounced:collisions.length>0||!!original.bounced}
+}
 buildPuckTimeline=function(puckId="puck"){
   const puck=puckId==="puck"?state.puckStart:v7AdditionalPuckById(puckId);
   const start=puck&&Number.isFinite(Number(puck.x))&&Number.isFinite(Number(puck.y))?puck:state.puckStart;
@@ -6604,15 +6780,26 @@ buildPuckTimeline=function(puckId="puck"){
       // final point and cannot reconstruct a board-following shot trajectory.
       const aim=event.aimVector;
       const hasAim=aim&&Number.isFinite(Number(aim.x))&&Number.isFinite(Number(aim.y));
-      const built=hasAim?v60BuildShotPath(start,{x:start.x+Number(aim.x)*240,y:start.y+Number(aim.y)*240},power):null;
+      const directedAim=hasAim?{x:start.x+Number(aim.x)*240,y:start.y+Number(aim.y)*240}:null;
+      const built=hasAim?v60BuildShotPath(start,directedAim,power):null;
+      // The exact solver used by both the aiming preview and playback.
+      // Isolated legacy test harnesses without this helper retain the old path.
+      const physical=hasAim&&typeof v7PhysicalShotTrajectory==="function"?
+        v7PhysicalShotTrajectory(start,directedAim,power,{
+          time:at,sourceId:source,ignoreDefense:event.ignoreDefense!==false,
+          ignoreObjects:!!event.ignoreObjects
+        }):null;
       const target=clampRinkPoint(event.target||currentPos);
       const legacyGoal=built?{goal:built.goal,netId:built.netId}:goalResultForShot(start,target);
-      let path=built?built.path:(legacyGoal.goal?[start,legacyGoal.entry,legacyGoal.end]:[start,target]);
-      const naturalDuration=polylineLength(path)/shotSpeedUnits(power);
+      let path=physical?.path||built?.path||(legacyGoal.goal?[start,legacyGoal.entry,legacyGoal.end]:[start,target]);
+      const naturalDuration=(physical?.durationWeight||polylineLength(path))/shotSpeedUnits(power);
       const duration=requestedDuration(event,naturalDuration);
-      let arrival=at+duration,goal=!!(built?.goal||legacyGoal.goal);
-      const collision=firstCollisionOnPath(path,at,arrival,source?[source]:[],{includePlayers:!event.ignoreDefense,includeObjects:!event.ignoreObjects,includeGoalNets:false});
-      if(collision){
+      let arrival=at+duration,goal=physical?!!physical.goal:!!(built?.goal||legacyGoal.goal);
+      const collision=physical?(physical.collisions[0]||null):
+        firstCollisionOnPath(path,at,arrival,source?[source]:[],{
+          includePlayers:!event.ignoreDefense,includeObjects:!event.ignoreObjects,includeGoalNets:false
+        });
+      if(collision&&!physical){
         // Keep the whole original trajectory up to the collision, including
         // any board-following bends; never replace it with a straight chord.
         const progress=clamp((collision.time-at)/Math.max(.001,duration),0,1);
@@ -6625,12 +6812,12 @@ buildPuckTimeline=function(puckId="puck"){
         goal=false
       }
       const clearances=event.ignoreObjects?v7ObjectClearancesOnPath(path):[];
-      const impacts=(built?.contacts||[]).map(contact=>({...contact,progress:v7ContactProgress(path,contact.point)})).filter(contact=>Number.isFinite(contact.progress));
-      const netId=goal?(built?.netId||legacyGoal.netId||null):null;
+      const impacts=(physical?.contacts||built?.contacts||[]).map(contact=>({...contact,progress:v7ContactProgress(path,contact.point)})).filter(contact=>Number.isFinite(contact.progress));
+      const netId=goal?(physical?.netId||built?.netId||legacyGoal.netId||null):null;
       const mouthDistance=goal&&path.length>2?polylineLength(path.slice(0,-1)):polylineLength(path);
       const mouthProgress=goal?clamp(mouthDistance/Math.max(.001,polylineLength(path)),0,1):1;
       const mouthTime=goal?at+duration*(1-Math.pow(1-mouthProgress,1/(built?.boardFollow?1.58:1.35))):null;
-      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,netId,goalTime:mouthTime,collision,clearances,impacts,boardFollow:!!built?.boardFollow,motion:"shot",power});
+      intervals.push({start:at,end:arrival,kind:"travel",path,spin:true,eventId:event.id,goal,netId,goalTime:mouthTime,collision,clearances,impacts,boardFollow:!!built?.boardFollow,motionProfile:physical?.motionProfile||null,motion:"shot",power});
       cursor=arrival;mode="loose";holder=null;loose=path.at(-1);
       results.set(event.id,{valid:true,source,target:null,arrival,duration:arrival-at,path,goal,netId,collision,clearances,boardFollow:!!built?.boardFollow,power});continue
     }
@@ -7649,6 +7836,7 @@ function v7SetupEquipmentEvents(){
     // target point, never select or start dragging that rink object.
     if(ui.v60Mode?.type==="pass"&&equipmentNode&&!event.target.closest?.("[data-player-id],[data-puck]")){
       event.preventDefault();event.stopImmediatePropagation();
+      ui.pendingTap=null;ui.v7EquipmentDrag=null;
       v60CommitPassToPoint(svgPoint(event));return
     }
     if(!equipmentNode||ui.tool!=="select")return;
@@ -7833,7 +8021,7 @@ v60RenderShotPanel=function(){
 v60CommitShot=function(){
   const mode=ui.v60Mode;
   if(mode?.type!=="shot"||mode.stage!=="power")return;
-  const origin=v60ModeOrigin(),built=v60BuildShotPath(origin,mode.aim,mode.power);
+  const origin=v60ModeOrigin(),built=v7PhysicalShotTrajectory(origin,mode.aim,mode.power,{time:ui.playhead,ignoreDefense:mode.ignoreDefense!==false,ignoreObjects:!!mode.ignoreObjects});
   const payload={
     type:"shot",target:deepClone(built.path.at(-1)),
     aimVector:deepClone(built.direction),power:mode.power,

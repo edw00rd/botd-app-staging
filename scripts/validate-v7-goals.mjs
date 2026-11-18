@@ -824,4 +824,112 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   "Portaled player/puck action menu must retain its original actions");
 }
 
+/* Material-resolved shot physics: impact normals, energy and preview parity. */
+{
+ const sourceStart=app.indexOf("function v7ShotImpactVelocity(");
+ const sourceEnd=app.indexOf('buildPuckTimeline=function(puckId="puck"){',sourceStart);
+ assert.ok(sourceStart>0&&sourceEnd>sourceStart,"Shared shot physics missing");
+ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const lineLength=pts=>pts.slice(1).reduce((n,p,i)=>n+dist(p,pts[i]),0);
+ const at=(pts,f)=>{
+  const total=lineLength(pts),target=Math.max(0,Math.min(1,f))*total;
+  let passed=0;
+  for(let i=1;i<pts.length;i++){
+   const segment=dist(pts[i-1],pts[i]);
+   if(passed+segment>=target||i===pts.length-1){
+    const u=segment?Math.max(0,Math.min(1,(target-passed)/segment)):0;
+    return{x:pts[i-1].x+(pts[i].x-pts[i-1].x)*u,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*u}
+   }
+   passed+=segment
+  }
+  return pts[0]
+ };
+ const world=(item,p)=>{
+  const x=p.x-item.x,y=p.y-item.y,a=-(item.rotation||0)*Math.PI/180;
+  return{x:x*Math.cos(a)-y*Math.sin(a),y:x*Math.sin(a)+y*Math.cos(a)}
+ };
+ const turn=(p,deg)=>{
+  const a=(deg||0)*Math.PI/180;
+  return{x:p.x*Math.cos(a)-p.y*Math.sin(a),y:p.x*Math.sin(a)+p.y*Math.cos(a)}
+ };
+ const ctx={
+  state:{equipment:[]},
+  V7_RINK_OBJECT_TYPES:{cone:{shape:"circle"},tire:{shape:"ring"},
+   bumper:{shape:"capsule"},divider:{shape:"capsule"},rebounder:{shape:"rebounder"},pad:{shape:"capsule"}},
+  V7_PUCK_RADIUS:2.8,
+  round:(n,d=2)=>Number(n.toFixed(d)),clamp:(n,a,b)=>Math.min(b,Math.max(a,n)),
+  dist,polylineLength:lineLength,
+  pointAtPolyline:at,slicePolylineByProgress:(p,a,b)=>[at(p,a),at(p,b)],
+  pointLerp:(a,b,u)=>({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u}),
+  lerp:(a,b,u)=>a+(b-a)*u,
+  v7WorldToLocal:world,v7RotatePoint:turn,
+  v7ClosestPointSegment:(p,a,b)=>{
+   const dx=b.x-a.x,dy=b.y-a.y,d=dx*dx+dy*dy||1;
+   const u=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/d));
+   return{x:a.x+u*dx,y:a.y+u*dy,t:u}
+  },
+  v7ClampPuckToIce:p=>p,
+  v7ContactProgress:()=>null
+ };
+ ctx.v60BuildShotPath=(start,aim,power,override=null)=>{
+  const dx=aim.x-start.x,dy=aim.y-start.y,m=Math.hypot(dx,dy)||1;
+  const direction={x:dx/m,y:dy/m},distance=override??300;
+  const end={x:start.x+direction.x*distance,y:start.y+direction.y*distance};
+  return{path:[start,end],direction,goal:false,netId:null,
+   boardFollow:false,contacts:[],distance}
+ };
+ const sourceCollision=app.slice(app.indexOf("function v7EquipmentCollisionAt("),
+   app.indexOf("/* Detect physical objects crossed",app.indexOf("function v7EquipmentCollisionAt(")));
+ vm.runInNewContext(sourceCollision,ctx,{timeout:3000});
+ ctx.firstCollisionOnPath=(pts,t0,t1,_ignore,options)=>
+  options.includeObjects?ctx.v7FirstEquipmentCollisionOnPath(pts,t0,t1,false):null;
+ vm.runInNewContext(app.slice(sourceStart,sourceEnd)+
+  "\nthis.solve=v7PhysicalShotTrajectory;this.impact=v7ShotImpactVelocity;this.motion=v7ShotMotionProgress;",ctx,{timeout:3000});
+ const start={x:100,y:300},aim={x:500,y:300},run=item=>{
+  ctx.state.equipment=[item];
+  return ctx.solve(start,aim,7,{time:0,ignoreDefense:true,ignoreObjects:false})
+ };
+ const cone=run({id:"cone",type:"cone",x:170,y:300,rotation:0,scale:1,
+  geometry:{radius:5.6},physics:{collidable:true}});
+ const tire=run({id:"tire",type:"tire",x:170,y:300,rotation:0,scale:1,
+  geometry:{radius:10.5},physics:{collidable:true}});
+ const bumper=run({id:"bumper",type:"bumper",x:170,y:300,rotation:0,scale:1,
+  geometry:{length:34,width:10},physics:{collidable:true}});
+ const divider=run({id:"divider",type:"divider",x:170,y:300,rotation:0,scale:1,
+  geometry:{length:34,width:10},physics:{collidable:true}});
+ const rebounder=run({id:"rebounder",type:"rebounder",x:170,y:300,rotation:0,scale:1,
+  geometry:{length:34,width:9},physics:{collidable:true}});
+ for(const [name,result] of [["cone",cone],["tire",tire],["bumper",bumper],
+   ["divider",divider],["rebounder",rebounder]]){
+  assert.equal(result.collisions[0]?.type,name,name+" must have a resolved contact");
+  assert.ok(result.path.at(-1).x<result.collisions[0].point.x,
+    name+" must rebound to the correct side for a head-on shot");
+  assert.ok(result.motionProfile?.length>1,name+" must carry physically weighted timing")
+ }
+ const reboundTravel=r=>Math.abs(r.path.at(-1).x-r.collisions[0].point.x);
+ assert.ok(reboundTravel(cone)<reboundTravel(tire),"Cone must absorb much more energy than tire");
+ assert.ok(reboundTravel(divider)<reboundTravel(bumper),"Divider must deaden more than bumper");
+ assert.ok(reboundTravel(tire)<reboundTravel(rebounder),"Rebounder must return more energy than tire");
+ const glancing=ctx.impact({x:1,y:0},{kind:"object",type:"tire",normal:{x:-.6,y:-.8}});
+ assert.ok(glancing.direction.x>0&&glancing.direction.y<0,
+  "Oblique tire contact must retain its tangential direction, not reverse the entire shot");
+ const normal=ctx.impact({x:1,y:0},{kind:"object",type:"tire",normal:{x:-1,y:0}});
+ assert.ok(normal.direction.x<0&&normal.speedFraction>.45&&normal.speedFraction<.7,
+  "Head-on tire restitution must reverse normal motion and reduce speed");
+ assert.ok(ctx.motion(tire.motionProfile,.5)>=0&&ctx.motion(tire.motionProfile,.5)<=1);
+ const bypass=ctx.solve(start,aim,7,{time:0,ignoreDefense:true,ignoreObjects:true});
+ assert.equal(bypass.collisions.length,0,"Ignoring objects must bypass them entirely");
+ assert.equal(bypass.path.at(-1).x,400,"Unobstructed shot keeps initial glide distance");
+ for(const needle of [
+  "v7PhysicalShotTrajectory(origin,aim,mode.power",
+  "v7PhysicalShotTrajectory(origin,mode.aim,mode.power",
+  "v7PhysicalShotTrajectory(start,directedAim,power",
+  "motionProfile:physical?.motionProfile||null"
+ ]) assert.ok(app.includes(needle),"Preview/runtime trajectory integration missing: "+needle);
+ const capture=app.slice(app.indexOf('const onRinkPointerDownV510ForV60='),
+  app.indexOf('const onRinkPointerMoveV510ForV60=',app.indexOf('const onRinkPointerDownV510ForV60=')));
+ assert.ok(capture.includes('event.stopImmediatePropagation()')&&capture.includes('ui.pendingTap=null'),
+  "Pass targeting must consume the equipment click before its selection handler");
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
