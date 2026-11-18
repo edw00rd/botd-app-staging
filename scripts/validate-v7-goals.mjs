@@ -970,4 +970,55 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.ok(app.includes('if(resize==="length")'));
 }
 
+
+/* Route notation must remain independent of puck collisions. */
+{
+ const start=app.indexOf("/* V7 DRILL MOVEMENT NOTATION AND SMOOTH SKATING");
+ assert.ok(start>0,"Skating notation upgrade missing");
+ const scope=app.slice(start);
+ for(const key of ["forward","backward","lateral","pivot","carry","stop"])
+   assert.ok(scope.includes(key+':{label:'),"Missing movement type "+key);
+ for(const phrase of [
+   'v7SkatingSmoothPoints(raw)',
+   'playerPositionAt=function(playerId,time)',
+   'v7PaintSkatingRoute(group,shown,v7ClipMovementKind(clip),color)',
+   'v7RenderRoutesBeforeSkating(time)',
+   'v7PlayerPossessesPuck(playerId,startTime)',
+   'button.disabled=type==="carry"&&!hasPuck',
+   'clip.movementNotation=type',
+   'clip.semanticAction=V7_DRILL_MOVES[type].semantic',
+   'rec.movementNotation||ui.v7PendingMoveNotation',
+   'v7SkatingClipPoints(clip)',
+   'ui.v7PendingMoveNotation=type'
+ ])assert.ok(scope.includes(phrase),"Missing movement integration: "+phrase);
+ const a=app.indexOf("const V7_DRILL_MOVES=",start),b=app.indexOf("const v7RenderRoutesBeforeSkating=",a);
+ assert.ok(a>0&&b>a);
+ const distance=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
+ const length=pts=>pts.slice(1).reduce((v,p,i)=>v+distance(p,pts[i]),0);
+ const point=(pts,p)=>{
+   let left=Math.max(0,Math.min(1,p))*length(pts);
+   for(let i=1;i<pts.length;i++){
+     const d=distance(pts[i-1],pts[i]);
+     if(left<=d||i===pts.length-1){
+       const f=d?Math.max(0,Math.min(1,left/d)):0;
+       return{x:pts[i-1].x+(pts[i].x-pts[i-1].x)*f,
+         y:pts[i-1].y+(pts[i].y-pts[i-1].y)*f}
+     }
+     left-=d
+   }
+   return pts[0]
+ };
+ const ctx={dist:distance,polylineLength:length,pointAtPolyline:point,
+   clamp:(x,a,b)=>Math.min(b,Math.max(a,x)),
+   playerPositionAt:()=>{},movementClipsFor:()=>[],
+   state:{onIce:{A:{x:0,y:0}}}};
+ vm.runInNewContext(app.slice(a,b)+"\nthis.smooth=v7SkatingSmoothPoints;",ctx,{timeout:2000});
+ const trace=[{x:0,y:0},{x:10,y:2},{x:22,y:-3},{x:36,y:5},{x:55,y:0}];
+ const smooth=ctx.smooth(trace);
+ assert.ok(smooth.length>5,"Curve must be sampled smoothly");
+ assert.equal(smooth[0].x,0);assert.equal(smooth[0].y,0);
+ assert.equal(smooth.at(-1).x,55);assert.equal(smooth.at(-1).y,0);
+ assert.ok(smooth.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

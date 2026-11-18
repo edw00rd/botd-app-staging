@@ -9241,6 +9241,291 @@ Object.assign(window.BOTD_TEST,{
   clonePuckExact:id=>deepClone(v7DuplicatePuckExact(id))
 });
 
+
+/* V7 DRILL MOVEMENT NOTATION AND SMOOTH SKATING
+   International Drill Symbols (Hockey Eastern Ontario). Route symbology is
+   independent of puck physics and does not dictate sprite artwork. */
+const V7_DRILL_MOVES=Object.freeze({
+ forward:{label:"Forward skating",detail:"Solid line + arrow",semantic:"skate.forward",legacy:"forward"},
+ backward:{label:"Backward skating",detail:"Tight repeating wave",semantic:"skate.backward",legacy:"backward"},
+ lateral:{label:"Lateral crossovers",detail:"Repeated perpendicular bars",semantic:"skate.lateral",legacy:"lateral"},
+ pivot:{label:"Pivoting",detail:"Curved pivot hook",semantic:"skate.pivot",legacy:"forward"},
+ carry:{label:"Skating with puck control",detail:"Broad wave + arrow · puck possession required",semantic:"puck.carry",legacy:"forward"},
+ stop:{label:"Stopping",detail:"Line ending in two bars",semantic:"skate.stop",legacy:"hold"}
+});
+function v7ClipMovementKind(clip){
+ const key=clip?.movementNotation||clip?.actionType;
+ return V7_DRILL_MOVES[key]?key:key==="hold"?"stop":"forward"
+}
+const v7SkatingCurveCache=new WeakMap();
+function v7SkatingSmoothPoints(raw){
+ if(!Array.isArray(raw)||raw.length<2)return raw||[];
+ const source=raw.filter(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y));
+ if(source.length<2)return source;
+ const sparse=[{x:source[0].x,y:source[0].y}];
+ for(let i=1;i<source.length-1;i++){
+  const p=source[i];
+  if(dist(sparse.at(-1),p)>=3.5)sparse.push({x:p.x,y:p.y})
+ }
+ const last=source.at(-1);
+ if(dist(sparse.at(-1),last)>.01)sparse.push({x:last.x,y:last.y});
+ if(sparse.length<3)return sparse;
+ let smooth=sparse;
+ // Chaikin's endpoint-preserving corner cutting suppresses jitter recorded
+ // by irregular pointer samples; the last pass is sampled by arc length.
+ for(let iteration=0;iteration<2;iteration++){
+  const next=[smooth[0]];
+  for(let i=1;i<smooth.length;i++){
+   const a=smooth[i-1],b=smooth[i];
+   next.push({x:a.x*.75+b.x*.25,y:a.y*.75+b.y*.25});
+   next.push({x:a.x*.25+b.x*.75,y:a.y*.25+b.y*.75})
+  }
+  next.push(smooth.at(-1));smooth=next
+ }
+ const length=polylineLength(smooth);
+ const count=Math.min(650,Math.max(2,Math.ceil(length/3.5)));
+ const result=[];
+ for(let i=0;i<=count;i++)result.push(pointAtPolyline(smooth,i/count));
+ result[0]={x:source[0].x,y:source[0].y};
+ result[result.length-1]={x:last.x,y:last.y};
+ return result
+}
+function v7SkatingClipPoints(clip){
+ const points=clip?.points||[];
+ if(!Array.isArray(points)||points.length<2)return points;
+ const cached=v7SkatingCurveCache.get(points);
+ const first=points[0],last=points.at(-1),middle=points[Math.floor(points.length/2)];
+ const signature=[points.length,first.x,first.y,middle.x,middle.y,last.x,last.y].join("|");
+ if(cached?.signature===signature)return cached.points;
+ const smooth=v7SkatingSmoothPoints(points);
+ v7SkatingCurveCache.set(points,{signature,points:smooth});
+ return smooth
+}
+/* Do not change pointAtPolyline: board/object ricochets are intentionally
+   sharp. Only skaters take the smoothed trajectory. */
+playerPositionAt=function(playerId,time){
+ let pos=state.onIce[playerId]?{...state.onIce[playerId]}:{x:0,y:0};
+ for(const clip of movementClipsFor(playerId)){
+  if(time<clip.start)break;
+  const points=v7SkatingClipPoints(clip);
+  if(!points?.length)continue;
+  if(time<=clip.start+clip.duration){
+   const fraction=clamp((time-clip.start)/Math.max(.001,clip.duration),0,1);
+   return pointAtPolyline(points,fraction)
+  }
+  pos={...points.at(-1)}
+ }
+ return pos
+};
+function v7SkatingSampler(points){
+ const distances=[0];
+ for(let i=1;i<points.length;i++)distances.push(distances.at(-1)+dist(points[i-1],points[i]));
+ const length=distances.at(-1);
+ const sample=value=>{
+  if(points.length<2)return{point:points[0]||{x:0,y:0},direction:{x:1,y:0}};
+  const d=clamp(value,0,length);
+  let lo=1,hi=points.length-1;
+  while(lo<hi){const m=(lo+hi)>>1;if(distances[m]<d)lo=m+1;else hi=m}
+  const i=lo,a=points[i-1],b=points[i],segment=Math.max(.00001,distances[i]-distances[i-1]),f=clamp((d-distances[i-1])/segment,0,1);
+  const dx=b.x-a.x,dy=b.y-a.y,mag=Math.hypot(dx,dy)||1;
+  return{point:{x:a.x+dx*f,y:a.y+dy*f},direction:{x:dx/mag,y:dy/mag}}
+ };
+ return{length,sample}
+}
+function v7SkatingWavy(points,amplitude,wavelength){
+ const arc=v7SkatingSampler(points),steps=Math.max(2,Math.ceil(arc.length/2.6)),out=[];
+ for(let i=0;i<=steps;i++){
+  const d=arc.length*i/steps,s=arc.sample(d);
+  const envelope=Math.max(0,Math.min(1,d/7,(arc.length-d)/7));
+  const shift=amplitude*Math.sin(2*Math.PI*d/wavelength)*envelope;
+  out.push({x:s.point.x-s.direction.y*shift,y:s.point.y+s.direction.x*shift})
+ }
+ out[0]={...points[0]};out[out.length-1]={...points.at(-1)};
+ return out
+}
+function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
+ if(!points||points.length<2)return;
+ const type=V7_DRILL_MOVES[kind]?kind:"forward",arc=v7SkatingSampler(points);
+ if(arc.length<.5)return;
+ const visual=type==="backward"?v7SkatingWavy(points,3.4,15):type==="carry"?v7SkatingWavy(points,4.8,36):points;
+ const draw=(path,width,stroke,extra={})=>{
+  layer.append(svgEl("path",{d:pathD(path),fill:"none",stroke,"stroke-width":width,
+   "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}))
+ };
+ draw(visual,preview?4:4.6,"#122330");
+ draw(visual,preview?2.8:3.2,color,{"data-v7-skate-kind":type});
+ if(type==="lateral")for(let d=9;d<arc.length-3;d+=9){
+  const s=arc.sample(d),normal={x:-s.direction.y,y:s.direction.x};
+  draw([
+   {x:s.point.x-normal.x*6,y:s.point.y-normal.y*6},
+   {x:s.point.x+normal.x*6,y:s.point.y+normal.y*6}
+  ],2.4,color)
+ }
+ if(type==="pivot"&&arc.length>14){
+  const end=arc.sample(arc.length),t=end.direction,n={x:-t.y,y:t.x},p=end.point;
+  const from=arc.sample(Math.max(0,arc.length-15)).point;
+  const hook="M"+round(from.x,2)+" "+round(from.y,2)+
+   " Q"+round(p.x+n.x*12,2)+" "+round(p.y+n.y*12,2)+
+   " "+round(p.x+n.x*7-t.x*8,2)+" "+round(p.y+n.y*7-t.y*8,2)+
+   " Q"+round(p.x+n.x*3-t.x*11,2)+" "+round(p.y+n.y*3-t.y*11,2)+
+   " "+round(p.x,2)+" "+round(p.y,2);
+  layer.append(svgEl("path",{d:hook,fill:"none",stroke:color,
+   "stroke-width":2.6,"stroke-linecap":"round","pointer-events":"none"}))
+ }
+ if(type==="stop")for(const setback of [0,5]){
+  const s=arc.sample(Math.max(0,arc.length-setback)),n={x:-s.direction.y,y:s.direction.x};
+  draw([{x:s.point.x-n.x*9,y:s.point.y-n.y*9},{x:s.point.x+n.x*9,y:s.point.y+n.y*9}],2.8,color)
+ }else v61AppendOpenArrow(layer,visual,{color,width:preview?2.5:2.8,size:10})
+}
+const v7RenderRoutesBeforeSkating=renderRoutes;
+renderRoutes=function(time){
+ v7RenderRoutesBeforeSkating(time);
+ if(!state.display.routes||state.display.routeMode==="off")return;
+ const layer=$("#routeLayer");if(!layer)return;
+ const active=state.timeline.movements.filter(c=>state.display.routeMode!=="ahead"||time<=c.start+c.duration);
+ // Original renderer appends one player path per visible clip, then puck
+ // paths. Remove just those player paths, leaving puck actions unchanged.
+ for(let i=0;i<active.length;i++)layer.firstElementChild?.remove();
+ const group=svgEl("g",{"data-v7-skating-notation":"1","pointer-events":"none"});
+ for(const clip of active){
+  const all=v7SkatingClipPoints(clip);if(!all||all.length<2)continue;
+  let shown=all;
+  if(state.display.routeMode==="ahead"&&time>=clip.start&&time<=clip.start+clip.duration){
+   const p=clamp((time-clip.start)/Math.max(.001,clip.duration),0,1);
+   shown=slicePolylineByProgress(all,p,1)
+  }
+  const player=playerById(clip.playerId),color=player?playerColors(player).primary:"#39d8ff";
+  v7PaintSkatingRoute(group,shown,v7ClipMovementKind(clip),color)
+ }
+ layer.insertBefore(group,layer.firstChild)
+};
+const v7PreviewBeforeSkating=renderMovePreview;
+renderMovePreview=function(){
+ v7PreviewBeforeSkating();
+ const rec=ui.recordingMove,layer=$("#previewLayer");
+ if(!rec?.started||!layer||rec.points?.length<2)return;
+ layer.querySelector(".preview-path")?.remove();
+ v7PaintSkatingRoute(layer,v7SkatingSmoothPoints(rec.points),
+   rec.movementNotation||ui.v7PendingMoveNotation||"forward","#f59e0b",{preview:true})
+};
+const v7CommitBeforeSkating=commitMoveFromPlayhead;
+commitMoveFromPlayhead=function(payload={}){
+ const type=V7_DRILL_MOVES[ui.v7PendingMoveNotation]?ui.v7PendingMoveNotation:"forward";
+ const curve=v7SkatingSmoothPoints(payload.points||[]);
+ const distance=polylineLength(curve),time=Number(payload.startTime)||0;
+ const duration=clamp(Math.max(Number(payload.duration)||.35,distance/108,.65),
+  .35,Math.max(.35,Math.min(20,60-time)));
+ const clip=v7CommitBeforeSkating({...payload,duration,render:false});
+ if(clip){
+  clip.movementNotation=type;
+  clip.actionType=V7_DRILL_MOVES[type].legacy;
+  clip.semanticAction=V7_DRILL_MOVES[type].semantic;
+  renderAll();syncActiveVariation();scheduleSave()
+ }
+ ui.v7PendingMoveNotation=null;
+ return clip
+};
+const v7SemanticBeforeSkating=v7EnsureSemanticTimeline;
+v7EnsureSemanticTimeline=function(timeline){
+ const value=v7SemanticBeforeSkating(timeline);
+ for(const clip of timeline?.movements||[])
+  if(clip.movementNotation)clip.semanticAction=V7_DRILL_MOVES[v7ClipMovementKind(clip)].semantic;
+ return value
+};
+function v7PlayerPossessesPuck(playerId,time){
+ if(state.primaryPuckVisible!==false){
+  const puck=puckStateAt(time,buildPuckTimeline("puck"));
+  if(puck.mode==="attached"&&puck.holder===playerId)return true
+ }
+ for(const item of state.additionalPucks||[]){
+  const puck=puckStateAt(time,buildPuckTimeline(item.id));
+  if(puck.mode==="attached"&&puck.holder===playerId)return true
+ }
+ return false
+}
+function v7MovementIcon(kind){
+ const svg=svgEl("svg",{viewBox:"0 0 112 30",preserveAspectRatio:"xMidYMid meet","aria-hidden":"true"});
+ v7PaintSkatingRoute(svg,[{x:7,y:15},{x:104,y:15}],kind,"#edf6fb");
+ return svg
+}
+function v7EnsureMoveTypeDialog(){
+ let dialog=$("#v7MovementTypeDialog");if(dialog)return dialog;
+ dialog=document.createElement("dialog");dialog.id="v7MovementTypeDialog";
+ dialog.innerHTML='<div class="dialog-head"><h2>Choose Skating Movement</h2><p id="v7MoveTypeSubtitle">Choose a style, then trace the path.</p></div>'+
+ '<div class="v7-movement-options" id="v7MovementOptions"></div>'+
+ '<p class="v7-movement-footnote">Passes and shots remain puck actions, not skating routes.</p>'+
+ '<div class="dialog-actions"><button class="btn" id="v7MovementCancel" type="button">Cancel</button></div>';
+ document.body.append(dialog);
+ const css=document.createElement("style");css.id="v7MovementTypeStyle";css.textContent=
+ '#v7MovementTypeDialog{width:min(500px,96vw);max-height:88vh;overflow:auto;padding:0;'+
+ 'border:1px solid #36556d;border-radius:14px;background:#f8fbfd;color:#10283e;box-shadow:0 20px 65px #0007}'+
+ '#v7MovementTypeDialog::backdrop{background:#03101d99}'+
+ '#v7MovementTypeDialog .dialog-head{padding:14px 16px 11px;cursor:grab}'+
+ '#v7MovementTypeDialog .dialog-head h2{font-size:17px;margin:0 0 4px}'+
+ '#v7MovementTypeDialog .dialog-head p{font-size:11px;color:#607a8c;margin:0}'+
+ '#v7MovementOptions{display:grid;gap:7px;padding:12px 16px}'+
+ '.v7-movement-choice{display:flex;align-items:center;text-align:left;gap:12px;min-height:53px;'+
+ 'padding:7px 10px;border:1px solid #35536b;border-radius:9px;background:#10283e;color:#fff;cursor:pointer}'+
+ '.v7-movement-choice:hover:not(:disabled){background:#205171}'+
+ '.v7-movement-choice:disabled{opacity:.46;cursor:not-allowed}'+
+ '.v7-movement-choice svg{width:105px;height:28px;flex:none}'+
+ '.v7-movement-choice strong{display:block;font-size:12px}'+
+ '.v7-movement-choice small{display:block;font-size:10px;color:#adc4d4;margin-top:2px}'+
+ '.v7-movement-footnote{padding:0 16px;margin:0 0 12px;font-size:10px;color:#5a7487}'+
+ '#v7MovementTypeDialog .dialog-actions{padding:10px 16px;border-top:1px solid #d1dde7}';
+ document.head.append(css);
+ $("#v7MovementCancel").addEventListener("click",()=>dialog.close());
+ dialog.addEventListener("click",event=>{
+  const button=event.target.closest?.("[data-v7-move-choice]");
+  if(!button||button.disabled)return;
+  const draft=ui.v7MoveDraft,type=button.dataset.v7MoveChoice;
+  dialog.close();if(!draft)return;
+  ui.v7MoveDraft=null;ui.v7PendingMoveNotation=type;
+  v7StartMoveWithoutMenu(draft.playerId,draft.mode,draft.explicitTime);
+  if(ui.recordingMove)ui.recordingMove.movementNotation=type
+ });
+ dialog.addEventListener("close",()=>{ui.v7MoveDraft=null});
+ return dialog
+}
+const v7StartMoveWithoutMenu=startDirectPlayerMove;
+startDirectPlayerMove=function(playerId,mode="playhead",explicitTime=null){
+ const player=playerById(playerId);
+ if(!player||!state.onIce[playerId])return toast("Select an on-ice player first.");
+ if(ui.playing)stopPlayback({keepDirect:false});
+ if(ui.recordingMove)cancelMoveRecording();
+ const requested=explicitTime!==null&&explicitTime!==undefined&&Number.isFinite(Number(explicitTime))?
+  Number(explicitTime):mode==="continuation"?continuationTimeForPlayer(playerId,ui.playhead):ui.playhead;
+ const startTime=clamp(requested,0,state.timeline.duration);
+ const hasPuck=v7PlayerPossessesPuck(playerId,startTime);
+ const dialog=v7EnsureMoveTypeDialog(),root=$("#v7MovementOptions");
+ root.replaceChildren();
+ for(const [type,meta] of Object.entries(V7_DRILL_MOVES)){
+  const button=document.createElement("button");button.type="button";
+  button.className="v7-movement-choice";button.dataset.v7MoveChoice=type;
+  button.disabled=type==="carry"&&!hasPuck;
+  button.title=button.disabled?"Give this player puck possession at the playhead first":meta.detail;
+  button.append(v7MovementIcon(type));
+  const copy=document.createElement("span"),title=document.createElement("strong"),hint=document.createElement("small");
+  title.textContent=meta.label;hint.textContent=button.disabled?"Requires puck possession at this time":meta.detail;
+  copy.append(title,hint);button.append(copy);root.append(button)
+ }
+ $("#v7MoveTypeSubtitle").textContent=player.name+" · choose how the player skates";
+ ui.v7MoveDraft={playerId,mode,explicitTime};
+ if(!dialog.open)dialog.showModal()
+};
+const v7CancelBeforeSkating=cancelMoveRecording;
+cancelMoveRecording=function(){
+ ui.v7PendingMoveNotation=null;
+ return v7CancelBeforeSkating()
+};
+Object.assign(window.BOTD_TEST,{
+ skatingMovementTypes:()=>Object.keys(V7_DRILL_MOVES),
+ skatingCurve:points=>deepClone(v7SkatingSmoothPoints(points)),
+ skatingClipKind:id=>v7ClipMovementKind(state.timeline.movements.find(c=>c.id===id)),
+ moveDialogOpen:()=>!!$("#v7MovementTypeDialog")?.open,
+ playerHasPuck:(id,t=ui.playhead)=>v7PlayerPossessesPuck(id,t)
+});
+
 </script>
 </body>
 </html>
