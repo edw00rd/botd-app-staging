@@ -6141,10 +6141,10 @@ function v7ProjectInsideIce(point,accept,ice=state.ice){
 const V7_PUCK_PILE_LAYOUT=Object.freeze([
  // Eighteen loose pucks, like the reference USA Hockey guide.
  // Irregular puck-radius coordinates rather than a uniform grid.
- [-3.55,-3.74],[-1.04,-3.81],[1.74,-3.66],[4.30,-3.87],
- [-4.70,-1.20],[-2.08,-1.37],[.73,-1.09],[3.44,-1.43],[6.10,-1.26],
- [-5.10,1.33],[-2.54,1.12],[.13,1.44],[2.85,1.18],[5.58,1.37],
- [-2.90,3.91],[-.20,3.94],[2.45,4.03],[5.05,3.85]
+ [-3.65,-3.60],[-.95,-4.10],[1.75,-3.55],[4.55,-4.02],
+ [-4.75,-1.10],[-2.05,-1.60],[.75,-.85],[3.45,-1.50],[6.14,-1.80],
+ [-5.07,1.62],[-2.55,.99],[.18,1.71],[2.90,1.20],[5.58,1.47],
+ [-2.94,3.82],[-.20,4.40],[2.52,3.94],[5.00,4.19]
 ]);
 function v7PuckPileDiscCenters(ice=state.ice){
  const r=v7OnIceSymbolMetrics(v7IceGeometry(ice).scale).puckRadius;
