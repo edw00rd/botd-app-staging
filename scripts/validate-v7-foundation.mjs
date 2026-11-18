@@ -148,7 +148,9 @@ for(const marker of [
  assert.ok(!app.includes('data-v60-action="director"'),"Remove the old floating Puck Director action");
  assert.ok(app.includes('v7PreparePuckDirectorDialog()'),"Puck Director dialog must initialize");
  assert.ok(app.includes('renderInspectorBase();'),"Shared dialog must render the actual Puck Director");
- assert.ok(app.includes('v7PuckContextMarkupOriginal'),"The original pass/shot context menu must be preserved");
+ assert.ok(app.includes('function v60ContextMarkup()')&&app.includes('data-v60-action="pass"')&&
+   app.includes('data-v60-action="shoot"')&&!app.includes('data-v60-action="remove-puck"'),
+   "Pass/Shoot menu must remain, without the redundant HTML puck minus");
 
 }
 
