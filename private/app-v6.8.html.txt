@@ -91,7 +91,7 @@ body.focus-mode .drawer-edge-handle{display:none}
 .timeline-dock{width:100vw;max-width:100vw}.timeline-head{width:100%;min-height:54px;height:auto;gap:7px;padding:7px 10px;overflow-x:auto}.timeline-body{overflow-y:auto;overflow-x:hidden}.timeline-grid{width:100%;min-width:0}.ruler-row,.track-row{grid-template-columns:var(--timeline-label-w) minmax(0,1fr);width:100%}.ruler-lane,.track-lane{width:100%;min-width:0}.timeline-title{font-size:13px}.transport{width:38px;height:38px;font-size:15px}.time-code{font-size:12px;min-width:108px}
 .possession-choice-list{display:grid;gap:6px;max-height:210px;overflow:auto;padding:3px}.possession-choice{display:grid;grid-template-columns:15px minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:7px 9px;text-align:left;cursor:pointer}.possession-choice:hover,.possession-choice:focus-visible,.possession-choice.active{border-color:var(--usa-red);box-shadow:0 0 0 2px color-mix(in srgb,var(--usa-red) 22%,transparent)}.possession-choice .mini-dot{width:13px;height:13px;border-radius:50%;border:2px solid currentColor}.possession-choice small{opacity:.72}
 .target-triangle{fill:none;stroke:#c8102e;stroke-width:4;stroke-linejoin:round;filter:drop-shadow(0 0 3px #fff);animation:targetPulse 1s ease-in-out infinite alternate;pointer-events:none}@keyframes targetPulse{to{transform:scale(1.09);opacity:.58}}
-.selection-ring{fill:none;stroke:#050505;stroke-width:3.5;stroke-dasharray:10 6;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 1px #fff);animation:vroomRing 3.15s cubic-bezier(.25,.05,.18,1) infinite;transform-box:fill-box;transform-origin:center}.selection-ring.puck-select{stroke:#050505}
+.selection-ring{fill:none;stroke:#050505;stroke-width:3.5;stroke-dasharray:10 6;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 1px #fff);animation:vroomRing 3.15s cubic-bezier(.25,.05,.18,1) infinite;transform-box:fill-box;transform-origin:center}.selection-ring.puck-select{stroke:#050505}.selection-ring.v7-tight-player-selection{stroke-width:2.25;stroke-dasharray:4.5 3.5;filter:drop-shadow(0 0 1px #fff)}
 @keyframes vroomRing{0%{transform:rotate(0deg);stroke-dashoffset:0}15%{transform:rotate(38deg)}28%{transform:rotate(78deg)}48%{transform:rotate(300deg);stroke-dashoffset:-18}61%{transform:rotate(342deg)}78%{transform:rotate(610deg);stroke-dashoffset:-38}100%{transform:rotate(720deg);stroke-dashoffset:-52}}
 .puck-glow-static{filter:drop-shadow(0 0 var(--glow-size,10px) var(--glow-color,#39d8ff)) drop-shadow(0 0 calc(var(--glow-size,10px)*1.8) var(--glow-color,#39d8ff))}
 .theme-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}.appearance-card select{font-size:14px}
@@ -7259,6 +7259,15 @@ function v7OnIceSymbolMetrics(unitsPerFoot){
  return {skaterDiameter:3*u,goalieWidth:3.6*u,skaterScale:3*u/46,goalieScale:3.6*u/48,staffScale:3*u/60,
    puckRadius:Math.max(1.6,.4*u),playerHitRadius:Math.max(18,3.5*u),puckHitRadius:Math.max(17,3.5*u)}
 }
+/* Selection outlines are rink-sized, not CSS-scaled. The animated CSS
+   transform rotates the dash ring and overrides an SVG scale() attribute. */
+function v7PlayerSelectionFootprint(role,metrics){
+ const d=role==="goalie"?metrics.goalieWidth:metrics.skaterDiameter;
+ const pad=2.7,n=value=>Math.round(value*100)/100;
+ if(role==="goalie")return{width:n(d+2*pad),height:n(d*1.2+2*pad),corner:n(Math.max(4,d*.25))};
+ if(role==="coach"||role==="manager")return{width:n(d+2*pad),height:n(d*.84+2*pad),corner:n(Math.max(4,d*.24))};
+ return{radius:n(d/2+pad)}
+}
 function v7ScalePlayerSymbols(){
  const layer=$("#objectLayer");if(!layer)return;
  const m=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale);
@@ -7279,7 +7288,21 @@ function v7ScalePlayerSymbols(){
   const glow=[...group.children].find(n=>n.classList?.contains("v682-underglow"));
   if(glow)glow.setAttribute("transform","scale("+round(scale,4)+")");
   const ring=[...group.children].find(n=>n.classList?.contains("selection-ring"));
-  if(ring){const rot=(ring.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();ring.setAttribute("transform",(rot?rot+" ":"")+"scale("+round(scale,4)+")")}
+  if(ring){
+   // The CSS rotation animation overrides transform=scale, causing huge rings.
+   const outline=v7PlayerSelectionFootprint(p.role,m);
+   ring.removeAttribute("transform");
+   ring.classList.add("v7-tight-player-selection");
+   ring.setAttribute("pointer-events","none");
+   if(outline.radius!=null)ring.setAttribute("r",String(outline.radius));
+   else{
+    ring.setAttribute("x",String(round(-outline.width/2,2)));
+    ring.setAttribute("y",String(round(-outline.height/2,2)));
+    ring.setAttribute("width",String(outline.width));
+    ring.setAttribute("height",String(outline.height));
+    ring.setAttribute("rx",String(outline.corner))
+   }
+  }
   const target=[...group.children].find(n=>n.classList?.contains("target-lock-upright-v59"));
   if(target){const rot=(target.getAttribute("transform")||"").replace(/\s*scale\([^)]*\)/g,"").trim();target.setAttribute("transform",(rot?rot+" ":"")+"scale("+round(scale,4)+")")}
   else{const nodes=[...group.children].filter(n=>n.classList?.contains("target-triangle")||n.classList?.contains("target-lock-dot"));

@@ -22,6 +22,22 @@ assert.ok(metricsStart>0&&metricsEnd>metricsStart);
 const metricScope={};
 vm.runInNewContext(app.slice(metricsStart,metricsEnd)+"\nthis.metrics=v7OnIceSymbolMetrics(4.8)",metricScope,{timeout:1500});
 const visual=metricScope.metrics,goalWidth=6*4.8;
+const skaterOutline=metricScope.v7PlayerSelectionFootprint("forward",visual);
+const goalieOutline=metricScope.v7PlayerSelectionFootprint("goalie",visual);
+const staffOutline=metricScope.v7PlayerSelectionFootprint("coach",visual);
+assert.ok(skaterOutline.radius>visual.skaterDiameter/2&&
+ skaterOutline.radius<visual.skaterDiameter*.75,
+ "Selected player outline must hug the visible player, not the hitbox");
+assert.ok(goalieOutline.width<visual.goalieWidth*1.5 &&
+ staffOutline.width<visual.skaterDiameter*1.5,
+ "Staff and goalie outlines must be similarly compact");
+const playerScaleSource=app.slice(metricsEnd,app.indexOf("/* Shared circular selection marker",metricsEnd));
+assert.ok(playerScaleSource.includes('ring.removeAttribute("transform")')&&
+ playerScaleSource.includes('ring.setAttribute("r",String(outline.radius))')&&
+ playerScaleSource.includes('ring.setAttribute("pointer-events","none")'),
+ "Animated player selection rings must use actual small geometry, not a CSS-overridden scale transform");
+assert.ok(app.includes(".selection-ring.v7-tight-player-selection{stroke-width:2.25;stroke-dasharray:4.5 3.5"),
+ "Compact player-selection dashes must be scaled to the smaller ring");
 assert.ok(Math.abs(visual.skaterDiameter-14.4)<.001);
 assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
 assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
