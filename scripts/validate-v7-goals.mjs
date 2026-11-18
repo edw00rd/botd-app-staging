@@ -421,7 +421,7 @@ vm.runInNewContext(app.slice(timelineStart,timelineEnd),ctx,{timeout:3000});
 const simulated=ctx.buildPuckTimeline();
 const passResult=simulated.results.get("pass-out");
 assert.equal(passResult?.valid,true,"Pass event from net must be valid");
-assert.equal(passResult?.collision,null,"Pass-out must not falsely collide at origin");
+assert.equal(passResult?.collision,undefined,"Direct passes must not produce collision metadata");
 assert.ok(Math.abs(passResult.path.at(-1).x-centerIce.x)<.001,"Pass-out must reach selected target");
 assert.ok(simulated.intervals.some(i=>i.kind==="travel"&&i.motion==="pass"&&i.end>i.start+.1),
  "Pass-out must create an observable travel segment");
