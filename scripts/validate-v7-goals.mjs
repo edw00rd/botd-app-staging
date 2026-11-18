@@ -121,7 +121,7 @@ assert.ok(app.includes('state.equipment,true'),"Turning nets should align to nea
 assert.ok(app.includes('function v7NetRotateOverlay(item)')&&
   app.includes('if(isNet&&selected.capabilities?.rotatable)layer.append(v7NetRotateOverlay(selected))'),
   "Net handle must render above buttons");
-assert.ok(app.includes('cy=-ry-52'),"Extended rotation arm must stay clear of compact controls");
+assert.ok(app.includes('desired=ry+37'),"Shortened net rotation arm must stay clear of compact controls");
 assert.ok(app.includes('v7RinkNetSizeControl(selected.id,point,.78)')&&
   app.includes('v7RinkGoalResetControl(selected.id,point,.78)'),
   "Net action buttons must be compact and grouped closer together");
@@ -172,6 +172,45 @@ assert.deepEqual(drawn,["net-art","rotate-overlay"],
 drawn.length=0;renderContext.ui.v7EquipmentTransform=null;renderContext.draw();
 assert.deepEqual(drawn,["net-art","remove-control","size-control","rotate-overlay"],
  "On release, compact net controls return UNDER the always-accessible handle");
+
+
+/* Physical on-ice containment includes rotated object silhouettes and pucks. */
+const safeStart=app.indexOf("const V7_ICE_OBJECT_CLEARANCE=4;");
+const safeEnd=app.indexOf("/* Smart net placement:",safeStart);
+assert.ok(safeStart>0&&safeEnd>safeStart);
+vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens}",normContext,{timeout:2000});
+const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
+const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
+assert.ok(safe.point(cornerPuck,5.9),"Puck at a rounded corner must move onto playable ice");
+for(const type of ["net","cone","tire","divider","bumper","pad","stick","rebounder","puckPile"]){
+ const geometry=type==="net"?normContext.v7NetDimensions("pro"):
+   type==="puckPile"?{radius:12}:type==="cone"||type==="tire"?{radius:9}:{length:58,width:12};
+ const item={id:"test-"+type,type,geometry,rotation:37,scale:1};
+ for(const target of [{x:geo.x+2,y:geo.y+2},{x:500,y:geo.yBottom+20}]){
+   const adjusted=safe.clamp(item,target);
+   assert.ok(adjusted&&safe.fit(item,adjusted),type+" must fit within the real curved board boundary");
+ }
+}
+assert.equal(safe.clamp({type:"divider",geometry:{length:800,width:12},rotation:90,scale:2.75},
+ {x:500,y:300}),null,"Physically impossible resize must be rejected");
+assert.equal(safe.clamp(left,left).x,left.x,"Existing regulation goal must not move");
+const loaded={ice:normContext.state.ice,equipment:[{type:"cone",geometry:{radius:6},rotation:0,scale:1,x:-100,y:-100}],additionalPucks:[{x:1100,y:700}],puckStart:{x:-100,y:700}};
+safe.normalize(loaded);
+assert.ok(safe.fit(loaded.equipment[0],loaded.equipment[0]));
+assert.ok(safe.point(loaded.additionalPucks[0],5.9));
+assert.ok(safe.point(loaded.puckStart,5.9));
+const handleStart=app.indexOf("function v7NetRotateHandlePosition(");
+const handleEnd=app.indexOf("\nfunction v7NetRotateOverlay(",handleStart);
+assert.ok(handleStart>0&&handleEnd>handleStart);
+normContext.v7CollisionGeometry=i=>({width:i.geometry.width,length:i.geometry.length});
+normContext.v59VisibleWorldBounds=()=>({minX:geo.x,maxX:geo.xRight,minY:geo.y,maxY:geo.yBottom});
+vm.runInNewContext(app.slice(handleStart,handleEnd)+"\nthis.rotatePosition=v7NetRotateHandlePosition",normContext,{timeout:1500});
+const edgeNet={...left,x:500,y:geo.yBottom-30,rotation:180};
+const handle=normContext.rotatePosition(edgeNet);
+assert.ok(handle.y<edgeNet.y,"Rotation handle should flip inward near bottom boards");
+assert.ok(safe.point(handle,13),"Rotation handle must remain on playable ice");
+assert.ok(app.includes('startPointerAngle:Math.atan2(dy,dx)*180/Math.PI')&&
+ app.includes('transform.startRotation+'),"Flipped rotation handle should turn without angle jumping");
 
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
