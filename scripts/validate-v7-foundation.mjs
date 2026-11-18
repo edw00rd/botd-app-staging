@@ -180,7 +180,7 @@ for(const marker of [
    "Puck 1 must select directly and cancel legacy pointerup interactions");
  assert.ok(extra.includes('ui.v7PrimaryPuckDrag=canDrag?')&&
            extra.includes('ui.v7PrimaryPuckDrag=null;')&&
-           extra.includes('state.puckStart={x:round(position.x,2),y:round(position.y,2)};'),
+           extra.includes('state.puckStart=position;'),
    "Puck 1 must remain selected after dragging or tapping");
  assert.ok(app.includes('.puck-disc{cursor:pointer;filter:none}'),
    "Neither puck may have the legacy CSS drop shadow");
