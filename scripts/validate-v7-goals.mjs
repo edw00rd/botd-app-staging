@@ -518,8 +518,8 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   assert.ok(app.includes('data-ice-key'),"Rink configuration fields missing");
   assert.ok(app.includes('option.ice=v7NormalizeIce('),"Per-variation rink persistence missing");
   assert.ok(app.includes('data-v7-ice-markings'),"Rink markings must be independently drawn");
-  assert.ok(app.includes('v60RoundedRinkPerimeter=function(){return v7IcePerimeter(state.ice)}'),
-    "Puck physics must use actual rink board outline");
+  assert.ok(app.includes('v60RoundedRinkPerimeter=function(){return v7PuckTravelPerimeter(state.ice)}'),
+    "Puck physics must use an inward-offset version of the actual rink outline");
 }
 
 /* Approved net artwork: clean-room rebuild and identical master for all three sizes. */
