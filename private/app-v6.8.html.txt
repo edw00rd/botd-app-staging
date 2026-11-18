@@ -9246,15 +9246,17 @@ Object.assign(window.BOTD_TEST,{
    International Drill Symbols (Hockey Eastern Ontario). Route symbology is
    independent of puck physics and does not dictate sprite artwork. */
 const V7_DRILL_MOVES=Object.freeze({
- forward:{label:"Forward skating",detail:"Solid line + arrow",semantic:"skate.forward",legacy:"forward"},
- backward:{label:"Backward skating",detail:"Interlocking curled arches",semantic:"skate.backward",legacy:"backward"},
- lateral:{label:"Lateral crossovers",detail:"Parallel perpendicular bars (no arrow)",semantic:"skate.lateral",legacy:"lateral"},
- pivot:{label:"Pivoting",detail:"Backward arches leading into a hooked turn",semantic:"skate.pivot",legacy:"forward"},
- carry:{label:"Skating with puck control",detail:"Broad wave + arrow · puck possession required",semantic:"puck.carry",legacy:"forward"},
- stop:{label:"Stopping",detail:"Line ending in two bars",semantic:"skate.stop",legacy:"hold"}
+ forward:{label:"Forward skating",detail:"Solid route with a filled arrow",semantic:"skate.forward",legacy:"forward"},
+ backward:{label:"Backward skating",detail:"Alternating linked half-circle arches · no arrow",semantic:"skate.backward",legacy:"backward"},
+ lateral:{label:"Lateral crossovers",detail:"Solid route with spaced crossbars and an arrow",semantic:"skate.lateral",legacy:"lateral"},
+ carry:{label:"Skate and stickhandle",detail:"Smooth flowing wave with an arrow · puck possession required",semantic:"puck.carry",legacy:"forward"},
+ crossover:{label:"Backward crossover",detail:"Sharp repeating zigzag · no arrow",semantic:"skate.backward_crossover",legacy:"backward"},
+ stop:{label:"Sudden stop",detail:"Solid route ending in two perpendicular bars",semantic:"skate.stop",legacy:"hold"}
 });
 function v7ClipMovementKind(clip){
  const key=clip?.movementNotation||clip?.actionType;
+ // Earlier V7 saves named the crossover symbol "pivot".
+ if(key==="pivot")return "crossover";
  return V7_DRILL_MOVES[key]?key:key==="hold"?"stop":"forward"
 }
 const v7SkatingCurveCache=new WeakMap();
@@ -9377,101 +9379,104 @@ function v7SkatingSampler(points){
  return{length,sample}
 }
 function v7SkatingWavy(points,amplitude,wavelength){
- const arc=v7SkatingSampler(points),steps=Math.max(2,Math.ceil(arc.length/2.6)),out=[];
+ const arc=v7SkatingSampler(points),steps=Math.max(2,Math.ceil(arc.length/2)),out=[];
  for(let i=0;i<=steps;i++){
   const d=arc.length*i/steps,s=arc.sample(d);
-  const envelope=Math.max(0,Math.min(1,d/7,(arc.length-d)/7));
-  const shift=amplitude*Math.sin(2*Math.PI*d/wavelength)*envelope;
-  out.push({x:s.point.x-s.direction.y*shift,y:s.point.y+s.direction.x*shift})
+  const taper=Math.max(0,Math.min(1,d/7,(arc.length-d)/7));
+  const side=amplitude*Math.sin(2*Math.PI*d/wavelength)*taper;
+  out.push({x:s.point.x-s.direction.y*side,y:s.point.y+s.direction.x*side})
  }
  out[0]={...points[0]};out[out.length-1]={...points.at(-1)};
  return out
 }
-
-/* The backward glyph is a chain of curling, partially overlapping arches.
-   A simple sine wave is reserved for carrying/stickhandling a puck. */
-function v7SkatingLinkedArches(points,{start=0,end=1}={}){
- if(!Array.isArray(points)||points.length<2)return "";
- const arc=v7SkatingSampler(points),from=arc.length*start,to=arc.length*end,span=to-from;
- if(span<2)return pathD(points);
- const count=Math.max(1,Math.round(span/22)),period=span/count,amplitude=Math.min(5.8,period*.31);
- const pt=(d,n=0)=>{
-  const s=arc.sample(clamp(d,0,arc.length));
-  return{x:s.point.x-s.direction.y*n,y:s.point.y+s.direction.x*n}
- };
- const token=p=>round(p.x,2)+" "+round(p.y,2);
- let path="M"+token(pt(from));
+/* BACKWARD SKATING: interlocking, hooked half-circle arches alternating
+   around the trace. These are separate overlapping C glyphs, not one sine
+   wave (which would be confused with stickhandling). */
+function v7SkatingLinkedArches(points){
+ const arc=v7SkatingSampler(points);if(arc.length<2)return pathD(points);
+ const count=Math.max(1,Math.round(arc.length/19.5)),period=arc.length/count,radius=Math.min(8,period*.43);
+ const place=(d,offset)=>{const s=arc.sample(clamp(d,0,arc.length));return{x:s.point.x-s.direction.y*offset,y:s.point.y+s.direction.x*offset}};
+ const token=p=>round(p.x,2)+" "+round(p.y,2),shapes=[];
  for(let i=0;i<count;i++){
-  const base=from+i*period,step=(u,n)=>pt(base+u*period,n);
-  // First lobe sweeps upward. The second rolls underneath and back
-  // on itself, making the unmistakable linked-hook hockey symbol.
-  path+=" C"+token(step(.06,-amplitude))+" "+token(step(.46,-amplitude))+" "+token(step(.58,-amplitude*.35));
-  path+=" C"+token(step(.73,amplitude*.16))+" "+token(step(.43,amplitude*.95))+" "+token(step(.62,amplitude*.91));
-  path+=" C"+token(step(.83,amplitude*.92))+" "+token(step(.96,amplitude*.19))+" "+token(step(1,0))
+  const d=i*period,sign=i%2?1:-1;
+  const p=(u,side=0)=>token(place(d+u*period,side*sign*radius));
+  shapes.push("M"+p(0)+
+   " C"+p(.05,.85)+" "+p(.23,1)+" "+p(.50,1)+
+   " C"+p(.77,1)+" "+p(1.035,.32)+" "+p(.91,-.09))
  }
- return path
+ return shapes.join(" ")
+}
+/* BACKWARD CROSSOVER: sharp alternating triangular peaks, no arrow. */
+function v7SkatingZigzag(points){
+ const arc=v7SkatingSampler(points),peaks=Math.max(1,Math.round(arc.length/23));
+ const step=arc.length/peaks,amplitude=Math.min(9,step*.45),out=[];
+ for(let i=0;i<=peaks*2;i++){
+  const s=arc.sample(i*step/2),side=i%2?-amplitude:amplitude;
+  out.push({x:s.point.x-s.direction.y*side,y:s.point.y+s.direction.x*side})
+ }
+ return out
+}
+function v7AppendFilledDrillArrow(layer,route,color,kind){
+ const arc=v7SkatingSampler(route),tip=arc.sample(arc.length).point;
+ const before=arc.sample(Math.max(0,arc.length-4)).point;
+ const length=Math.hypot(tip.x-before.x,tip.y-before.y);if(length<.001)return;
+ const d={x:(tip.x-before.x)/length,y:(tip.y-before.y)/length},n={x:-d.y,y:d.x};
+ const size=Math.min(10,Math.max(5.5,arc.length*.16));
+ const base={x:tip.x-d.x*size,y:tip.y-d.y*size};
+ const left={x:base.x+n.x*size*.48,y:base.y+n.y*size*.48};
+ const right={x:base.x-n.x*size*.48,y:base.y-n.y*size*.48};
+ const token=p=>round(p.x,2)+" "+round(p.y,2);
+ layer.append(svgEl("path",{d:"M"+token(tip)+" L"+token(left)+" L"+token(right)+" Z",
+  fill:color,stroke:"none","pointer-events":"none","data-v7-skate-arrow":kind}))
 }
 function v7PaintSkatingRoute(layer,points,kind,color,{preview=false}={}){
  if(!points||points.length<2)return;
- const type=V7_DRILL_MOVES[kind]?kind:"forward",arc=v7SkatingSampler(points);
- if(arc.length<.5)return;
+ const type=V7_DRILL_MOVES[kind]?kind:kind==="pivot"?"crossover":"forward";
+ const arc=v7SkatingSampler(points);if(arc.length<.5)return;
  const draw=(shape,width,stroke,extra={})=>
   layer.append(svgEl("path",{d:pathD(shape),fill:"none",stroke,"stroke-width":width,
    "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
  const drawPath=(d,width,stroke,extra={})=>
   layer.append(svgEl("path",{d,fill:"none",stroke,"stroke-width":width,
    "stroke-linecap":"round","stroke-linejoin":"round","pointer-events":"none",...extra}));
- const layered=shape=>{
-  draw(shape,preview?3.6:4,"#122330");
-  draw(shape,preview?2.3:2.7,color,{"data-v7-skate-kind":type})
+ const layered=(shape,join="round")=>{
+  draw(shape,preview?3.6:4,"#122330",{"stroke-linejoin":join});
+  draw(shape,preview?2.3:2.7,color,{"stroke-linejoin":join,"data-v7-skate-kind":type})
  };
- if(type==="backward"||type==="pivot"){
-  const backEnd=type==="pivot"?.83:1;
-  const d=v7SkatingLinkedArches(points,{end:backEnd});
-  drawPath(d,preview?3.7:4,"#122330");
-  drawPath(d,preview?2.3:2.7,color,{"data-v7-skate-kind":type});
-  if(type==="pivot"){
-   const from=arc.sample(arc.length*.83),tip=arc.sample(arc.length);
-   const dir=tip.direction,n={x:-dir.y,y:dir.x},p=tip.point;
-   const start=from.point;
-   const hook="M"+round(start.x,2)+" "+round(start.y,2)+
-    " Q"+round(p.x+dir.x*7-n.x*9,2)+" "+round(p.y+dir.y*7-n.y*9,2)+
-    " "+round(p.x+dir.x*1+n.x*8,2)+" "+round(p.y+dir.y*1+n.y*8,2)+
-    " Q"+round(p.x-dir.x*13+n.x*12,2)+" "+round(p.y-dir.y*13+n.y*12,2)+
-    " "+round(p.x,2)+" "+round(p.y,2);
-   drawPath(hook,preview?2.3:2.7,color);
-   v61AppendOpenArrow(layer,[arc.sample(arc.length-7).point,p],{color,width:2.4,size:8})
-  }
-  // Backward skating intentionally has NO arrow in this drill-symbol key.
+ if(type==="backward"){
+  const arches=v7SkatingLinkedArches(points);
+  drawPath(arches,preview?3.6:4,"#122330");
+  drawPath(arches,preview?2.3:2.7,color,{"data-v7-skate-kind":type});
   return
  }
- if(type==="lateral"){
-  // International Drill Symbols: individual parallel tick marks, not a
-  // continuous centerline, dash pattern or directional arrow.
-  const spacing=5.7;
-  for(let d=2;d<arc.length-1;d+=spacing){
-   const s=arc.sample(d),n={x:-s.direction.y,y:s.direction.x};
-   draw([{x:s.point.x-n.x*6,y:s.point.y-n.y*6},
-     {x:s.point.x+n.x*6,y:s.point.y+n.y*6}],preview?2:2.3,color)
-  }
-  return
- }
+ if(type==="crossover"){layered(v7SkatingZigzag(points),"miter");return}
  if(type==="carry"){
-  const visual=v7SkatingWavy(points,4.8,36);
-  layered(visual);
-  v61AppendOpenArrow(layer,visual,{color,width:2.5,size:10});
+  const wave=v7SkatingWavy(points,7,42);
+  layered(wave);v7AppendFilledDrillArrow(layer,wave,color,type);return
+ }
+ // Forward, lateral crossover, and sudden stop have a solid centerline.
+ layered(points);
+ if(type==="lateral"){
+  const spacing=17,margin=Math.min(15,arc.length*.18),tick=Math.min(6,arc.length*.13);
+  for(let d=margin;d<=arc.length-margin;d+=spacing){
+   const s=arc.sample(d),n={x:-s.direction.y,y:s.direction.x};
+   draw([{x:s.point.x-n.x*tick,y:s.point.y-n.y*tick},
+    {x:s.point.x+n.x*tick,y:s.point.y+n.y*tick}],preview?2.2:2.5,color,
+    {"data-v7-lateral-tick":"1"})
+  }
+  v7AppendFilledDrillArrow(layer,points,color,type);
   return
  }
- layered(points);
  if(type==="stop"){
   for(const setback of [0,5]){
    const s=arc.sample(Math.max(0,arc.length-setback)),n={x:-s.direction.y,y:s.direction.x};
    draw([{x:s.point.x-n.x*9,y:s.point.y-n.y*9},
-     {x:s.point.x+n.x*9,y:s.point.y+n.y*9}],preview?2.4:2.8,color)
+    {x:s.point.x+n.x*9,y:s.point.y+n.y*9}],preview?2.4:2.8,color,
+    {"data-v7-stop-bar":"1"})
   }
   return
  }
- v61AppendOpenArrow(layer,points,{color,width:preview?2.5:2.8,size:10})
+ v7AppendFilledDrillArrow(layer,points,color,type)
 }
 
 const v7RenderRoutesBeforeSkating=renderRoutes;
