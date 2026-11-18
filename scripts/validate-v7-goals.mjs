@@ -1109,7 +1109,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Backward skating needs several hooked alternating half-arches");
  const lateral=run("lateral");
  assert.equal(lateral.arrows.length,1,"Lateral crossovers require an arrow");
- assert.ok(lateral.main.attrs.d.startsWith("M0 0L100 0"),
+ assert.ok(lateral.main.attrs.d.startsWith("M0 0 L100 0"),
   "Lateral crossovers require a continuous shaft");
  assert.ok(lateral.nodes.filter(n=>n.attrs["data-v7-lateral-tick"]).length>=4,
   "Lateral crossovers require spaced perpendicular bars");
