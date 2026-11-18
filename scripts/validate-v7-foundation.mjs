@@ -275,44 +275,34 @@ for(const marker of [
  assert.ok(app.includes('v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline)'),"Added puck must use shared renderer");
  assert.ok(app.includes('if(state.primaryPuckVisible===false)return{pos:null,mode:"hidden",hidden:true}'),"Puck-free drills must draw no default puck");
 }
-/* Floating puck controls must replace Puck Director with a red minus, while
-   the same director opens from the timeline beside + Puck route. */
+/* Puck context actions are Pass and Shoot only; all pucks share the
+   on-ice plus/minus controls, and Puck Director stays in the timeline. */
 {
  const buttonStart=app.indexOf('id="newPuckTakeBtn"');
  const directorStart=app.indexOf('id="v7TimelinePuckDirectorBtn"');
  assert.ok(buttonStart>0&&directorStart>buttonStart&&directorStart-buttonStart<240,
-   "Timeline Puck Director must sit immediately after + Puck route");
- const segment=app.slice(app.indexOf("const v7PuckContextMarkupOriginal=v60ContextMarkup;"),
-   app.indexOf("const initV682ForV7=init;"));
- assert.ok(segment.includes('data-v60-action="remove-puck"'),"Floating puck menu needs HTML minus");
- assert.ok(segment.includes('title="Remove puck from ice"'),"Floating minus must be labeled");
- const ui={selectedType:"puck",selectedId:"puck",v60DirectSelection:true,playing:false,
-   recordingMove:false,v60Mode:null};
- const context={ui,v60ContextMarkup:()=>'<div class="v60-context-actions"><button data-v60-action="pass">Pass</button><button data-v60-action="shoot">Shoot</button></div>'};
- vm.runInNewContext(segment,context,{timeout:2000});
- for(const selectedType of ["puck","additionalPuck"]){
-   ui.selectedType=selectedType;
-   const html=context.v60ContextMarkup();
-   assert.ok(html.includes('data-v60-action="remove-puck"'),"No HTML minus for "+selectedType);
-   assert.ok(!html.includes('Puck Director'),"Puck Director must not appear above ice");
-   assert.ok(html.indexOf('data-v60-action="remove-puck"')>html.indexOf('data-v60-action="shoot"'),
-     "Remove button must occupy former third action slot");
- }
- ui.v60DirectSelection=false;
- assert.ok(!context.v60ContextMarkup().includes("remove-puck"),"Do not show minus for an unselected puck");
- const listener=app.slice(app.indexOf("function v7PreparePuckDirectorDialog()"),
-   app.indexOf("const v7PuckContextMarkupOriginal="));
- assert.ok(listener.includes('if(ui.selectedType==="puck")v7DeletePrimaryPuck();'),
-   "HTML minus must delete original puck");
- assert.ok(listener.includes('v7DeleteAdditionalPuck(ui.selectedId)'),
-   "HTML minus must delete whichever added puck is selected");
- assert.ok(app.includes("#v60ContextMenu .v60-float-button.remove-puck{"),
-   "Small puck minus needs a selector overriding v6.2 fixed-width buttons");
- for(const marker of ["inline-size:36px!important","min-inline-size:36px!important",
-   "max-inline-size:36px!important","block-size:36px!important","max-block-size:36px!important",
-   "background:linear-gradient(180deg,#e34653,#ac1f32)!important"]){
-   assert.ok(app.includes(marker),"Missing compact red minus property: "+marker);
- }
+  "Puck Director remains alongside the timeline's Puck route");
+ assert.ok(!app.includes('const v7PuckContextMarkupOriginal=v60ContextMarkup;'),
+  "Remove the outdated second puck-action markup wrapper");
+ assert.ok(!app.includes('data-v60-action="remove-puck"'),
+  "No redundant minus next to Shoot in the floating action menu");
+ assert.ok(!app.includes('#v60ContextMenu .v60-float-button.remove-puck{'),
+  "Remove obsolete HTML minus styling");
+ const selection=app.slice(app.indexOf("function v7PuckSelectionRing("),
+  app.indexOf("function v7ScalePuckArt("));
+ assert.ok(selection.includes('class:"selection-ring puck-select"'),
+  "Both puck types retain matching dashed selection circles");
+ const puckActions=app.slice(app.indexOf("const v7FloatingSyncBeforePuckClone=v7FloatingSync;"),
+  app.indexOf("function v7InstallUniversalPuckButtons()",app.indexOf("const v7FloatingSyncBeforePuckClone=v7FloatingSync;")));
+ assert.ok(puckActions.includes('v7PuckCloneControl(id,at(-31,34))'),
+  "Puck '+' control stays outside selection outline");
+ assert.ok(puckActions.includes('v7RinkRemoveControl(id,id==="puck"?"primaryPuck":"additionalPuck",at(31,34))'),
+  "Exactly one on-ice '-' control remains for primary and added pucks");
+ assert.ok(app.includes('if(ui.selectedType==="puck")v7DeletePrimaryPuck()')||
+  app.includes('else if(remove.hasAttribute("data-v7-remove-primary-puck"))v7DeletePrimaryPuck()'),
+  "On-ice primary puck minus must still delete");
+ assert.ok(app.includes('v7DeleteAdditionalPuck(remove.dataset.v7RemoveAdditionalPuck)'),
+  "On-ice additional puck minus must still delete");
 }
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
 const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
