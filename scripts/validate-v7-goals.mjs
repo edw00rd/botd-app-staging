@@ -1122,7 +1122,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(cross.arrows.length,0,"Backward crossovers have no arrow");
  assert.ok((cross.main?.attrs.d.match(/L/g)||[]).length>=6,
   "Backward crossovers must be an angular zigzag");
- const y=[...cross.main.attrs.d.matchAll(/[ML](-?[\\d.]+) (-?[\\d.]+)/g)].map(m=>+m[2]);
+ const y=[...cross.main.attrs.d.matchAll(/[ML](-?[0-9.]+) (-?[0-9.]+)/g)].map(m=>+m[2]);
  assert.ok(y.length>=7&&y.every((v,i)=>i===0||v*y[i-1]<0),
   "Backward crossovers need alternating sharp positive/negative peaks");
  const stop=run("stop");
