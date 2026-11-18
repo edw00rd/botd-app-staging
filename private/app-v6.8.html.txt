@@ -6139,24 +6139,23 @@ function v7ProjectInsideIce(point,accept,ice=state.ice){
 /* A tight, single-layer cluster modeled after USA Hockey notation.
    Both art and board footprint use the exact playable puck radius. */
 const V7_PUCK_PILE_LAYOUT=Object.freeze([
- // Eighteen pucks, scattered like a handful dropped on the ice.
- // Intentionally NOT a row/column grid or a mirrored formation.
- [-2.30,-0.40],[-1.85,-1.45],[-0.78,-1.73],[0.38,-1.42],
- [1.45,-1.81],[2.40,-0.88],[1.18,-0.41],[-0.08,-0.28],
- [-1.30,-0.56],[-2.55,0.65],[-1.55,0.35],[-0.46,0.80],
- [0.68,0.50],[1.85,0.32],[2.61,1.13],[1.42,1.54],
- [0.19,1.68],[-1.11,1.63]
+ // Eighteen loose pucks, like the reference USA Hockey guide.
+ // Irregular puck-radius coordinates rather than a uniform grid.
+ [-3.55,-3.74],[-1.04,-3.81],[1.74,-3.66],[4.30,-3.87],
+ [-4.70,-1.20],[-2.08,-1.37],[.73,-1.09],[3.44,-1.43],[6.10,-1.26],
+ [-5.10,1.33],[-2.54,1.12],[.13,1.44],[2.85,1.18],[5.58,1.37],
+ [-2.90,3.91],[-.20,3.94],[2.45,4.03],[5.05,3.85]
 ]);
 function v7PuckPileDiscCenters(ice=state.ice){
- const r=v7OnIceSymbolMetrics(v7IceGeometry(ice).scale).puckRadius,pitch=2.6*r;
- return V7_PUCK_PILE_LAYOUT.map(([x,y])=>({x:x*pitch,y:y*pitch,r}))
+ const r=v7OnIceSymbolMetrics(v7IceGeometry(ice).scale).puckRadius;
+ return V7_PUCK_PILE_LAYOUT.map(([x,y])=>({x:x*r,y:y*r,r}))
 }
-// A tiny, permanent dispensing mark tucked just below the pile's right edge.
-// Calculate from actual discs rather than an arbitrary fixed icon position.
+// Tiny black '+' at top-right, as in the source illustration. Clicking it
+// dispenses a playable puck; the selected edit buttons sit BELOW the pile.
 function v7PuckPileDispenseOffset(ice=state.ice){
  const discs=v7PuckPileDiscCenters(ice),r=discs[0].r;
- return{x:Math.max(...discs.map(p=>p.x+p.r))+r*.55,
-        y:Math.max(...discs.map(p=>p.y+p.r))-r*.55}
+ return{x:Math.max(...discs.map(p=>p.x+p.r))+r*1.2,
+        y:Math.min(...discs.map(p=>p.y-p.r))-r*1.2}
 }
 /* Real SVG footprints: props touch the inside boards at their painted edge.
    Transparent hitboxes, selection rings and editor handles are not physical. */
@@ -6957,17 +6956,16 @@ function v7RinkRemoveControl(id,kind,point={x:28,y:-27},scale=1){
  return node
 }
 function v7RinkDispensePuckControl(id,point){
-  const r=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckRadius;
+  const r=v7OnIceSymbolMetrics(v7IceGeometry(state.ice).scale).puckRadius,arm=round(r*1.1,2);
   const node=svgEl("g",{class:"v7-rink-dispense-puck","data-v7-dispense-puck":id,
-    role:"button",tabindex:"0","aria-label":"Add puck from pile",
-    transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",style:"cursor:pointer"});
-  // Comfortable invisible hit target, but visually just one puck-sized +.
-  node.append(svgEl("circle",{r:Math.max(7,r*3.5),fill:"transparent","pointer-events":"all"}));
-  node.append(svgEl("circle",{r:round(r,2),fill:"#087d53",stroke:"#fff","stroke-width":.5,
-    "pointer-events":"all"}));
-  const arm=round(r*.54,2);
+    role:"button",tabindex:"0","aria-label":"Add a usable puck from this pile",
+    transform:"translate("+round(point.x,2)+" "+round(point.y,2)+")",
+    style:"cursor:pointer;pointer-events:all"});
+  // Invisible click target; no large green background, only the small ink plus.
+  node.append(svgEl("circle",{r:Math.max(6,r*2.75),fill:"transparent","pointer-events":"all"}));
   node.append(svgEl("path",{d:"M"+(-arm)+" 0H"+arm+"M0 "+(-arm)+"V"+arm,
-    fill:"none",stroke:"#fff","stroke-width":.95,"stroke-linecap":"round","pointer-events":"none"}));
+    fill:"none",stroke:"#101820","stroke-width":1.25,
+    "stroke-linecap":"round","pointer-events":"none"}));
   return node
 }
 function v7RoundButton(id,point,action){
@@ -7251,10 +7249,11 @@ function v7RenderEquipment(){
     ui.v7EquipmentTransform.id===selected.id;
   if(!rotatingNet&&selected){
     const isPile=selected.type==="puckPile";
-    const offset=isPile?{x:-20,y:-16}:{x:isNet?21:30,y:isNet?-24:-27};
+    // Use the SAME full-size minus and below-puck position as puck selection.
+    const offset=isPile?{x:31,y:34}:{x:isNet?21:30,y:isNet?-24:-27};
     const at={x:selected.x+offset.x,y:selected.y+offset.y};
     const point=v59ClampVisiblePoint?v59ClampVisiblePoint(at):clampRinkPoint(at);
-    layer.append(v7RinkRemoveControl(selected.id,"equipment",point,isPile?.64:isNet?.78:1))
+    layer.append(v7RinkRemoveControl(selected.id,"equipment",point,isNet?.78:1))
   }if(!rotatingNet&&selected?.goalSide){
     const point=v59ClampVisiblePoint?
       v59ClampVisiblePoint({x:selected.x+21,y:selected.y+24}):
@@ -9162,22 +9161,14 @@ v7RenderEquipment=function(){
   const rotatingNet=selected.type==="net"&&ui.v7EquipmentTransform?.kind==="rotate"&&
     ui.v7EquipmentTransform.id===selected.id;
   if(rotatingNet)return;
-  const isNet=selected.type==="net";
-  const at=v59ClampVisiblePoint?
-    v59ClampVisiblePoint({x:selected.x-(isNet?21:30),y:selected.y+(isNet?24:-27)}):
-    clampRinkPoint({x:selected.x-(isNet?21:30),y:selected.y+(isNet?24:-27)});
+  const isNet=selected.type==="net",isPile=selected.type==="puckPile";
+  const desired={x:selected.x-(isNet?21:isPile?31:30),
+                 y:selected.y+(isNet?24:isPile?34:-27)};
+  const at=v59ClampVisiblePoint?v59ClampVisiblePoint(desired):clampRinkPoint(desired);
   $("#objectLayer")?.append(v7RoundButton(selected.id,at,"duplicate"))
 };
-/* Puck Pile still dispenses a puck, but its dispensing button is a puck
-   symbol, reserving the visible '+' to duplicate the actual Puck Pile. */
-const v7PuckPileDispenserBeforeClone=v7RinkDispensePuckControl;
-v7RinkDispensePuckControl=function(id,point){
-  const control=v7PuckPileDispenserBeforeClone(id,point);
-  control.querySelector("path")?.remove();
-  control.append(svgEl("circle",{r:6,fill:"#101820",stroke:"#fff","stroke-width":1.5,
-    "pointer-events":"none"}));
-  return control
-};
+/* Keep the tiny black pile dispenser untouched: the old override rendered
+   a large redundant puck button and conflicted with the selection controls. */
 /* The puck is first-class equipment too: selected puck gets a + and -
    beside it, without modifying the Pass/Shoot action popup. */
 function v7PuckCloneControl(id,point){
