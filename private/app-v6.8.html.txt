@@ -9019,7 +9019,10 @@ function v7EquipmentThumbnail(type,preset=null,serial=0){
   const options={id:"picker-"+serial,type,x:0,y:0,rotation:0,scale:1};
   if(type==="net")options.netPreset=preset||"pro";
   else if(V7_ROUND_SIZES[type])options.sizePreset=preset||Object.keys(V7_ROUND_SIZES[type])[0];
-  const item=v7NormalizeEquipmentItem(options),geo=item.geometry;
+  const item=v7NormalizeEquipmentItem(options);
+  // Stored coordinates default zero to rink center; render thumbnail at origin.
+  item.x=0;item.y=0;
+  const geo=item.geometry;
   let extentX=20,extentY=18;
   if(type==="cone"||type==="tire")extentX=extentY=(Number(geo.radius)||8)+4;
   else if(type==="puckPile")extentX=extentY=22;
