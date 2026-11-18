@@ -6096,9 +6096,45 @@ function v7ClampEquipmentToIce(item,point,ice=state.ice){
  return v7ProjectInsideIce(point,p=>v7EquipmentFitsIce(item,p,ice),ice)
 }
 function v7ClampPuckToIce(point,ice=state.ice){
- const r=Math.max(1.9,.4*v7IceGeometry(ice).scale);
- return v7ProjectInsideIce(point,p=>v7PointClearOfBoards(p,r+V7_ICE_OBJECT_CLEARANCE,ice),ice)
+ return v7ProjectInsideIce(point,p=>v7PointClearOfBoards(p,v7PuckBoardInset(ice),ice),ice)
 }
+
+/* The bank/rim polygon describes the puck CENTER, which must remain on
+   white ice. Account for disc radius, visible outline, and paint clearance. */
+function v7PuckBoardInset(ice=state.ice){
+ const radius=Math.max(1.9,.4*v7IceGeometry(ice).scale);
+ return radius+Math.max(.35,.175*radius)+V7_ICE_OBJECT_CLEARANCE
+}
+function v7PuckTravelPerimeter(ice=state.ice){
+ const g=v7IceGeometry(ice),offset=v7PuckBoardInset(ice);
+ const x=g.x+offset,y=g.y+offset,right=g.xRight-offset,bottom=g.yBottom-offset;
+ const r=Math.max(1,g.corner-offset),points=[];
+ const add=(px,py)=>{
+  const p={x:round(px,4),y:round(py,4)};
+  if(!points.length||Math.hypot(p.x-points.at(-1).x,p.y-points.at(-1).y)>.001)points.push(p)
+ };
+ const arc=(cx,cy,from,to)=>{
+  for(let n=1;n<=48;n++){const a=(from+(to-from)*n/48)*Math.PI/180;
+   add(cx+Math.cos(a)*r,cy+Math.sin(a)*r)}
+ };
+ add(x+r,y);add(right-r,y);arc(right-r,y+r,-90,0);
+ add(right,bottom-r);arc(right-r,bottom-r,0,90);
+ add(x+r,bottom);arc(x+r,bottom-r,90,180);
+ add(x,y+r);arc(x+r,y+r,180,270);
+ points.push({...points[0]});return points
+}
+function v7PuckSafeVisibleLift(pos,lift){
+ const max=Math.max(0,Number(lift)||0),offset=v7PuckBoardInset();
+ if(max<=0||!v7PointClearOfBoards(pos,offset))return 0;
+ if(v7PointClearOfBoards({x:pos.x,y:pos.y-max},offset))return max;
+ let low=0,high=max;
+ for(let n=0;n<14;n++){
+  const mid=(low+high)/2;
+  if(v7PointClearOfBoards({x:pos.x,y:pos.y-mid},offset))low=mid;else high=mid
+ }
+ return Math.max(0,round(low-.02,2))
+}
+
 function v7NormalizeOnIceTokens(model){
  if(!model?.ice)return model;
  for(const item of model.equipment||[]){const p=v7ClampEquipmentToIce(item,item,model.ice);if(p){item.x=p.x;item.y=p.y}}
@@ -7158,7 +7194,8 @@ function v7CreatePuckToken(id,index,pos,ps,time,timeline){
  setGlowStyle(group,v7PuckGlowById(id),"#39D8FF");
  group.append(svgEl("circle",{class:"v7-puck-hitbox",r:round(m.puckHitRadius,2),fill:"transparent","pointer-events":"all","aria-hidden":"true"}));
  const interval=timeline?.intervals?.find(i=>i.kind==="travel"&&time>=i.start&&time<=i.end);
- const flight=v7PuckLiftAt(interval,time),disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
+ const flight=v7PuckLiftAt(interval,time),safeLift=v7PuckSafeVisibleLift(pos,flight?.lift),
+   disc=svgEl("g",{class:ps.spin&&ui.playing?"puck-spin":""});
  disc.dataset.v7PuckArt="1";
  disc.append(svgEl("circle",{r,fill:"#090c0f",stroke:"#e5eef2","stroke-width":round(Math.max(.65,r*.35),2),"pointer-events":"none"}));
  disc.append(svgEl("path",{d:"M"+round(-r*.48,2)+" "+round(-r*.3,2)+" Q0 "+round(-r*.7,2)+" "+round(r*.5,2)+" "+round(-r*.24,2),fill:"none",stroke:"#74838c","stroke-width":".45","pointer-events":"none"}));
@@ -7166,9 +7203,9 @@ function v7CreatePuckToken(id,index,pos,ps,time,timeline){
    disc.classList.add("v7-puck-discovery-art");
    group.append(svgEl("circle",{class:"v7-puck-discovery-halo",r:14,fill:"none",stroke:"#21d4ff","stroke-width":2.4,"pointer-events":"none"}))
  }
- if(flight?.lift>.4){
+ if(safeLift>.4){
    const raised=svgEl("g",{class:"v7-airborne-puck","pointer-events":"none",
-     transform:"translate(0 "+round(-flight.lift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-flight.lift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
+     transform:"translate(0 "+round(-safeLift,2)+") rotate("+round(145*Math.sin(Math.PI*flight.phase),2)+") scale("+round(1-safeLift*.004,3)+" "+round(Math.max(.4,Math.abs(Math.cos(Math.PI*flight.phase))),3)+")"});
    raised.append(disc);group.append(raised)
  }else group.append(disc);
  const selected=primary?ui.selectedType==="puck":ui.selectedType==="additionalPuck"&&ui.selectedId===id;
@@ -7767,7 +7804,18 @@ updateRinkView=function(){
   v7IceRenderIfNeeded();
   v7IceSyncView()
 };
-v60RoundedRinkPerimeter=function(){return v7IcePerimeter(state.ice)};
+// The bounce solver and rim-follow motion share the inward puck-center line.
+v60RoundedRinkPerimeter=function(){return v7PuckTravelPerimeter(state.ice)};
+v64ClampPlayablePoint=function(point){return v7ClampPuckToIce(point)||v7InteriorAnchor()};
+// Loaded paths and older pass routes cannot draw the disc onto the boards.
+const v7PuckStateAtBeforeBoardClamp=puckStateAt;
+puckStateAt=function(time,timeline){
+ const ps=v7PuckStateAtBeforeBoardClamp(time,timeline);
+ if(!ps?.pos||!Number.isFinite(ps.pos.x)||!Number.isFinite(ps.pos.y))return ps;
+ if(v7PointClearOfBoards(ps.pos,v7PuckBoardInset()))return ps;
+ const safe=v7ClampPuckToIce(ps.pos);
+ return safe?{...ps,pos:safe}:ps
+};
 rinkBounds=function(){
   const g=v7IceGeometry(state.ice);
   return{minX:g.x+2,maxX:g.xRight-2,minY:g.y+2,maxY:g.yBottom-2,width:g.width,height:g.height}

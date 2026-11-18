@@ -186,7 +186,7 @@ assert.deepEqual(topDrawn,["rotate-overlay"],
 const safeStart=app.indexOf("const V7_ICE_OBJECT_CLEARANCE=4;");
 const safeEnd=app.indexOf("/* Smart net placement:",safeStart);
 assert.ok(safeStart>0&&safeEnd>safeStart);
-vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens}",normContext,{timeout:2000});
+vm.runInNewContext(app.slice(safeStart,safeEnd)+"\nthis.safe={distance:v7IceSignedDistance,point:v7PointClearOfBoards,fit:v7EquipmentFitsIce,clamp:v7ClampEquipmentToIce,puck:v7ClampPuckToIce,normalize:v7NormalizeOnIceTokens};this.v7PuckBoardInset=v7PuckBoardInset;this.v7PuckTravelPerimeter=v7PuckTravelPerimeter;this.v7PuckSafeVisibleLift=v7PuckSafeVisibleLift",normContext,{timeout:2000});
 const safe=normContext.safe,geo=normContext.iceGeometry(normContext.state.ice);
 const cornerPuck=safe.puck({x:geo.x+1,y:geo.y+1});
 assert.ok(safe.point(cornerPuck,5.9),"Puck at a rounded corner must move onto playable ice");
@@ -230,6 +230,31 @@ assert.ok(app.includes('const inset=12; // Circle radius 10'),
 
 assert.ok(app.includes('startPointerAngle:Math.atan2(dy,dx)*180/Math.PI')&&
  app.includes('transform.startRotation+'),"Flipped rotation handle should turn without angle jumping");
+
+
+/* Puck banks follow the inset ice surface, including every curved board. */
+assert.ok(app.includes('v60RoundedRinkPerimeter=function(){return v7PuckTravelPerimeter(state.ice)}'));
+assert.ok(app.includes('v64ClampPlayablePoint=function(point){return v7ClampPuckToIce(point)'));
+assert.ok(app.includes('v7PuckSafeVisibleLift(pos,flight?.lift)'));
+const bankInset=normContext.v7PuckBoardInset(normContext.state.ice);
+const bankPath=normContext.v7PuckTravelPerimeter(normContext.state.ice);
+assert.ok(bankInset>=5.9,"Puck center must include radius, stroke and wall clearance");
+assert.ok(bankPath.length>=190,"Corners must remain smoothly sampled");
+for(const p of bankPath)assert.ok(safe.point(p,bankInset-.04),
+ "Board bank path cannot intersect boards "+JSON.stringify(p));
+const topBank=Math.min(...bankPath.map(p=>p.y)),bottomBank=Math.max(...bankPath.map(p=>p.y));
+assert.ok(Math.abs(topBank-(geo.y+bankInset))<.02);
+assert.ok(Math.abs(bottomBank-(geo.yBottom-bankInset))<.02);
+assert.ok(normContext.v7PuckSafeVisibleLift({x:500,y:topBank},14)<.1,
+ "Airborne puck art must not jump across the top board");
+assert.ok(normContext.v7PuckSafeVisibleLift({x:500,y:300},14)>13,
+ "Mid-ice puck lift remains unchanged");
+for(const settings of [{profile:"nhl"},{length:180,width:80,corner:20,goalInset:11},
+ {length:200,width:100,corner:32,goalInset:11}]){
+ const ice=normContext.v7NormalizeIce(settings),pad=normContext.v7PuckBoardInset(ice);
+ for(const p of normContext.v7PuckTravelPerimeter(ice))
+  assert.ok(safe.point(p,pad-.04,ice),"Custom rink rim must remain in the white ice");
+}
 
 const restored=normContext.v7NormalizeEquipmentList(structuredClone(initial));
 assert.equal(restored.length,2,"Normalization must not duplicate permanent nets");
