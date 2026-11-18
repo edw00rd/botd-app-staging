@@ -416,7 +416,7 @@ assert.ok(!playback.includes("goalSiren()"),"Scoring must not play a separate si
 
 /* Goalies spawn on the new real crease instead of inside the legacy goal. */
 const goalieA=app.indexOf("function v7DefaultGoalieCreasePosition(");
-const goalieB=app.indexOf("/* Regulation goals",goalieA);
+const goalieB=app.indexOf("/* Default nets are removable like every other object.",goalieA);
 assert.ok(goalieA>0&&goalieB>goalieA);
 assert.ok(app.includes('if(p?.role==="goalie")return v7DefaultGoalieCreasePosition(teamId,index)'));
 const goalieContext={state:{ice:{creaseRadius:6}},V7_ICE_PROFILES:{nhl:{creaseRadius:6}},
