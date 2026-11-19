@@ -1420,4 +1420,46 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Shot pointerdown must prevent later SVG selection listeners");
 }
 
+/* Player-movement setting must honor traced timing by default and use
+   uniform real-ice pace when requested, without losing Skate time overrides. */
+{
+ assert.ok(app.includes('id="optimizedPlayerMovement" type="checkbox"'));
+ assert.ok(app.includes('optimizedPlayerMovement:false'));
+ assert.ok(app.includes('optimizedCheckbox.checked=state.display.optimizedPlayerMovement===true'));
+ assert.ok(app.includes('$("#optimizedPlayerMovement")?.addEventListener("change",event=>v7SetOptimizedPlayerMovement(event.target.checked))'));
+ assert.ok(app.includes('if(v7OptimizedMovementOn())return f;'));
+ assert.ok(app.includes('v7RememberSkateDuration(clip);v61UpdateRangeReadouts(event.target);'));
+ assert.ok(app.includes('v7BuildRecordedTraceTiming(payload.points,trace.times,tracedDuration)'));
+ const a=app.indexOf("const V7_OPTIMIZED_SKATE_FPS="),b=app.indexOf("const v7CommitBeforeSkating=",a);
+ const p=app.indexOf("function v7RecordedMovementProgress("),q=app.indexOf("function v7BuildRecordedTraceTiming(",p);
+ assert.ok(a>0&&b>a&&p>0&&q>p,"Optimized movement engine must exist");
+ const ctx={
+  state:{display:{optimizedPlayerMovement:false},ice:{},timeline:{duration:12,movements:[]},variations:[],activeVariationId:"o"},
+  v7SkatingClipPoints:clip=>clip.points,
+  v7IceGeometry:ice=>({scale:ice?.scale||4.8}),
+  polylineLength:pts=>pts.slice(1).reduce((sum,pt,i)=>sum+Math.hypot(pt.x-pts[i].x,pt.y-pts[i].y),0),
+  round,clamp,pushHistory:()=>{},stopPlayback:()=>{},syncActiveVariation:()=>{},renderAll:()=>{},scheduleSave:()=>{}
+ };
+ vm.runInNewContext(app.slice(a,b)+app.slice(p,q)+
+  "\nthis.duration=v7OptimizedSkateDuration;this.retime=v7RetimingClips;this.remember=v7RememberSkateDuration;this.progress=v7RecordedMovementProgress;this.toggle=v7SetOptimizedPlayerMovement;",ctx,{timeout:2500});
+ const aRoute={id:"a",playerId:"A",start:0,duration:5,points:[{x:0,y:0},{x:134.4,y:0}],
+   traceTiming:[{t:0,p:0},{t:.5,p:.1},{t:1,p:1}]};
+ const bRoute={id:"b",playerId:"B",start:0,duration:1,points:[{x:0,y:0},{x:134.4,y:0}]};
+ ctx.state.timeline.movements=[aRoute,bRoute];
+ assert.equal(ctx.duration(aRoute),2,"134.4 rink units must take 2s at 14ft/s");
+ assert.equal(ctx.progress(aRoute,2.5),.1,"Traced mode preserves the hand-timed speed curve");
+ ctx.toggle(true);
+ assert.equal(ctx.state.display.optimizedPlayerMovement,true);
+ assert.equal(aRoute.duration,2);assert.equal(bRoute.duration,2);
+ assert.equal(ctx.progress(aRoute,1),.5,"Optimized route travels half the distance at half time");
+ aRoute.duration=3.2;ctx.remember(aRoute);
+ ctx.toggle(false);
+ assert.equal(aRoute.duration,5);assert.equal(bRoute.duration,1);
+ assert.equal(ctx.progress(aRoute,2.5),.1,"Turning off restores saved trace-speed curve");
+ ctx.toggle(true);
+ assert.equal(aRoute.duration,3.2,"Skate time slider override should survive disabling and re-enabling");
+ assert.equal(bRoute.duration,2,"Other skaters should retain same game-like speed");
+ assert.equal(ctx.duration({...aRoute,points:[{x:0,y:0},{x:134.4,y:0}]},{scale:2.4}),4,
+  "Pace must scale with the selected ice dimensions");
+}
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

@@ -967,6 +967,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
       <section class="tab-panel" id="tab-settings">
         <div class="section-card appearance-card"><h3>Appearance &amp; Language</h3><p class="help">Use a large, USA Hockey-inspired light workspace or a low-glare dark workspace. Language changes are stored on this device.</p><div class="theme-choice" role="group" aria-label="Theme"><button class="btn small primary" id="themeLightBtn" type="button">Light</button><button class="btn small" id="themeDarkBtn" type="button">Dark</button></div><div class="field"><span>Language</span><select id="languageSelect"><option value="en-US">English</option><option value="sv">Swedish</option><option value="fi">Finnish</option><option value="ru">Russian</option></select></div></div>
         <div class="section-card"><h3>Token Display</h3><label class="check-row"><span>Names</span><input id="showNames" type="checkbox"></label><label class="check-row"><span>Numbers</span><input id="showNumbers" type="checkbox" checked></label><label class="check-row"><span>Positions</span><input id="showPositions" type="checkbox" checked></label><label class="check-row"><span>Leadership</span><input id="showLeadership" type="checkbox"></label><label class="check-row"><span>Offside light</span><input id="showOffside" type="checkbox" checked></label></div>
+        <div class="section-card"><h3>Player Movement</h3><label class="check-row"><span>Optimized Player Movement</span><input id="optimizedPlayerMovement" type="checkbox"></label><p class="help">Off (default): match the speed and pauses of your traced skating path. On: use a consistent, game-like skating pace for every player. Adjust individual routes with the Skate time slider.</p></div>
         <div class="section-card"><h3>Center-Ice Logo</h3><p class="help">Half Ice rotates and crops the image to the visible half of center ice.</p><input class="file-input" id="centerLogoInput" type="file" accept="image/*"><div class="field"><span>Opacity</span><input id="logoOpacity" type="range" min="0" max="1" value="0.32" step="0.02"></div><button class="btn small" id="resetCenterLogoBtn">Use BOTD default</button></div>
         <div class="section-card ownership-card"><h3>Ownership &amp; License</h3><p class="help">© 2026 FENRIR LLC. All rights reserved. B.O.T.D. Hockey Playbook Studio is proprietary software.</p><p class="help"><a href="https://botdhockey.com/terms/" target="_blank" rel="noopener noreferrer">Terms of Service</a> · <a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer">Software License</a></p></div>
         <div class="settings-compat-controls" hidden aria-hidden="true"><input id="showRoutes" type="checkbox" checked tabindex="-1"><select id="routeMode" tabindex="-1"><option value="ahead">Ahead; erase behind</option><option value="full">Show all</option><option value="off">Hidden</option></select><input id="durationSetting" type="number" min="4" max="60" step="1" value="12" tabindex="-1"></div>
@@ -1457,7 +1458,7 @@ function makeDefaultState(){
   const base={
     version:APP_VERSION,view:"whole",teams:deepClone(TEAM_DEFAULTS),rosters:{A:makeRoster("A",namesA),B:makeRoster("B",namesB)},
     onIce:{},puckStart:{x:500,y:300},timeline:{duration:12,movements:[],puckTakes:[{id:"take_default",name:"Puck Route A",events:[]}],activeTakeId:"take_default"},
-    drawings:[],display:{names:false,numbers:true,positions:true,leadership:false,offside:true,routes:true,routeMode:"ahead"},
+    drawings:[],display:{names:false,numbers:true,positions:true,leadership:false,offside:true,routes:true,routeMode:"ahead",optimizedPlayerMovement:false},
     centerLogo:null,logoOpacity:.32,playbookName:"BOTD Playbook v6.8.2",playbookLogo:null,marker:{color:"#111827",width:6},
     appearance:{theme:"light",language:"en-US"},puckGlow:{enabled:false,color:"#39D8FF",brightness:70,blink:true,rate:1.2},variations:[],activeVariationId:"option_default"
   };
@@ -1660,6 +1661,7 @@ function renderPlaybook(){
 }
 function renderSettings(){
   applyAppearance();const viewButtons=$$("[data-view]");for(const b of viewButtons)b.classList.toggle("primary",b.dataset.view===state.view);
+  const optimizedCheckbox=$("#optimizedPlayerMovement");if(optimizedCheckbox)optimizedCheckbox.checked=state.display.optimizedPlayerMovement===true;
   $("#showNames").checked=state.display.names;$("#showNumbers").checked=state.display.numbers;$("#showPositions").checked=state.display.positions;$("#showLeadership").checked=state.display.leadership;$("#showOffside").checked=state.display.offside;$("#logoOpacity").value=state.logoOpacity;$("#showRoutes").checked=state.display.routes;$("#routeMode").value=state.display.routeMode;$("#durationSetting").value=state.timeline.duration;$("#toolbarRoutes").checked=state.display.routes;$("#toolbarRouteMode").value=state.display.routeMode;$("#timelineLength").value=state.timeline.duration;$("#markerSwatch").style.background=state.marker.color;
   const theme=state.appearance?.theme||"light";$("#themeLightBtn").classList.toggle("primary",theme==="light");$("#themeDarkBtn").classList.toggle("primary",theme==="dark");$("#languageSelect").value=currentLanguage();applyStaticTranslations()
 }
@@ -2091,6 +2093,7 @@ function setupMainEvents(){
   document.body.classList.add("right-hidden");
   $$(".tab-btn").forEach(btn=>btn.addEventListener("click",()=>{$$(".tab-btn").forEach(b=>b.classList.toggle("active",b===btn));$$(".tab-panel").forEach(panel=>panel.classList.toggle("active",panel.id===`tab-${btn.dataset.tab}`));if(btn.dataset.tab==="roster")renderRoster();if(btn.dataset.tab==="playbook")renderPlaybook();applyStaticTranslations()}));
   $("#leftDrawerHandle")?.addEventListener("click",()=>toggleLeft());$("#rightDrawerHandle")?.addEventListener("click",()=>toggleRight());
+  $("#optimizedPlayerMovement")?.addEventListener("change",event=>v7SetOptimizedPlayerMovement(event.target.checked));
   $("#themeLightBtn").addEventListener("click",()=>{state.appearance.theme="light";renderAll()});$("#themeDarkBtn").addEventListener("click",()=>{state.appearance.theme="dark";renderAll()});$("#languageSelect").addEventListener("change",event=>{state.appearance.language=event.target.value;renderAll()});
   $("#teamCards").addEventListener("click",event=>{const sw=event.target.closest("[data-team-color]");if(sw){const team=teamById(sw.dataset.teamColor);openColorDialog({type:"team",id:team.id,slot:"primary"},team.primary,`${team.name} colors`);return}const swap=event.target.closest("[data-swap-team]");if(swap){pushHistory();const team=teamById(swap.dataset.swapTeam);[team.primary,team.trim]=[team.trim,team.primary];renderAll()}});$("#teamCards").addEventListener("input",event=>{const id=event.target.dataset.teamName;if(id){teamById(id).name=event.target.value;renderBenches();renderRoster();scheduleSave()}});
   $("#rosterTeamSelect").addEventListener("change",renderRoster);$("#rosterSearch").addEventListener("input",renderRoster);$("#addRosterBtn").addEventListener("click",()=>{const teamId=$("#rosterTeamSelect").value,p={id:uid(`${teamId}_player`),teamId,name:"New Skater",number:"",position:"LW",line:4,role:"skater",hand:"RH",captain:false,alternate:false,primaryOverride:null,trimOverride:null,glow:{enabled:false,color:null,brightness:65,blink:true,rate:1.2}};state.rosters[teamId].push(p);renderRoster();renderBenches();scheduleSave()});
@@ -3970,7 +3973,7 @@ function setupV61Events(){
   timeline?.addEventListener("input",event=>{
     const role=event.target.dataset.v61Role;
     if(role==="clip-duration"){
-      const clip=state.timeline.movements.find(item=>item.id===ui.selectedId);if(!clip)return;const bounds=v61ClipBounds(clip);clip.duration=round(clamp(Number(event.target.value)||clip.duration,bounds.min,bounds.max),3);v61UpdateRangeReadouts(event.target);const node=$(`[data-clip-id="${clip.id}"]`);if(node)node.style.width=`${Math.max(18,clip.duration*timelinePx())}px`;renderFrame(ui.playhead);return
+      const clip=state.timeline.movements.find(item=>item.id===ui.selectedId);if(!clip)return;const bounds=v61ClipBounds(clip);clip.duration=round(clamp(Number(event.target.value)||clip.duration,bounds.min,bounds.max),3);v7RememberSkateDuration(clip);v61UpdateRangeReadouts(event.target);const node=$(`[data-clip-id="${clip.id}"]`);if(node)node.style.width=`${Math.max(18,clip.duration*timelinePx())}px`;renderFrame(ui.playhead);return
     }
     if(role==="event-duration"){
       const item=activeTake().events.find(eventItem=>eventItem.id===ui.selectedId);if(!item)return;const bounds=v61EventDurationBounds(item);item.travelDuration=round(clamp(Number(event.target.value)||v61EventDuration(item),bounds.min,bounds.max),3);v61UpdateRangeReadouts(event.target);renderFrame(ui.playhead);return
@@ -4089,7 +4092,7 @@ Object.assign(window.BOTD_TEST,{
   shotPath:(start,aim,power)=>deepClone(v60BuildShotPath(start,aim,power)),
   setShotAim:point=>{if(ui.v60Mode?.type==="shot"){ui.v60Mode.aim=deepClone(point);ui.v60Mode.stage="power";renderFrame(ui.playhead)}},
   setShotPower:power=>{if(ui.v60Mode?.type==="shot"){ui.v60Mode.power=clamp(Number(power)||7,1,10);renderFrame(ui.playhead)}},
-  setClipDuration:(id,duration)=>{const clip=state.timeline.movements.find(item=>item.id===id);if(!clip)return null;const bounds=v61ClipBounds(clip);clip.duration=round(clamp(Number(duration)||clip.duration,bounds.min,bounds.max),3);sanitizeMovementTracks(clip.playerId);renderAll();return deepClone(clip)},
+  setClipDuration:(id,duration)=>{const clip=state.timeline.movements.find(item=>item.id===id);if(!clip)return null;const bounds=v61ClipBounds(clip);clip.duration=round(clamp(Number(duration)||clip.duration,bounds.min,bounds.max),3);v7RememberSkateDuration(clip);sanitizeMovementTracks(clip.playerId);renderAll();return deepClone(clip)},
   setEventDuration:(id,duration)=>{const event=activeTake().events.find(item=>item.id===id);if(!event)return null;const bounds=v61EventDurationBounds(event);event.travelDuration=round(clamp(Number(duration)||v61EventDuration(event),bounds.min,bounds.max),3);renderAll();return deepClone(buildPuckTimeline().results.get(id))},
   eventDuration:id=>{const event=activeTake().events.find(item=>item.id===id);return event?v61EventDuration(event):null},
   recognizeShape:points=>deepClone(v61RecognizeShape((points||[]).map(point=>Array.isArray(point)?{x:point[0],y:point[1]}:point))),
@@ -5985,6 +5988,8 @@ function v7EnsurePlatformState(output){
   output.additionalPucks=v7NormalizeAdditionalPucks(output.additionalPucks,v7MaxAdditionalPucks(output.primaryPuckVisible));
   v7NormalizeOnIceTokens(output);
   output.puckGlow=v7NormalizePuckGlow(output.puckGlow);
+  output.display={...(output.display||{}),optimizedPlayerMovement:output.display?.optimizedPlayerMovement===true};
+  v7RetimingClips(output.timeline?.movements,output.display.optimizedPlayerMovement,output.ice);
   v7EnsureSemanticTimeline(output.timeline);
   if(Array.isArray(output.variations)){
     for(const option of output.variations){
@@ -5993,6 +5998,7 @@ function v7EnsurePlatformState(output){
       option.primaryPuckVisible=option.primaryPuckVisible!==false;
       option.additionalPucks=v7NormalizeAdditionalPucks(option.additionalPucks,v7MaxAdditionalPucks(option.primaryPuckVisible));
       v7NormalizeOnIceTokens(option);
+      v7RetimingClips(option.timeline?.movements,output.display.optimizedPlayerMovement,option.ice);
       v7EnsureSemanticTimeline(option.timeline)
     }
   }
@@ -6024,6 +6030,7 @@ applyVariation=function(option){
   state.additionalPucks=v7NormalizeAdditionalPucks(option?.additionalPucks,v7MaxAdditionalPucks(state.primaryPuckVisible));
   v7NormalizeOnIceTokens(state);
   v7EnsureActivePuckSelection();
+  v7RetimingClips(state.timeline?.movements,v7OptimizedMovementOn(),state.ice);
   v7EnsureSemanticTimeline(state.timeline)
 };
 
@@ -6072,6 +6079,7 @@ loadPlay=function(play){
   v7EnsureActivePuckSelection();
   v7IceSyncGoalObjects();
   v7EnsurePlatformState(state);
+  v7RetimingClips(state.timeline?.movements,v7OptimizedMovementOn(),state.ice);
   syncActiveVariation();
   renderAll()
 };
@@ -9459,6 +9467,7 @@ function v7SkatingClipPoints(clip){
    acceleration instead of assuming constant player speed. */
 function v7RecordedMovementProgress(clip,time){
  const f=clamp((Number(time)-Number(clip.start))/Math.max(.001,Number(clip.duration)),0,1);
+ if(v7OptimizedMovementOn())return f; // Even spatial pace: ignore pointer sampling pauses/bursts.
  const timing=clip.traceTiming;
  if(!Array.isArray(timing)||timing.length<2)return f; // legacy plays
  if(f<=timing[0].t)return timing[0].p;
@@ -9687,22 +9696,95 @@ renderMovePreview=function(){
  v7PaintSkatingRoute(layer,v7SkatingSmoothPoints(rec.points),
    rec.movementNotation||ui.v7PendingMoveNotation||"forward","#f59e0b",{preview:true})
 };
+/* Optional game-like pace: movement distance is measured along the same
+   smoothed skating path used on ice. 14 ft/s (~9.5 mph) is a conservative
+   adult in-game skating baseline, NOT full-sprint speed. */
+const V7_OPTIMIZED_SKATE_FPS=14;
+function v7OptimizedMovementOn(){return state?.display?.optimizedPlayerMovement===true}
+function v7ValidMoveDuration(value){return Number.isFinite(Number(value))&&Number(value)>0}
+function v7OptimizedSkateDuration(clip,ice=state?.ice){
+ const route=v7SkatingClipPoints(clip),distance=polylineLength(route||[]);
+ const start=clamp(Number(clip?.start)||0,0,59.95),max=Math.max(.05,60-start);
+ if(!distance||distance<.01)return round(clamp(Number(clip?.duration)||.35,.05,max),3);
+ const scale=Math.max(.1,v7IceGeometry(ice).scale);
+ return round(clamp(distance/(V7_OPTIMIZED_SKATE_FPS*scale),.2,max),3)
+}
+function v7FitMoveToNeighbors(clip,requested,clips){
+ const upcoming=(clips||[]).filter(c=>c!==clip&&c.playerId===clip.playerId&&
+  Number(c.start)>Number(clip.start)+.001).sort((a,b)=>a.start-b.start)[0];
+ const room=Math.max(.05,Math.min(60-clip.start,upcoming?upcoming.start-clip.start:60-clip.start));
+ return round(clamp(Number(requested)||clip.duration||.35,.05,room),3)
+}
+/* Keep independent timing for trace and optimized modes. A manual Skate time
+   adjustment customizes ONLY the active mode and survives mode changes. */
+function v7RememberSkateDuration(clip){
+ if(!clip)return;
+ if(v7OptimizedMovementOn()){
+  clip.v7OptimizedDurationOverride=clip.duration;
+  clip.v7TimingMode="optimized"
+ }else{
+  clip.v7TraceDuration=clip.duration;
+  clip.v7TimingMode="traced"
+ }
+}
+function v7RetimingClips(clips,optimized,ice=state?.ice){
+ if(!Array.isArray(clips))return clips;
+ for(const clip of clips){
+  if(!v7ValidMoveDuration(clip.v7TraceDuration))
+   clip.v7TraceDuration=Number(clip.duration)||.35;
+  if(!optimized&&clip.v7TimingMode!=="optimized"&&clip.v7TimingMode!=="traced")
+   continue; // untouched legacy trace; its existing timing remains authoritative
+  const desired=optimized?
+   (v7ValidMoveDuration(clip.v7OptimizedDurationOverride)?
+    clip.v7OptimizedDurationOverride:v7OptimizedSkateDuration(clip,ice)):
+   clip.v7TraceDuration;
+  clip.duration=v7FitMoveToNeighbors(clip,desired,clips);
+  clip.v7TimingMode=optimized?"optimized":"traced"
+ }
+ return clips
+}
+function v7SetOptimizedPlayerMovement(enabled){
+ const next=enabled===true;
+ if(v7OptimizedMovementOn()===next)return;
+ pushHistory();stopPlayback();
+ // Capture the current variation before changing durations, then update all
+ // options so switching variations cannot resurrect the previous speed mode.
+ syncActiveVariation();
+ state.display.optimizedPlayerMovement=next;
+ v7RetimingClips(state.timeline?.movements,next,state.ice);
+ state.timeline.duration=Math.min(60,Math.max(state.timeline.duration,
+  ...((state.timeline.movements||[]).map(c=>c.start+c.duration+.25))));
+ for(const option of state.variations||[]){
+  if(option.id===state.activeVariationId)continue;
+  v7RetimingClips(option.timeline?.movements,next,option.ice||state.ice);
+  if(option.timeline)
+   option.timeline.duration=Math.min(60,Math.max(option.timeline.duration,
+    ...((option.timeline.movements||[]).map(c=>c.start+c.duration+.25))))
+ }
+ syncActiveVariation();renderAll();scheduleSave()
+}
 const v7CommitBeforeSkating=commitMoveFromPlayhead;
 commitMoveFromPlayhead=function(payload={}){
  const type=V7_DRILL_MOVES[ui.v7PendingMoveNotation]?ui.v7PendingMoveNotation:"forward";
  const trace=ui.v7PendingRecordedTrace||null;
  const time=Number(payload.startTime)||0;
- // The ACTUAL pointer trace determines duration, not path length or any
- // preset skating speed. A quick stroke plays quickly; a slow stroke slowly.
+ // A trace still records its original timing, but optimized mode computes
+ // travel time from the real skating distance rather than pointer speed.
  const actual=trace?.duration??Number(payload.duration)??.35;
- const duration=clamp(actual,.05,Math.max(.05,60-time));
+ const tracedDuration=clamp(actual,.05,Math.max(.05,60-time));
+ const optimized=v7OptimizedMovementOn();
+ const duration=optimized?
+  v7OptimizedSkateDuration({start:time,points:payload.points||[],duration:tracedDuration}):
+  tracedDuration;
  const clip=v7CommitBeforeSkating({...payload,duration,render:false});
  if(clip){
+  clip.v7TraceDuration=round(tracedDuration,3);
+  clip.v7TimingMode=optimized?"optimized":"traced";
   clip.movementNotation=type;
   clip.actionType=V7_DRILL_MOVES[type].legacy;
   clip.semanticAction=V7_DRILL_MOVES[type].semantic;
   const timing=trace&&trace.pointCount===payload.points?.length?
-   v7BuildRecordedTraceTiming(payload.points,trace.times,duration):null;
+   v7BuildRecordedTraceTiming(payload.points,trace.times,tracedDuration):null;
   if(timing)clip.traceTiming=timing;
   renderAll();syncActiveVariation();scheduleSave()
  }
