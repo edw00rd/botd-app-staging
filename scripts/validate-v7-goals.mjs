@@ -72,6 +72,39 @@ vm.runInNewContext(modelSource+
   "\nconst V7_CREASE_RADIUS_UNITS=28.8;"+
   presetSource+"\n"+app.slice(normalizerStart,normalizerEnd)+
   "\nthis.iceGeometry=v7IceGeometry;this.iceNormalize=v7NormalizeIce;this.icePerimeter=v7IcePerimeter;this.iceCrease=v7IceCreaseOutline;",normContext,{timeout:3000});
+/* A new faceoff must be symmetric and line up with the real rink art. */
+{
+ const a=app.indexOf("const DEFAULT_WHOLE_LINEUP="),b=app.indexOf("function createCanonicalLineup(",a);
+ const c=app.indexOf("function v7CanonicalFaceoffLineup("),d=app.indexOf("function v7IcePerimeter(",c);
+ assert.ok(a>0&&b>a&&c>0&&d>c,"Default faceoff position generators missing");
+ const ctx={round,v7IceGeometry:ice=>normContext.iceGeometry(ice)};
+ vm.runInNewContext(app.slice(a,b)+"\n"+app.slice(c,d)+
+  "\nthis.baseline=DEFAULT_WHOLE_LINEUP;this.generate=v7CanonicalFaceoffLineup;",ctx,{timeout:2000});
+ const pairs=[["A_2","B_2"],["A_1","B_3"],["A_3","B_1"],["A_13","B_13"],
+  ["A_14","B_14"],["A_19","B_19"],["A_21","B_21"],["A_22","B_22"]];
+ for(const profile of ["nhl","usa","canada","iihf"]){
+  const ice=normContext.iceNormalize({profile}),g=normContext.iceGeometry(ice),lineup=ctx.generate(ice);
+  for(const [l,r] of pairs){
+   assert.ok(Math.abs(lineup[l].x+lineup[r].x-1000)<.00001,profile+": "+l+" horizontal mirror");
+   assert.equal(lineup[l].y,lineup[r].y,profile+": "+l+" vertical mirror");
+  }
+  assert.equal(lineup.A_2.x,488);assert.equal(lineup.B_2.x,512);
+  assert.equal(lineup.A_2.y,300);assert.equal(lineup.B_2.y,300);
+  const wing=round(ice.faceoffRadius*g.scale+6,3);
+  assert.equal(lineup.A_1.y,round(300-wing,3));assert.equal(lineup.A_3.y,round(300+wing,3));
+  assert.equal(lineup.A_1.x,lineup.A_2.x);assert.equal(lineup.B_3.x,lineup.B_2.x);
+  assert.equal(lineup.A_13.x,round(g.blueLeft+18,3));
+  assert.ok(Math.abs(lineup.B_13.x-(g.blueRight-18))<.001);
+  assert.equal(lineup.A_13.y,235);assert.equal(lineup.A_14.y,365);
+  assert.equal(lineup.A_19.x,62);assert.equal(lineup.B_19.x,938);
+ }
+ assert.equal(ctx.baseline.A_1.y,222);assert.equal(ctx.baseline.A_3.y,378);
+ assert.equal(ctx.baseline.A_13.x,398);assert.equal(ctx.baseline.B_13.x,602);
+ assert.ok(app.includes("createCanonicalLineup=function(){return deepClone(v7CanonicalFaceoffLineup())}"));
+ assert.ok(app.includes("lineup=v7CanonicalFaceoffLineup();"));
+ assert.ok(!app.includes("{x:465,y:300}")&&!app.includes("{x:380,y:235}"),
+   "Retired faceoff setup coordinates remain");
+}
 const initial=normContext.v7NormalizeEquipmentList(undefined);
 assert.equal(initial.length,2,"Legacy play without equipment must receive default pair");
 assert.equal(normContext.v7NormalizeEquipmentList([]).length,0,"Explicitly saved empty rink must remain empty");
