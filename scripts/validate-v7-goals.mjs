@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.5 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.5"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.6 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.6"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1575,6 +1575,13 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const scaler=app.slice(start,end);
  assert.ok(scaler.includes('token.querySelectorAll(".token-role-badge").forEach(b=>'),
   "Position badges must be scaled as part of the original player token");
+ assert.ok(scaler.includes('n.style.fontSize=(p.role==="goalie"?24:21)+"px"'),
+  "Player number font must be 1.5x");
+ assert.ok(scaler.includes('const ink=t.getBBox()') &&
+  scaler.includes('t.setAttribute("text-anchor","middle")') &&
+  scaler.includes('t.setAttribute("alignment-baseline","middle")') &&
+  scaler.includes('label.length>=3?10:label.length===2?13:15'),
+  "Position pill text must be optically centered and fitted");
  assert.ok(!scaler.includes('group.append(roleBadge)'),
   "No detached position badges should remain");
  assert.ok(!scaler.includes('token.querySelector(".token-leadership")?.remove()'),

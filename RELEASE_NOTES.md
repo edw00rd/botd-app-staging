@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.6 Preview — November 19, 2026 (staging only)
+
+- Increased skater number font from 14px to 21px and goalie number font from 16px to 24px (1.5×), leaving token sizes unchanged.
+- Centered position-label glyphs optically within the original pill geometry, with fit adjustments for abbreviations.
+- Preserved C/A letters, name styling, saved-play compatibility and production isolation. Updated tests and version indicators.
+
+---
+
 ## V7.1.5 Preview — November 19, 2026 (staging only)
 
 - Increased the captain (C) and alternate (A) on-token letter font from 12px to 20px, compensating for the player symbol's small rendered scale.
