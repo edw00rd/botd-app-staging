@@ -7335,9 +7335,12 @@ function v7ScalePlayerSymbols(){
    n.setAttribute("x","0");n.setAttribute("y","0");n.setAttribute("dy",".08em");
    n.setAttribute("text-anchor","middle");n.setAttribute("dominant-baseline","central");
    n.setAttribute("alignment-baseline","middle");
-   n.style.fontFamily="Arial,Helvetica,sans-serif";n.style.fontVariantNumeric="tabular-nums";
-   n.style.fontWeight="850";n.style.fontSize=(p.role==="goalie"?25:27)+"px";
-   n.style.strokeWidth="1.15px";n.style.letterSpacing="0";
+   // Use the same compact, heavy bench-piece typography on ice.
+   // These unscaled SVG values match bench number-to-token proportions
+   // once the 3-ft skater / 3.6-ft goalie artwork is scaled to the ice.
+   n.style.fontFamily="inherit";n.style.fontVariantNumeric="tabular-nums";
+   n.style.fontWeight="950";n.style.fontSize=(p.role==="goalie"?16:14)+"px";
+   n.style.stroke="none";n.style.strokeWidth="0px";n.style.letterSpacing="0";
   });
   token.querySelectorAll(".token-role-badge").forEach(b=>{const c=b.querySelector("circle"),t=b.querySelector("text");if(c)c.setAttribute("r","14");if(t)t.style.fontSize="16px"});
   const glow=[...group.children].find(n=>n.classList?.contains("v682-underglow"));

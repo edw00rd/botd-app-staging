@@ -610,8 +610,20 @@ assert.equal(goalieContext.right.y,300);
 const playerScale=app.slice(app.indexOf("function v7ScalePlayerSymbols("),app.indexOf("function v7ScalePuckArt("));
 for(const marker of ['n.setAttribute("x","0")','n.setAttribute("y","0")','n.setAttribute("dy",".08em")',
  'n.setAttribute("text-anchor","middle")','n.setAttribute("dominant-baseline","central")',
- 'n.style.fontFamily="Arial,Helvetica,sans-serif"'])
+ 'n.style.fontFamily="inherit"'])
  assert.ok(playerScale.includes(marker),"Number centering regression: "+marker);
+for(const marker of ['n.style.fontWeight="950"',
+ 'n.style.fontSize=(p.role==="goalie"?16:14)+"px"',
+ 'n.style.stroke="none"','n.style.strokeWidth="0px"']){
+ assert.ok(playerScale.includes(marker),"On-ice jersey typography must match bench: "+marker);
+}
+assert.ok(app.includes('.bench-piece{')&&
+ app.includes('font-size:10px;font-weight:950;line-height:1'),
+ "Reference bench number typography is missing");
+assert.ok(Math.abs(14/40-10/30)<.03,
+ "Skater number-to-interior diameter must match the bench proportion");
+assert.ok(Math.abs(16/42-10/26)<.03,
+ "Goalie number-to-interior width must match the bench proportion");
 
 /* The center-puck attention cue is delayed, one-shot, and only after New. */
 for(const marker of ['function v7SchedulePuckDiscovery()',
