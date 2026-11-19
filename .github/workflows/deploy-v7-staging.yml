@@ -151,29 +151,41 @@ jobs:
           const token = process.env.CLOUDFLARE_API_TOKEN;
           const endpoint = 'https://api.cloudflare.com/client/v4/accounts/' +
             account + '/workers/scripts/botd-app-staging/deployments?per_page=1';
-          const response = await fetch(endpoint, {
-            headers: { Authorization: 'Bearer ' + token },
-            signal: AbortSignal.timeout(15000)
-          });
-          const body = await response.json();
-          if (!response.ok || body.success !== true) {
-            const codes = Array.isArray(body.errors)
-              ? body.errors.map(e => e.code).filter(Number.isInteger).join(',')
-              : 'unknown';
-            console.error('::error::Unable to verify staging deployment through Cloudflare API. HTTP ' +
-              response.status + ', codes: ' + (codes || 'none'));
-            process.exit(1);
+          // Cloudflare's deployment list can lag an accepted Worker upload.
+          // Retain the strict 100% active-version requirement, but let the
+          // control plane converge before declaring a deployment failure.
+          let matched = false;
+          let lastActive = 'none';
+          for (let attempt = 1; attempt <= 12; attempt++) {
+            const response = await fetch(endpoint, {
+              headers: { Authorization: 'Bearer ' + token, 'Cache-Control': 'no-cache' },
+              signal: AbortSignal.timeout(15000)
+            });
+            const body = await response.json();
+            if (!response.ok || body.success !== true) {
+              const codes = Array.isArray(body.errors)
+                ? body.errors.map(e => e.code).filter(Number.isInteger).join(',')
+                : 'unknown';
+              console.error('::error::Unable to verify staging deployment through Cloudflare API. HTTP ' +
+                response.status + ', codes: ' + (codes || 'none'));
+              process.exit(1);
+            }
+            const latest = body.result?.deployments?.[0];
+            const active = latest?.versions || [];
+            lastActive = active.map(item => item.version_id + '@' + item.percentage + '%').join(', ') || 'none';
+            matched = active.some(item =>
+              item.version_id?.toLowerCase() === version.toLowerCase() &&
+              Number(item.percentage) === 100
+            );
+            if (matched) break;
+            console.log('Cloudflare staging activation pending (' + attempt +
+              '/12). Active versions: ' + lastActive);
+            if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 2500));
           }
-          const latest = body.result?.deployments?.[0];
-          const active = latest?.versions || [];
-          const matched = active.some(item =>
-            item.version_id?.toLowerCase() === version.toLowerCase() &&
-            Number(item.percentage) === 100
-          );
           if (!matched) {
             console.error('::error::Uploaded staging Worker version ' + version +
-              ' is not the version currently serving 100% of staging Worker traffic. ' +
-              'Check Workers & Pages > botd-app-staging > Deployments before promoting.');
+              ' is not currently serving 100% of staging Worker traffic. Last active: ' +
+              lastActive + '. Check Workers & Pages > botd-app-staging > Deployments.');
             process.exit(1);
           }
           console.log('Cloudflare confirms Worker botd-app-staging version ' + version +
