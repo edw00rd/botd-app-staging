@@ -11,7 +11,9 @@ for(const marker of ['id="exportVideoBtn"','function v7ExportVideo()','canvas.ca
 const expectedEditorHash=read('SHA256SUMS.txt').split('\n').find(line=>line.endsWith('  private/app-v6.8.html.txt'))?.slice(0,64);
 assert.match(expectedEditorHash||'',/^[a-f0-9]{64}$/,'Reviewed editor checksum must exist in SHA256SUMS.txt');
 assert.equal(crypto.createHash('sha256').update(app).digest('hex'),expectedEditorHash,'Editor source must match the reviewed SHA256 manifest');
-assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'16b7ba628c7f023deacf8f577cbe1ea773dc9ec7e87011218ad327109278d11f');
+const expectedShellHash=read('SHA256SUMS.txt').split('\n').find(line=>line.endsWith('  public/index.html'))?.slice(0,64);
+assert.match(expectedShellHash||'',/^[a-f0-9]{64}$/,'Reviewed outer-shell checksum must exist');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),expectedShellHash,'Outer shell must match the reviewed SHA256 manifest');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
