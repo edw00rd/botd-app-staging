@@ -1521,4 +1521,40 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const auto=ctx.choose(draft,"primary","#112233");
  assert.equal(auto.numbers,"#ffffff");assert.equal(auto.numberAuto,true);
 }
+/* V7.1 visible UI version and shared team/player palette logic. */
+{
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1"'));
+ assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
+ assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
+ assert.ok(app.includes('const teamMode=d.targetType==="team"'));
+ assert.ok(app.includes('v7pcCommitTeam(team,d)'));
+ assert.ok(app.includes('function v7pcResetTeamDraft('));
+ const a=app.indexOf("function playerColors(player)"),b=app.indexOf("function rosterSort(",a);
+ const c=app.indexOf("function v7pcHexColor("),d=app.indexOf("function v7pcChange(",c);
+ assert.ok(a>0&&b>a&&c>0&&d>c);
+ const team={id:"A",name:"DAWGS",primary:"#00FC05",trim:"#000000",numberOverride:null};
+ const ctx={teamById:()=>team,TEAM_DEFAULTS:[{id:"A",primary:"#00FC05",trim:"#000000"}],
+  contrastText:hex=>/^#(?:ffffff|00fc05)$/i.test(hex)?"#08131e":"#ffffff"};
+ vm.runInNewContext(app.slice(a,b)+"\n"+app.slice(c,d)+
+  "\nthis.colors=playerColors;this.teamDraft=v7pcTeamDraft;this.resetTeam=v7pcResetTeamDraft;"+
+  "this.commitTeam=v7pcCommitTeam;this.choose=v7pcChoose;this.playerDraft=v7pcDraft;",ctx,{timeout:2000});
+ const p={teamId:"A",id:"A_1",number:"7",primaryOverride:null,trimOverride:null,numberOverride:null};
+ assert.equal(ctx.colors(p).numbers,"#08131e");
+ const draft=ctx.teamDraft(team);
+ const changed=ctx.choose(ctx.choose(ctx.choose(draft,"primary","#ABCDEF"),
+  "trim","#123456"),"numbers","#FF00FF");
+ assert.equal(team.primary,"#00FC05","Team preview should not save before Apply");
+ ctx.commitTeam(team,changed);
+ assert.equal(team.primary,"#ABCDEF");assert.equal(team.trim,"#123456");
+ assert.equal(team.numberOverride,"#FF00FF");
+ assert.equal(ctx.colors(p).numbers,"#FF00FF","Player should inherit team number ink");
+ p.numberOverride="#FFFF00";
+ assert.equal(ctx.colors(p).numbers,"#FFFF00","Player override wins");
+ p.numberOverride=null;
+ const reset=ctx.resetTeam(changed,"A");ctx.commitTeam(team,reset);
+ assert.equal(team.primary,"#00FC05");assert.equal(team.trim,"#000000");
+ assert.equal(team.numberOverride,null);
+ assert.equal(ctx.colors(p).numbers,"#08131e","Reset restores auto contrast");
+}
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

@@ -1,8 +1,24 @@
-# B.O.T.D. Hockey Playbook Studio v6.8.2 — staging release candidate
+# B.O.T.D. Hockey Playbook Studio — V7.1 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-This source is the v6.8.2 shared staging/production release candidate. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. The versioned release-preparation commit must still be deployed and accepted in staging before production promotion.
+**Staging UI milestone: V7.1 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## Latest V7.1 staging changes — November 19, 2026
+
+- Dedicated team and player color customization: Primary, Trim and Numbers, each with Grid, Spectrum and RGB Sliders, plus live on-ice/bench preview. Drawing-tool controls have their own editor.
+- Team number-color defaults flow through to players unless an individual player overrides them.
+- Optimized Player Movement checkbox for consistent, game-like speed, preserving trace-based timing as the default.
+- Symmetrical center-faceoff starting positions, aligned number typography, group move/rotate, puck-pile controls, improved nets and puck collisions.
+- Version labeling policy: increment the visible V7.x staging version with each accepted staging feature release and update both this README and [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+**Release history:** [RELEASE_NOTES.md](RELEASE_NOTES.md). Production is unchanged.
+
+## Historical v6.8.2 release baseline
+
+
+
+The following sections document the historical v6.8.2 baseline, not the current V7.1 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
 
 ## Included scope
 
@@ -28,7 +44,7 @@ Drag-to-aim passing and the shot-obstruction toggle are not included in v6.8.2. 
 | Host | `staging.botdhockey.com` | `app.botdhockey.com` |
 | Supabase project | `dolbsnodupgppvwnnlgd` | `stcobnlzdbkoakgvfaez` |
 | Stripe mode | Test only | Live only |
-| Health identity | `6.8.2-staging-v1` | `6.8.2-production-v1` |
+| Health identity | `7.0.0-preview.1-staging` (V7.1 UI) | `6.8.2-production-v1` |
 
 Cloudflare dashboard credentials remain environment-specific. No database migration, authentication-policy change, or billing-price change is included.
 

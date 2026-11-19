@@ -1,4 +1,28 @@
-# v6.8.2 — staging release candidate 1
+# B.O.T.D. Hockey Playbook Studio — Release Notes
+
+## V7.1 Preview — November 19, 2026 (staging only)
+
+**Status:** Staging preview, not promoted to production. The visible upper-left UI version is **V7.1 Preview**; the stable release and saved-play compatibility format remain **6.8.2**.
+
+### Team and player color editing
+- Teams and individual players now open the dedicated palette editor instead of the marker/drawing-tool color window.
+- **Primary**, **Trim**, and **Numbers** colors are independently editable using **Grid**, **Spectrum**, **RGB sliders**, or a hex value. Preview both bench and on-ice tokens.
+- Teams can set a default number color for their players. Player-specific number colors take precedence; otherwise number colors inherit the team setting or use automatic contrast.
+- Changes are saved on **Apply colors** and discarded on **Cancel**. Team palette reset restores the sample team's defaults; individual reset restores team colors.
+- Line pattern, marker width, drawing tools, and arrow ending remain exclusive to the drawing-tool editor.
+
+### Other recent V7 staging work
+- Added the optional **Optimized Player Movement** checkbox. Trace timing remains the default; optimized timing uses a game-like speed and supports individual Skate time adjustments.
+- Aligned default center-ice faceoff players symmetrically to the faceoff dot, circle and blue lines.
+- Matched on-ice player number typography to the compact bench appearance.
+- Implemented group selection dragging and rotation; refined rink boundaries, net rendering, puck pile dispensing, and puck interaction previews.
+- Added an explicit staging UI version in the upper-left header and began maintaining a dated summary in the README.
+
+**Versioning policy:** Increase the visible V7.x staging UI version for subsequent accepted feature updates, and update both README.md and RELEASE_NOTES.md. The internal 6.8.2 compatibility version and stable production release remain independent. The staging Worker health identifier remains `7.0.0-preview.1-staging` until separately versioned and validated.
+
+---
+
+# Historical v6.8.2 — staging release candidate 1
 
 Status: accepted feature scope; versioned candidate pending final staging deployment and health/browser verification before production promotion.
 
