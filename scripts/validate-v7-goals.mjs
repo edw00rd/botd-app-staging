@@ -826,6 +826,73 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
  }
 }
 
+/* Regression: marquee groups can be grabbed and moved like Visio selections.
+   Rotation and removal remain separate controls, and members stay rigid. */
+{
+ assert.ok(app.includes('"data-v7-multi-drag":"1"'),"Selected group box must be a drag target");
+ assert.ok(app.includes('style:"cursor:move;touch-action:none"'),"Group box must show move cursor");
+ assert.ok(app.includes('ui.v7MultiMove={pointerId:e.pointerId'),"Group pointerdown must capture movement");
+ assert.ok(app.includes('v7MultiTranslate(moving.snapshot,delta);renderFrame(ui.playhead)'),
+  "Drag must update live rink positions from the original selection snapshot");
+ assert.ok(app.includes('if(moving.changed){syncActiveVariation();scheduleSave();renderAll()}'),
+  "A committed drag must persist its updated play state");
+ assert.ok(app.includes('const step=e.shiftKey?10:2'),"Arrow keys must nudge groups");
+ assert.ok(app.includes('ui.v7MultiRotate=null;ui.v7MultiMove=null'),
+  "Reset must clear active group translation without leaving a ghost drag");
+ const a=app.indexOf("function v7MultiConstrainTranslation("),
+       b=app.indexOf("function v7MultiDelete(",a);
+ assert.ok(a>0&&b>a,"Rigid drag helpers must be present");
+ const movement=app.slice(a,b);
+ const setup=[
+  "const round=(n,places=4)=>Math.round(n*10**places)/10**places;",
+  "const state={ice:{},equipment:[{id:'A',type:'cone',x:450,y:280}],onIce:{P1:{x:520,y:300}},",
+  "puckStart:{x:590,y:290},additionalPucks:[],timeline:{",
+  "movements:[{id:'M1',points:[{x:520,y:300},{x:540,y:315}]}],",
+  "puckTakes:[{id:'T1',events:[{id:'E1',from:{x:590,y:290},target:{x:620,y:325},aimVector:{x:1,y:0}}]}]}};",
+  "const v7MultiParts=t=>[{x:t.pos.x,y:t.pos.y,r:5}];",
+  "const v7IceSignedDistance=p=>Math.hypot(p.x-500,p.y-300)-200;",
+  "const v7EquipmentById=id=>state.equipment.find(x=>x.id===id);",
+  "const v7AdditionalPuckById=id=>state.additionalPucks.find(x=>x.id===id);",
+  "const v7ClampPuckToIce=p=>p,v7MultiSlide=(t,p)=>p;",
+  movement,
+  "return {state,constrain:v7MultiConstrainTranslation,translate:v7MultiTranslate,ice:v7IceSignedDistance}"
+ ].join("\n");
+ const editor=new Function(setup)();
+ const members=[
+  {type:"equipment",id:"A",pos:{x:450,y:280},base:{x:450,y:280},rotation:0},
+  {type:"player",id:"P1",pos:{x:520,y:300},base:{x:520,y:300},rotation:0,
+   tracks:[{id:"M1",points:[{x:520,y:300},{x:540,y:315}]}]},
+  {type:"puck",id:"puck",pos:{x:590,y:290},base:{x:590,y:290},rotation:0,
+   routes:[{id:"T1",events:[{id:"E1",from:{x:590,y:290},target:{x:620,y:325}}]}]}
+ ];
+ const snapshot={members,center:{x:520,y:290}};
+ assert.deepEqual(editor.constrain(snapshot,{x:12,y:-8}),{x:12,y:-8},
+  "Within the rink, the whole selection must follow the pointer exactly");
+ const stopped=editor.constrain(snapshot,{x:999,y:60});
+ assert.ok(stopped.x>5&&stopped.x<200&&stopped.y<=60,
+  "A whole-group drag must clamp at the board, not move selected tokens separately");
+ for(const m of members)assert.ok(editor.ice({
+   x:m.pos.x+stopped.x,y:m.pos.y+stopped.y})+5<=.0001,
+  "A constrained group must keep each member entirely on the ice");
+ const sideways=editor.constrain(snapshot,{x:12,y:999});
+ assert.equal(sideways.x,12,"Group should continue sliding horizontally at the boards");
+ assert.equal(editor.translate(snapshot,{x:12,y:-8}),true);
+ assert.equal(editor.state.equipment[0].x,462);
+ assert.equal(editor.state.onIce.P1.y,292);
+ assert.equal(editor.state.puckStart.x,602);
+ assert.equal(editor.state.timeline.movements[0].points[1].x,552,
+  "Existing player skating routes must move with the group");
+ assert.equal(editor.state.timeline.puckTakes[0].events[0].target.x,632,
+  "Puck targets must move with their puck");
+ assert.equal(editor.state.timeline.puckTakes[0].events[0].aimVector.x,1,
+  "Translation must not rotate puck aim");
+ editor.translate(snapshot,{x:20,y:5});
+ assert.equal(editor.state.equipment[0].x,470,
+  "Dragging across successive frames must not accumulate position errors");
+ assert.equal(editor.state.onIce.P1.x,540);
+ assert.equal(editor.state.puckStart.x,610);
+}
+
 /* Default goal removal must survive snapshots, reloads and group deletion. */
 {
  const left=initial.find(x=>x.goalSide==="left"),right=initial.find(x=>x.goalSide==="right");
