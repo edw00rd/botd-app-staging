@@ -88,7 +88,7 @@ for(const required of [
  "function v7DispensePuckFromPile(", "function v7RinkDispensePuckControl(",
  'data-v7-dispense-puck', 'v7AddAdditionalPuck(point||(',
  'v7DispensePuckFromPile(dispense.dataset.v7DispensePuck)',
- 'v7RinkDispensePuckControl(selected.id,point)',
+ 'v7RinkDispensePuckControl(pile.id,point)',
  'const filter=phaseOn?glowFilter:"none";',
  'if(!interval||interval.kind!=="travel")return null',
  'v7RinkRemoveControl(selected.id,"equipment"',
