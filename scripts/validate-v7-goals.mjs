@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.4 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.4"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.5 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.5"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1568,8 +1568,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Old bold name font-size override must not return");
  assert.ok(app.includes(".token-role-text{font-size:8px;font-weight:950;fill:#20384b;pointer-events:none}"),
   "Original position badge typography must be restored");
- assert.ok(app.includes(".token-leadership{font-size:12px;font-weight:950;fill:#0b2133"),
-  "C/A leadership letters should be slightly larger with original badge styling");
+ assert.ok(app.includes(".token-leadership{font-size:20px;font-weight:950;fill:#0b2133"),
+  "C/A leadership letters must remain readable at NHL-size token scale without altering original badge styling");
  const start=app.indexOf("function v7ScalePlayerSymbols(");
  const end=app.indexOf("/* Shared circular selection marker",start);
  const scaler=app.slice(start,end);
