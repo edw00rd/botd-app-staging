@@ -1230,13 +1230,15 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const extra=app.slice(b);
  for(const str of [
   'ui.v7PendingRecordedTrace',
-  'const duration=clamp(actual,.05,',
+  'const tracedDuration=clamp(actual,.05,',
   'v7PointerDownBeforeTraceTiming=onRinkPointerDown',
   'v7PointerMoveBeforeTraceTiming=onRinkPointerMove',
   'rec.traceTimes.push(',
   'v7RecordedMovementProgress(clip,time)',
   'trimMovementClip=function(clip,start,end)',
-  'if(timing)clip.traceTiming=timing'
+  'if(timing)clip.traceTiming=timing',
+  'const duration=optimized?',
+  'v7OptimizedSkateDuration({start:time,points:payload.points||[],duration:tracedDuration})'
  ])assert.ok(extra.includes(str),"Missing timing capture/integration: "+str);
  assert.ok(!extra.includes("distance/108"),"Movement speed must not be imposed by path length");
  const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
@@ -1260,6 +1262,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   pathD:pts=>pts.map((p,i)=>(i?"L":"M")+p.x+" "+p.y).join(" "),
   svgEl:(tag,attrs)=>({tag,attrs}),
   playerPositionAt:()=>{},movementClipsFor:()=>[],
+  v7OptimizedMovementOn:()=>false,
   state:{onIce:{A:{x:0,y:0}}}
  };
  vm.runInNewContext(section+
