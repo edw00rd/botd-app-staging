@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.6 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.6"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.7 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.7"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1591,4 +1591,105 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  for(const obsolete of ["token-leadership-badge","v7OnIceBadgePoint","v7NameLabelWidth"])
   assert.ok(!app.includes(obsolete),"V7.1.2 badge code was not fully reverted: "+obsolete);
 }
+
+/* V7.1.7 regression: the rink is a reflective boundary, never a puck rail.
+   Test the same downhill-to-endboard shot shown in the screenshot, plus
+   head-on, grazing and rounded-corner impacts. */
+{
+ const startIndex=app.indexOf("function v64SurfaceImpact(");
+ const endIndex=app.indexOf("\nfunction v64RenderAimPreview(",startIndex);
+ assert.ok(startIndex>0&&endIndex>startIndex,"Board energy solver must exist");
+ const perimeter=[],R=50;
+ const add=(x,y)=>perimeter.push({x,y});
+ const arc=(cx,cy,from,to)=>{
+  for(let i=1;i<=48;i++){const a=(from+(to-from)*i/48)*Math.PI/180;
+   add(cx+Math.cos(a)*R,cy+Math.sin(a)*R)}
+ };
+ add(70,20);add(930,20);arc(930,70,-90,0);add(980,530);
+ arc(930,530,0,90);add(70,580);arc(70,530,90,180);
+ add(20,70);arc(70,70,180,270);perimeter.push({...perimeter[0]});
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const unit=v=>{const m=Math.hypot(v.x,v.y)||1;return{x:v.x/m,y:v.y/m}};
+ const cross=(a,b)=>a.x*b.y-a.y*b.x;
+ const inside=p=>{
+  if(p.x<19.99||p.x>980.01||p.y<19.99||p.y>580.01)return false;
+  const cx=p.x<70?70:p.x>930?930:null;
+  const cy=p.y<70?70:p.y>530?530:null;
+  return cx===null||cy===null||Math.hypot(p.x-cx,p.y-cy)<=50.04
+ };
+ const safe=p=>{
+  let x=clamp(p.x,20,980),y=clamp(p.y,20,580);
+  const cx=x<70?70:x>930?930:null,cy=y<70?70:y>530?530:null;
+  if(cx!==null&&cy!==null){const dx=x-cx,dy=y-cy,m=Math.hypot(dx,dy);
+   if(m>50){x=cx+dx*50/m;y=cy+dy*50/m}}
+  return{x,y}
+ };
+ const rayHit=(start,dir,limit,a,b)=>{
+  const ray={x:dir.x*limit,y:dir.y*limit},seg={x:b.x-a.x,y:b.y-a.y};
+  const denom=cross(ray,seg);if(Math.abs(denom)<1e-10)return null;
+  const delta={x:a.x-start.x,y:a.y-start.y};
+  const t=cross(delta,seg)/denom,u=cross(delta,ray)/denom;
+  if(t<=.0008||t>1.0001||u<-.0001||u>1.0001)return null;
+  return{point:{x:start.x+ray.x*t,y:start.y+ray.y*t},distance:t*limit}
+ };
+ const ctx={
+  v60BuildShotPath:null,V7_PUCK_RADIUS:3.2,
+  v64Unit:unit,v64ClampPlayablePoint:safe,v64GoalCandidate:()=>null,
+  v60ShotTravelDistance:()=>700,
+  v64NearestShotSurface:(start,dir,limit)=>{
+   let hit=null;
+   for(let i=0;i<perimeter.length-1;i++){
+    const p=rayHit(start,dir,limit,perimeter[i],perimeter[i+1]);
+    if(p&&(!hit||p.distance<hit.distance))
+     hit={...p,kind:"board",index:i,a:perimeter[i],b:perimeter[i+1]}
+   }
+   return hit
+  },
+  v64AppendPoint:(points,p)=>{
+   if(!points.length||dist(points.at(-1),p)>.04)points.push({...p})
+  },
+  deepClone:p=>({...p}),dist,
+  polylineLength:pts=>pts.slice(1).reduce((sum,p,i)=>sum+dist(p,pts[i]),0)
+ };
+ vm.runInNewContext(app.slice(startIndex,endIndex)+"\nthis.solve=v60BuildShotPath;",ctx,{timeout:2000});
+ const take=(start,aim,power=8,distance=700)=>ctx.solve(start,aim,power,distance);
+ const check=(name,shot)=>{
+  assert.equal(shot.boardFollow,false,name+" must never follow wall perimeter");
+  assert.ok(shot.bounced,name+" must actually reflect");
+  assert.ok(shot.contacts.some(c=>c.kind==="board"),name+" needs board impact");
+  assert.ok(shot.path.every(inside),name+" crosses puck-safe board face");
+  assert.ok(shot.speedSegments.length>0,name+" needs friction-aware timing");
+  assert.ok(ctx.polylineLength(shot.path)<=700+shot.bounceCount*1.5,
+   name+" must lose, not generate, kinetic travel energy");
+ };
+ const diagonal=take({x:270,y:300},{x:900,y:840});
+ check("diagonal-to-endboard",diagonal);
+ const at=diagonal.contacts[0].point;
+ const index=diagonal.path.findIndex(p=>dist(p,at)<.08);
+ assert.ok(index>=0,"Contact point must occur on the visible shot path");
+ const reflected=diagonal.path.slice(index+1).find(p=>dist(p,at)>20);
+ assert.ok(reflected&&reflected.x>at.x+5&&reflected.y<at.y-5,
+  "Endboard impact should bank up-and-forward, not skid along the wall");
+ const front=take({x:500,y:300},{x:500,y:800});
+ check("perpendicular-board",front);
+ assert.ok(front.path.at(-1).y<front.contacts[0].point.y-25,
+  "Head-on puck should return across the ice with reduced energy");
+ const grazing=take({x:160,y:100},{x:1060,y:0},8,900);
+ assert.equal(grazing.boardFollow,false);
+ const shallow=grazing.contacts[0].point;
+ const graze=grazing.path.slice(grazing.path.findIndex(p=>dist(p,shallow)<.08)+1)
+  .find(p=>dist(p,shallow)>35);
+ assert.ok(graze&&graze.y>shallow.y+1,
+  "A glancing shot must reflect inward, not lock onto the top perimeter");
+ const corner=take({x:760,y:300},{x:1160,y:800});
+ check("rounded-corner",corner);
+ assert.ok(corner.contacts[0].point.x>900&&corner.contacts[0].point.y>510,
+  "Corner ray should strike the curved surface, not a square wall");
+ assert.ok(app.includes('motionProfile:collisions.length||original.bounced?motionProfile:null,'),
+  "Bank speed changes must carry into saved playback");
+ assert.ok(app.includes('const built=v7PhysicalShotTrajectory(origin,aim,mode.power,'),
+  "Aim preview must share exactly the saved collision solver");
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

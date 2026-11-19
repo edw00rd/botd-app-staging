@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.7 Preview — November 19, 2026 (staging only)
+
+- Replaced shallow-shot wall following with angle-correct board reflections on the inset puck-center ice boundary.
+- Decomposed board, goal-post and net impacts into normal restitution and tangential damping; used remaining kinetic energy for rebound distance.
+- Added friction-aware shot playback timing, consistent aiming preview, and automated diagonal, perpendicular, grazing and curved-corner banking tests.
+- Versioned staging only; production and saved-play schema unchanged.
+
+---
+
 ## V7.1.6 Preview — November 19, 2026 (staging only)
 
 - Increased skater number font from 14px to 21px and goalie number font from 16px to 24px (1.5×), leaving token sizes unchanged.

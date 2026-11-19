@@ -1,8 +1,14 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.6 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.7 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.6 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.7 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.7 staging change — November 19, 2026
+
+- Removed the artificial wall-follow rule: even grazing shots now bank according to impact angle on the puck-center board boundary.
+- Applied normal-component restitution, tangential energy loss, ice glide deceleration and curved-corner reflection to board, post and net impacts.
+- Added head-on, diagonal, glancing and rounded-corner regression checks; the preview and recorded shot share the same path solver. Staging only.
 
 ## V7.1.6 staging change — November 19, 2026
 
