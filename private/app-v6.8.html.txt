@@ -8372,7 +8372,7 @@ function v7MultiVisible(t){
  return state.halfSide==="right"?b.maxX>=500:b.minX<=500
 }
 function v7MultiClear(){
- ui.v7MultiIds=[];ui.v7MultiMarquee=null;ui.v7MultiRotate=null;
+ ui.v7MultiIds=[];ui.v7MultiMarquee=null;ui.v7MultiRotate=null;ui.v7MultiMove=null;
  $("#v7MultiLayer")?.replaceChildren()
 }
 function v7MultiChoose(keys){
@@ -8477,6 +8477,67 @@ function v7MultiPivot(snapshot,degrees){
  }
  return true
 }
+/* Rigid translation: clamp an entire multi-selection against the painted
+   rounded boards, rather than pushing individual members out of formation.
+   X then Y clamping allows a blocked diagonal drag to slide along a wall. */
+function v7MultiConstrainTranslation(snapshot,requested){
+ if(!snapshot?.members?.length)return{x:0,y:0};
+ const want={x:Number(requested?.x),y:Number(requested?.y)};
+ if(!Number.isFinite(want.x)||!Number.isFinite(want.y))return{x:0,y:0};
+ const parts=snapshot.members.flatMap(t=>v7MultiParts(t,t.pos,t.rotation));
+ const fits=(dx,dy)=>parts.every(p=>v7IceSignedDistance({
+   x:p.x+dx,y:p.y+dy},state.ice)+p.r<=.00001);
+ if(!fits(0,0))return{x:0,y:0};
+ const limit=(amount,axis,fixed)=>{
+   if(Math.abs(amount)<.000001)return 0;
+   const inside=n=>axis==="x"?fits(n,fixed):fits(fixed,n);
+   if(inside(amount))return round(amount,4);
+   let lo=0,hi=1;
+   for(let i=0;i<24;i++){
+     const mid=(lo+hi)/2;
+     if(inside(amount*mid))lo=mid;else hi=mid
+   }
+   return round(amount*Math.max(0,lo-1e-6),4)
+ };
+ const dx=limit(want.x,"x",0),dy=limit(want.y,"y",dx);
+ return fits(dx,dy)?{x:dx,y:dy}:{x:0,y:0}
+}
+/* Always derive each new position from the ORIGINAL snapshot, not the last
+   animation frame. Paths shift along with their players or pucks. */
+function v7MultiTranslate(snapshot,delta){
+ if(!snapshot?.members?.length)return false;
+ const dx=Number(delta?.x),dy=Number(delta?.y);
+ if(!Number.isFinite(dx)||!Number.isFinite(dy))return false;
+ const at=p=>({x:round(p.x+dx,4),y:round(p.y+dy,4)});
+ for(const t of snapshot.members){
+   if(t.type==="equipment"){
+     const item=v7EquipmentById(t.id);if(!item)continue;
+     const p=at(t.pos);item.x=p.x;item.y=p.y;
+     if(item.goalSide)item.iceAnchor=false
+   }else if(t.type==="player"){
+     if(!state.onIce[t.id])continue;
+     state.onIce[t.id]=at(t.base);
+     for(const track of t.tracks||[]){
+       const clip=state.timeline.movements.find(c=>c.id===track.id);if(!clip)continue;
+       clip.points=track.points.map(p=>v7MultiSlide(t,at(p))||at(p))
+     }
+   }else if(t.type==="puck"){
+     const puck=t.id==="puck"?state.puckStart:v7AdditionalPuckById(t.id);
+     if(!puck)continue;
+     const p=v7ClampPuckToIce(at(t.base));if(p){puck.x=p.x;puck.y=p.y}
+     for(const take of t.routes||[]){
+       const live=state.timeline.puckTakes.find(x=>x.id===take.id);if(!live)continue;
+       for(const original of take.events){
+         const ev=live.events.find(x=>x.id===original.id);if(!ev)continue;
+         for(const field of ["from","target"])if(original[field])
+           ev[field]=v7ClampPuckToIce(at(original[field]))||original[field]
+         // aimVector remains unchanged by translation.
+       }
+     }
+   }
+ }
+ return true
+}
 function v7MultiDelete(){
  const selected=v7MultiTokensSelected();if(selected.length<2)return false;
  const items=selected; // Default nets can be removed by the group minus, too.
@@ -8526,7 +8587,10 @@ function v7MultiDraw(){
  const b=v7MultiBounds(tokens.flatMap(t=>v7MultiParts(t)));
  const top=b.minY-6,center=(b.minX+b.maxX)/2;
  layer.append(svgEl("rect",{x:b.minX-6,y:b.minY-6,width:b.maxX-b.minX+12,
-  height:b.maxY-b.minY+12,rx:5,class:"v7-multi-bounds","pointer-events":"none"}));
+  height:b.maxY-b.minY+12,rx:5,class:"v7-multi-bounds",
+  "data-v7-multi-drag":"1",role:"button",tabindex:0,
+  "aria-label":"Drag to move selected group","pointer-events":"all",
+  style:"cursor:move;touch-action:none"}));
  const rotate=v7MultiViewport({x:center,y:top-30});
  const del=v7MultiViewport({x:b.maxX+24,y:top-7});
  layer.append(svgEl("line",{x1:center,y1:top,x2:rotate.x,y2:rotate.y,
@@ -8560,7 +8624,7 @@ function v7MultiInstall(){
  if(window.__BOTD_MULTI_INSTALLED)return;window.__BOTD_MULTI_INSTALLED=true;
  const style=document.createElement("style");style.id="v7MultiStyles";
  style.textContent=".v7-multi-marquee{fill:#178eb51e;stroke:#0488be;stroke-width:2;stroke-dasharray:8 4;vector-effect:non-scaling-stroke}"+
- ".v7-multi-bounds{fill:none;stroke:#007da8;stroke-width:2.3;stroke-dasharray:7 5;vector-effect:non-scaling-stroke}"+
+ ".v7-multi-bounds{fill:#007da806;stroke:#007da8;stroke-width:2.3;stroke-dasharray:7 5;vector-effect:non-scaling-stroke;cursor:move;touch-action:none}"+
  ".v7-multi-arm{stroke:#087fae;stroke-width:2;vector-effect:non-scaling-stroke}"+
  ".v7-multi-rotate{fill:white;stroke:#087fae;stroke-width:3;vector-effect:non-scaling-stroke}"+
  ".v7-multi-remove{fill:#c62434;stroke:white;stroke-width:2.5;cursor:pointer;vector-effect:non-scaling-stroke}";
