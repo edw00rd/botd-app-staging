@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.2 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.2"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.3 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.3"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1560,31 +1560,28 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(team.numberOverride,null);
  assert.equal(ctx.colors(p).numbers,"#08131e","Reset restores auto contrast");
 }
-/* V7.1.2 rink typography: labels and badges should be legible at NHL token scale,
-   with stable placement and no repurposing of actual roster/bench rendering. */
+/* V7.1.3: preserve V7.1.2 name typography, fully restore V7.1.1 badges. */
 {
- const start=app.indexOf("function v7OnIceBadgePoint(");
- const end=app.indexOf("function v7ScalePlayerSymbols(",start);
- assert.ok(start>0&&end>start,"On-ice badge geometry helpers missing");
- const context={};
- vm.runInNewContext(app.slice(start,end)+
-  "\nthis.badgePoint=v7OnIceBadgePoint;this.labelWidth=v7NameLabelWidth;",context,{timeout:2000});
- const upright=context.badgePoint(12,-8,0),half=context.badgePoint(12,-8,90);
- assert.equal(upright.x,12);assert.equal(upright.y,-8);
- assert.ok(Math.abs(half.x-8)<1e-8&&Math.abs(half.y-12)<1e-8,
-  "Half-ice badges must maintain their screen-relative position");
- assert.ok(context.labelWidth("Celly Kelly")>context.labelWidth("Ed"),
-  "Leadership chip offset should adapt to player name length");
  assert.ok(app.includes(".token-label{fill:#152a3c;font-size:8.6px;font-weight:550"),
-  "Player name labels must use the smaller, lighter V7.1.2 style"); assert.ok(!app.includes(".token-label{font-size:11px}"));
- const scaler=app.slice(end,app.indexOf("/* Shared circular selection marker",end));
- for(const marker of ['token.querySelector(".token-role-badge")',
-  'group.append(roleBadge)','token.querySelector(".token-leadership")?.remove()',
-  'class:"token-leadership-badge"','group.append(chip)',
-  'v7OnIceBadgePoint(offsetX,offsetY,badgeAngle)'])
-  assert.ok(scaler.includes(marker),"Missing readable player badge behavior: "+marker);
- assert.ok(scaler.includes('const badgeAngle=state.view==="half"?v59CounterAngle():0;'),
-  "Role and captain badge orientation must follow half-ice camera");
- assert.ok(app.includes('const V7_UI_VERSION="7.1.2"'));
+  "V7.1.2 smaller lighter name style must remain in place");
+ assert.ok(!app.includes(".token-label{font-size:11px}"),
+  "Old bold name font-size override must not return");
+ assert.ok(app.includes(".token-role-text{font-size:8px;font-weight:950;fill:#20384b;pointer-events:none}"),
+  "Original position badge typography must be restored");
+ assert.ok(app.includes(".token-leadership{font-size:10px;font-weight:950;fill:#0b2133"),
+  "Original C/A lettering must be restored");
+ const start=app.indexOf("function v7ScalePlayerSymbols(");
+ const end=app.indexOf("/* Shared circular selection marker",start);
+ const scaler=app.slice(start,end);
+ assert.ok(scaler.includes('token.querySelectorAll(".token-role-badge").forEach(b=>'),
+  "Position badges must be scaled as part of the original player token");
+ assert.ok(!scaler.includes('group.append(roleBadge)'),
+  "No detached position badges should remain");
+ assert.ok(!scaler.includes('token.querySelector(".token-leadership")?.remove()'),
+  "The original leadership text must remain on the player token");
+ assert.ok(app.includes('const lead=svgEl("text",{class:"token-leadership"'),
+  "Original on-token leadership letters must render");
+ for(const obsolete of ["token-leadership-badge","v7OnIceBadgePoint","v7NameLabelWidth"])
+  assert.ok(!app.includes(obsolete),"V7.1.2 badge code was not fully reverted: "+obsolete);
 }
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

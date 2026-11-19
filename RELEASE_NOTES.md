@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.3 Preview — November 19, 2026 (staging only)
+
+- Reverted the V7.1.2 position badges to their V7.1.1 shapes, dimensions, type, positioning, scaling, and half-ice behavior.
+- Reverted captain/alternate indicators to the original compact on-token C/A lettering. Removed the gold leadership chips and their independent geometry and styling.
+- **Kept the V7.1.2 smaller, medium-weight player names and thin white outline**, as requested.
+- Added regression tests to guard against reintroducing the detached position badges or gold leadership chips. No data, saved-play format, payment, or production changes.
+
+---
+
 ## V7.1.2 Preview — November 19, 2026 (staging only)
 
 - Rebalanced player name labels: smaller 8.6-unit text, medium 550 weight, and a restrained 1.5-unit white readability halo instead of the former heavy bold/3-unit outline.
