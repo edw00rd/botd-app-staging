@@ -8637,6 +8637,12 @@ function v7MultiInstall(){
  window.addEventListener("pointerdown",e=>{
   if(!svg?.contains(e.target)||e.button!==0||!v7MultiEnabled())return;
   if(e.target.closest?.("[data-v7-multi-remove]")){intercept(e);v7MultiDelete();return}
+  if(e.target.closest?.("[data-v7-multi-drag]")){
+   intercept(e);const snapshot=v7MultiSnapshot();if(!snapshot)return;
+   ui.v7MultiMove={pointerId:e.pointerId,snapshot,start:v7MultiWorldPoint(e),
+     client:{x:e.clientX,y:e.clientY},changed:false};
+   try{svg.setPointerCapture(e.pointerId)}catch{}return
+  }
   if(e.target.closest?.("[data-v7-multi-rotate]")){
    intercept(e);const snapshot=v7MultiSnapshot();if(!snapshot)return;
    const p=v7MultiWorldPoint(e),angle=Math.atan2(p.y-snapshot.center.y,p.x-snapshot.center.x);
@@ -8653,6 +8659,16 @@ function v7MultiInstall(){
   try{svg.setPointerCapture(e.pointerId)}catch{}
  },true);
  window.addEventListener("pointermove",e=>{
+  const moving=ui.v7MultiMove;
+  if(moving?.pointerId===e.pointerId){
+   intercept(e);
+   const p=v7MultiWorldPoint(e),delta=v7MultiConstrainTranslation(moving.snapshot,
+     {x:p.x-moving.start.x,y:p.y-moving.start.y});
+   if(!moving.changed&&Math.hypot(e.clientX-moving.client.x,e.clientY-moving.client.y)<4)return;
+   if(!moving.changed&&Math.hypot(delta.x,delta.y)<.001)return;
+   if(!moving.changed)pushHistory();
+   moving.changed=true;v7MultiTranslate(moving.snapshot,delta);renderFrame(ui.playhead);return
+  }
   const marquee=ui.v7MultiMarquee;
   if(marquee?.pointerId===e.pointerId){
    intercept(e);marquee.end=v7MultiWorldPoint(e);
@@ -8668,6 +8684,13 @@ function v7MultiInstall(){
   drag.changed=true;v7MultiPivot(drag.snapshot,drag.total*180/Math.PI);renderFrame(ui.playhead)
  },true);
  const finish=e=>{
+  const moving=ui.v7MultiMove;
+  if(moving?.pointerId===e.pointerId){
+   intercept(e);ui.v7MultiMove=null;
+   if(moving.changed){syncActiveVariation();scheduleSave();renderAll()}
+   else renderFrame(ui.playhead);
+   return
+  }
   const rotating=ui.v7MultiRotate;
   if(rotating?.pointerId===e.pointerId){
    intercept(e);ui.v7MultiRotate=null;
@@ -8693,6 +8716,14 @@ function v7MultiInstall(){
   if(!ui.v7MultiIds?.length)return;
   if(e.target?.matches?.("input,select,textarea")||e.target?.isContentEditable)return;
   if(e.key==="Escape"){intercept(e);v7MultiClear()}
+  else if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)&&ui.v7MultiIds.length>=2){
+   intercept(e);const snapshot=v7MultiSnapshot();if(!snapshot)return;
+   const step=e.shiftKey?10:2,dx=e.key==="ArrowLeft"?-step:e.key==="ArrowRight"?step:0,
+     dy=e.key==="ArrowUp"?-step:e.key==="ArrowDown"?step:0;
+   const delta=v7MultiConstrainTranslation(snapshot,{x:dx,y:dy});
+   if(Math.hypot(delta.x,delta.y)<.001)return;
+   pushHistory();v7MultiTranslate(snapshot,delta);syncActiveVariation();renderAll();scheduleSave();return
+  }
   else if((e.key==="Delete"||e.key==="Backspace")&&ui.v7MultiIds.length>=2){
    intercept(e);v7MultiDelete()
   }else if((e.key==="Enter"||e.key===" ")&&e.target.closest?.("[data-v7-multi-remove]")){
@@ -8701,6 +8732,10 @@ function v7MultiInstall(){
  },true);
  Object.assign(window.BOTD_TEST,{groupSelected:()=>[...(ui.v7MultiIds||[])],
   groupSelect:keys=>v7MultiChoose(keys),
+  groupTranslate:(dx,dy)=>{const snapshot=v7MultiSnapshot();if(!snapshot)return false;
+   const delta=v7MultiConstrainTranslation(snapshot,{x:dx,y:dy});
+   if(Math.hypot(delta.x,delta.y)<.001)return false;
+   pushHistory();v7MultiTranslate(snapshot,delta);syncActiveVariation();renderAll();scheduleSave();return delta},
   groupRotate:deg=>{const x=v7MultiSnapshot();if(!x)return false;pushHistory();v7MultiPivot(x,deg);syncActiveVariation();renderAll();return true},
   groupDelete:v7MultiDelete});
  v7MultiDraw()
