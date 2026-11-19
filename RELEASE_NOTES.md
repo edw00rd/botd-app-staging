@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.1 Preview — November 19, 2026 (staging only)
+
+- Removed the misleading gray **Bench** circle and label from the dedicated player/team color editor. It was not an accurate representation of actual bench tokens.
+- Kept the single live **On ice** color preview, including goalie/staff token shapes, and preserved Primary, Trim, Numbers, Grid, Spectrum, Sliders, automatic number contrast, and Apply/Cancel behavior.
+- Removed unused Bench-thumbnail styling and JavaScript updates; left real bench rendering and player bench actions untouched.
+- Advanced the visible preview version to **V7.1.1 Preview** and added regression assertions. No changes to saved-play format, billing, database, or production.
+
+---
+
 ## V7.1 Preview — November 19, 2026 (staging only)
 
 **Status:** Staging preview, not promoted to production. The visible upper-left UI version is **V7.1 Preview**; the stable release and saved-play compatibility format remain **6.8.2**.

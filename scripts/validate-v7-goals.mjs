@@ -1484,9 +1484,12 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const dialog=app.slice(start,end);
  for(const marker of ['data-v7pc-slot="primary"','data-v7pc-slot="trim"','data-v7pc-slot="numbers"',
   'data-v7pc-method="grid"','data-v7pc-method="spectrum"','data-v7pc-method="sliders"',
-  'id="v7pcIceToken"','id="v7pcBenchToken"','id="v7pcReset"','id="v7pcCancel"','id="v7pcApply"'])
+  'id="v7pcIceToken"','id="v7pcReset"','id="v7pcCancel"','id="v7pcApply"'])
   assert.ok(dialog.includes(marker),"Player-color dialog missing "+marker);
  assert.ok(!/markerWidth|LINE PATTERN|ARROW ENDING|data-v61-marker/.test(dialog));
+ assert.ok(!app.includes('v7pcBenchToken'),"Obsolete bench thumbnail must not be referenced");
+ assert.ok(!dialog.includes('v7pc-token bench'),"No misleading Bench preview in color dialog");
+ assert.equal((dialog.match(/class="v7pc-mini"/g)||[]).length,1,"Only the on-ice preview should remain");
  assert.ok(app.includes('if(target?.type==="player")return v7OpenPlayerColorDialog(target.id)'));
  assert.ok(app.includes('p.primaryOverride=null;p.trimOverride=null;p.numberOverride=null;'));
  assert.equal((app.match(/fill:colors\.numbers/g)||[]).length,2,
@@ -1523,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.1 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.1"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));

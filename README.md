@@ -1,12 +1,17 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.1 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.1 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
 
-## Latest V7.1 staging changes — November 19, 2026
+## V7.1.1 staging change — November 19, 2026
 
-- Dedicated team and player color customization: Primary, Trim and Numbers, each with Grid, Spectrum and RGB Sliders, plus live on-ice/bench preview. Drawing-tool controls have their own editor.
+- Removed the inaccurate gray **Bench** color preview from the player/team color editor; the sole live **On ice** preview remains. Color editing and the actual bench display are unchanged.
+- Updated the visible upper-left preview version and regression checks; staged only, not production.
+
+## Previous V7.1 staging changes — November 19, 2026
+
+- Dedicated team and player color customization: Primary, Trim and Numbers, each with Grid, Spectrum and RGB Sliders, plus live preview. Drawing-tool controls have their own editor.
 - Team number-color defaults flow through to players unless an individual player overrides them.
 - Optimized Player Movement checkbox for consistent, game-like speed, preserving trace-based timing as the default.
 - Symmetrical center-faceoff starting positions, aligned number typography, group move/rotate, puck-pile controls, improved nets and puck collisions.
