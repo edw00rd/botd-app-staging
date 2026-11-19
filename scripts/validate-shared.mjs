@@ -236,7 +236,7 @@ assert.ok(app.includes('BOTD Playbook v6\\.8\\.1'),'The v6.8.2 release must reta
 assert.ok(app.includes('V7 Preview: coaching tools ready for staging evaluation.'));
 assert.ok(shell.includes('V7.1.6 Preview'));
 assert.ok(!shell.includes('class="brand-version">Version 6.8.2</span>'));
-assert.ok(shell.includes('class="brand-version" title="V7.1.5 staging UI · compatible with 6.8.2 play files">V7.1.6 Preview</span>'));
+assert.ok(shell.includes('class="brand-version" title="V7.1.6 staging UI · compatible with 6.8.2 play files">V7.1.6 Preview</span>'));
 assert.ok(app.includes('V7.1.6 Preview · staging'));
 assert.ok(worker.includes('const STAGING_PREVIEW_VERSION = "7.0.0-preview.1";'));
 assert.ok(worker.includes('previewVersion: isLive(env) ? null : STAGING_PREVIEW_VERSION'));
