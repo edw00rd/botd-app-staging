@@ -1426,6 +1426,17 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 /* Player-movement setting must honor traced timing by default and use
    uniform real-ice pace when requested, without losing Skate time overrides. */
 {
+ assert.ok(app.includes('id="playerMovementSettingsCard"><h3>Player Movement</h3>'),
+  "Optimized Player Movement needs an independently named settings card");
+ assert.ok(app.includes('id="centerLogoSettingsCard"><h3>Center-Ice Logo</h3>'),
+  "Center-ice settings must keep its own heading");
+ const translateStart=app.indexOf("function applyStaticTranslations(){");
+ const translateEnd=app.indexOf("function ",translateStart+11);
+ const translation=app.slice(translateStart,translateEnd>translateStart?translateEnd:translateStart+12000);
+ assert.ok(translation.includes('["#centerLogoSettingsCard h3","centerLogo"]'));
+ assert.ok(translation.includes('const centerHelp=$("#centerLogoSettingsCard p.help");'));
+ assert.ok(!translation.includes("#tab-settings .section-card:nth-of-type(3)"),
+  "Positional logo localization overwrites movement heading/help");
  assert.ok(app.includes('id="optimizedPlayerMovement" type="checkbox"'));
  assert.ok(app.includes('optimizedPlayerMovement:false'));
  assert.ok(app.includes('optimizedCheckbox.checked=state.display.optimizedPlayerMovement===true'));
