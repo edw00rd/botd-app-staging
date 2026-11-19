@@ -1,8 +1,14 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.3 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.4 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.3 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.4 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.4 staging change — November 19, 2026
+
+- Increased only the on-ice Captain/Alternate C/A leadership letter font from **10px to 12px (+20%)** within the original on-token badge.
+- Kept V7.1.3 position badge appearance and placement, the smaller/lighter player names, and all other rink geometry unchanged.
+- Updated staged preview version, regression tests, and release notes. Production remains unchanged.
 
 ## V7.1.3 staging change — November 19, 2026
 
@@ -36,7 +42,7 @@ Copyright © 2026 FENRIR LLC. All rights reserved.
 
 
 
-The following sections document the historical v6.8.2 baseline, not the current V7.1.3 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
+The following sections document the historical v6.8.2 baseline, not the current V7.1.4 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
 
 ## Included scope
 

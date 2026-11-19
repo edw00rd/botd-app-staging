@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.4 Preview — November 19, 2026 (staging only)
+
+- Slightly enlarged on-ice Captain (C) and Alternate (A) letters from 10px to 12px in the original V7.1.1-style token markers.
+- Preserved the existing location, badge styling, position markers, smaller player names, goalie behavior, and full/half ice rendering.
+- Incremented the visible UI version and added a font-size regression assertion. Staging only; no production, saved-play schema, or backend changes.
+
+---
+
 ## V7.1.3 Preview — November 19, 2026 (staging only)
 
 - Reverted the V7.1.2 position badges to their V7.1.1 shapes, dimensions, type, positioning, scaling, and half-ice behavior.
