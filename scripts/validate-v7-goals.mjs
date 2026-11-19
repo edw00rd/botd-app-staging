@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.1 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.1"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.2 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.2"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1559,5 +1559,32 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(team.primary,"#00FC05");assert.equal(team.trim,"#000000");
  assert.equal(team.numberOverride,null);
  assert.equal(ctx.colors(p).numbers,"#08131e","Reset restores auto contrast");
+}
+/* V7.1.2 rink typography: labels and badges should be legible at NHL token scale,
+   with stable placement and no repurposing of actual roster/bench rendering. */
+{
+ const start=app.indexOf("function v7OnIceBadgePoint(");
+ const end=app.indexOf("function v7ScalePlayerSymbols(",start);
+ assert.ok(start>0&&end>start,"On-ice badge geometry helpers missing");
+ const context={};
+ vm.runInNewContext(app.slice(start,end)+
+  "\nthis.badgePoint=v7OnIceBadgePoint;this.labelWidth=v7NameLabelWidth;",context,{timeout:2000});
+ const upright=context.badgePoint(12,-8,0),half=context.badgePoint(12,-8,90);
+ assert.equal(upright.x,12);assert.equal(upright.y,-8);
+ assert.ok(Math.abs(half.x-8)<1e-8&&Math.abs(half.y-12)<1e-8,
+  "Half-ice badges must maintain their screen-relative position");
+ assert.ok(context.labelWidth("Celly Kelly")>context.labelWidth("Ed"),
+  "Leadership chip offset should adapt to player name length");
+ assert.ok(app.includes(".token-label{fill:#152a3c;font-size:8.6px;font-weight:550"),
+  "Player name labels must use the smaller, lighter V7.1.2 style"); assert.ok(!app.includes(".token-label{font-size:11px}"));
+ const scaler=app.slice(end,app.indexOf("/* Shared circular selection marker",end));
+ for(const marker of ['token.querySelector(".token-role-badge")',
+  'group.append(roleBadge)','token.querySelector(".token-leadership")?.remove()',
+  'class:"token-leadership-badge"','group.append(chip)',
+  'v7OnIceBadgePoint(offsetX,offsetY,badgeAngle)'])
+  assert.ok(scaler.includes(marker),"Missing readable player badge behavior: "+marker);
+ assert.ok(scaler.includes('const badgeAngle=state.view==="half"?v59CounterAngle():0;'),
+  "Role and captain badge orientation must follow half-ice camera");
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.2"'));
 }
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.1 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.2 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.1 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.2 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.2 staging change — November 19, 2026
+
+- Reduced on-ice player name labels to 8.6 SVG units with medium weight and a thinner white contrast halo, preventing labels from overpowering NHL-scaled player symbols.
+- Detached position badges from scaled player art, using consistently sized white/dark outlined badges and readable abbreviations for skaters, goalie, and staff.
+- Replaced tiny unsupported on-token C/A letters with gold Captain/Alternate Captain chips beside visible player names (and beside the token when names are hidden). Kept both badges upright in half-ice view.
+- Preserved player number rendering, role visibility options, and saved-play compatibility; no production changes.
 
 ## V7.1.1 staging change — November 19, 2026
 

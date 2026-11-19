@@ -1,5 +1,15 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.2 Preview — November 19, 2026 (staging only)
+
+- Rebalanced player name labels: smaller 8.6-unit text, medium 550 weight, and a restrained 1.5-unit white readability halo instead of the former heavy bold/3-unit outline.
+- Moved position badges out of scaled player-token artwork, allowing uniform legible badge sizes and darker high-contrast text across LW, C, RW, LD, RD, G and staff roles.
+- Rendered Captain (C) and Alternate (A) leadership indicators as separate gold/dark outlined rounded chips beside the player label, falling back beside the token when names are hidden.
+- Counter-rotated role and leadership badges in half-ice mode so their text stays upright, without changing underlying player positions or routes.
+- Added regression tests for badge positioning, label weights, badge presentation and the updated V7.1.2 version. Staging only; play schema, production, billing and data storage unchanged.
+
+---
+
 ## V7.1.1 Preview — November 19, 2026 (staging only)
 
 - Removed the misleading gray **Bench** circle and label from the dedicated player/team color editor. It was not an accurate representation of actual bench tokens.
