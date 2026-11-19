@@ -943,6 +943,33 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
 
 </style>
 
+<style id="v7PlayerColorCss">
+#v7PlayerColorDialog{width:min(550px,94vw);max-width:min(550px,94vw);max-height:88dvh;padding:0;border-radius:17px;background:var(--panel);color:var(--text);border:1px solid var(--line);overflow:hidden}
+#v7PlayerColorDialog[open]{display:flex;flex-direction:column}
+#v7PlayerColorDialog .dialog-head{padding:15px 18px;border-color:var(--line)}
+#v7PlayerColorDialog .dialog-head h2{font-size:18px}
+#v7PlayerColorDialog .dialog-head p{font-size:11px;color:var(--muted);line-height:1.45}
+.v7pc-main{min-height:0;overflow-y:auto;display:grid;gap:14px;padding:15px 18px}
+.v7pc-preview{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:13px}
+.v7pc-preview strong{display:block;font-size:13px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v7pc-preview small{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+.v7pc-tokens{display:flex;align-items:center;gap:15px}.v7pc-mini{display:grid;justify-items:center;gap:6px}
+.v7pc-mini small{margin:0;font-size:9px}.v7pc-token{width:47px;height:47px;border:5px solid var(--v7pc-trim);border-radius:50%;background:var(--v7pc-primary);color:var(--v7pc-number);display:grid;place-items:center;font-size:14px;line-height:1;font-weight:950;font-variant-numeric:tabular-nums;box-shadow:0 2px 5px #0003}
+.v7pc-token.bench{width:38px;height:38px;border-width:4px;font-size:11px}.v7pc-token.goalie{width:40px;height:53px;border-radius:7px;background:repeating-linear-gradient(90deg,var(--v7pc-primary) 0 8px,var(--v7pc-trim) 8px 11px,var(--v7pc-primary) 11px 18px)}.v7pc-token.goalie.bench{width:35px;height:45px}
+.v7pc-token.staff{width:54px;height:43px;border-radius:7px}.v7pc-token.staff.bench{width:48px;height:36px}
+.v7pc-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.v7pc-slot{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;min-width:0;text-align:left;padding:9px;cursor:pointer}
+.v7pc-slot[aria-pressed="true"]{border-color:#087ccf;box-shadow:0 0 0 2px #1998ec55}.v7pc-slot-heading{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:850}.v7pc-swatch{width:18px;height:18px;flex:none;border:1px solid #8ba0af;border-radius:5px}
+.v7pc-hexsmall{display:block;font-size:10px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+.v7pc-tabs{display:flex;gap:6px}.v7pc-tab{background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:7px 14px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer}.v7pc-tab[aria-selected="true"]{background:#0057b8;color:white;border-color:#0057b8}
+.v7pc-panel[hidden]{display:none!important}.v7pc-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}.v7pc-grid button{height:35px;border:2px solid transparent;border-radius:8px;cursor:pointer;min-width:0}.v7pc-grid button[aria-pressed="true"]{outline:2px solid #1582cf;outline-offset:2px}
+#v7pcSpectrum{width:100%;height:82px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;padding:4px}
+.v7pc-rgb{display:grid;grid-template-columns:14px minmax(0,1fr) 62px;align-items:center;gap:7px;padding:5px 0;font-size:11px}.v7pc-rgb input[type="range"]{width:100%}.v7pc-rgb input[type="number"]{width:62px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:6px;padding:6px}
+.v7pc-hexrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px}.v7pc-hexrow label{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800}#v7pcHex{width:98px;border:1px solid var(--line);border-radius:6px;padding:6px;background:var(--panel2);color:var(--text);font-family:monospace;font-size:12px}
+#v7pcAuto{border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:10px;padding:7px;border-radius:7px;cursor:pointer}#v7pcAuto[hidden]{display:none}
+.v7pc-help{font-size:10px;color:var(--muted);line-height:1.45;margin:0}
+#v7PlayerColorDialog .dialog-actions{border-color:var(--line);display:flex;gap:7px;padding:11px 15px}#v7pcReset{margin-right:auto}
+#v7PlayerColorDialog button:focus-visible,#v7PlayerColorDialog input:focus-visible{outline:2px solid #148ad3;outline-offset:2px}
+@media(max-width:480px){.v7pc-main{padding:12px;gap:11px}.v7pc-preview{padding:10px}.v7pc-preview strong{max-width:130px}.v7pc-tokens{gap:8px}.v7pc-grid{gap:5px}.v7pc-grid button{height:30px}.v7pc-slot{padding:7px}.v7pc-slot-heading{font-size:10px}#v7PlayerColorDialog .dialog-actions .btn{padding:6px 8px;font-size:10px}}
+</style>
 </head>
 <body class="theme-light left-hidden right-hidden timeline-hidden">
 <header class="topbar">
@@ -1096,6 +1123,35 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
 <div class="toast" id="toast"></div>
 
 
+<dialog id="v7PlayerColorDialog" aria-labelledby="v7pcTitle">
+<div class="dialog-head"><h2 id="v7pcTitle">Player colors</h2><p>Customize primary, trim and jersey numbers without changing drawing tools.</p></div>
+<div class="v7pc-main">
+<div class="v7pc-preview" id="v7pcPreview"><div><strong id="v7pcName"></strong><small>Live preview</small></div><div class="v7pc-tokens">
+<div class="v7pc-mini"><span class="v7pc-token" id="v7pcIceToken"></span><small>On ice</small></div>
+<div class="v7pc-mini"><span class="v7pc-token bench" id="v7pcBenchToken"></span><small>Bench</small></div>
+</div></div>
+<div class="v7pc-slots" role="group" aria-label="Color to customize">
+<button class="v7pc-slot" type="button" data-v7pc-slot="primary" aria-pressed="true"><span class="v7pc-slot-heading"><span class="v7pc-swatch"></span>Primary</span><small class="v7pc-hexsmall"></small></button>
+<button class="v7pc-slot" type="button" data-v7pc-slot="trim" aria-pressed="false"><span class="v7pc-slot-heading"><span class="v7pc-swatch"></span>Trim</span><small class="v7pc-hexsmall"></small></button>
+<button class="v7pc-slot" type="button" data-v7pc-slot="numbers" aria-pressed="false"><span class="v7pc-slot-heading"><span class="v7pc-swatch"></span>Numbers</span><small class="v7pc-hexsmall"></small></button>
+</div>
+<div class="v7pc-tabs" role="tablist" aria-label="Color selection method">
+<button class="v7pc-tab" type="button" data-v7pc-method="grid" role="tab" aria-selected="true">Grid</button>
+<button class="v7pc-tab" type="button" data-v7pc-method="spectrum" role="tab" aria-selected="false">Spectrum</button>
+<button class="v7pc-tab" type="button" data-v7pc-method="sliders" role="tab" aria-selected="false">Sliders</button>
+</div>
+<div class="v7pc-panel" id="v7pcGridPanel" role="tabpanel"><div class="v7pc-grid" id="v7pcGrid"></div></div>
+<div class="v7pc-panel" id="v7pcSpectrumPanel" role="tabpanel" hidden><input type="color" id="v7pcSpectrum" aria-label="Choose player color on the spectrum"></div>
+<div class="v7pc-panel" id="v7pcSlidersPanel" role="tabpanel" hidden>
+<label class="v7pc-rgb"><b>R</b><input type="range" min="0" max="255" data-v7pc-range="r" aria-label="Red"><input type="number" min="0" max="255" data-v7pc-number="r" aria-label="Red value"></label>
+<label class="v7pc-rgb"><b>G</b><input type="range" min="0" max="255" data-v7pc-range="g" aria-label="Green"><input type="number" min="0" max="255" data-v7pc-number="g" aria-label="Green value"></label>
+<label class="v7pc-rgb"><b>B</b><input type="range" min="0" max="255" data-v7pc-range="b" aria-label="Blue"><input type="number" min="0" max="255" data-v7pc-number="b" aria-label="Blue value"></label>
+</div>
+<div class="v7pc-hexrow"><label>HEX <input type="text" maxlength="7" id="v7pcHex" spellcheck="false" aria-label="Hexadecimal color code"></label><button type="button" id="v7pcAuto" hidden>Auto number contrast</button></div>
+<p class="v7pc-help">Choose a color above, then edit it using Grid, Spectrum or Sliders. Number color uses automatic contrast until you customize it.</p>
+</div>
+<div class="dialog-actions"><button class="btn small" type="button" id="v7pcReset">Use team colors</button><button class="btn" type="button" id="v7pcCancel">Cancel</button><button class="btn primary" type="button" id="v7pcApply">Apply colors</button></div>
+</dialog>
 <dialog id="colorDialog"><div class="dialog-head"><h2 id="colorDialogTitle">Choose color</h2><p>Use the same Grid, Spectrum, or Sliders workflow throughout the app.</p></div><div class="dialog-body"><div class="button-row" id="colorRoleRow" style="margin-bottom:10px"><button class="btn small primary" data-color-role="primary">Primary</button><button class="btn small" data-color-role="trim">Trim</button></div><div class="color-tabs"><button class="color-tab active" data-color-tab="grid">Grid</button><button class="color-tab" data-color-tab="spectrum">Spectrum</button><button class="color-tab" data-color-tab="sliders">Sliders</button></div><div class="color-panel active" id="color-grid-panel"><div class="color-grid" id="colorGrid"></div></div><div class="color-panel" id="color-spectrum-panel"><input id="spectrumColor" type="color" value="#111827" style="width:100%;height:120px;border:0;background:transparent"></div><div class="color-panel" id="color-sliders-panel"><div class="rgb-row"><b>R</b><input id="rSlider" type="range" min="0" max="255"><input id="rNumber" type="number" min="0" max="255"></div><div class="rgb-row"><b>G</b><input id="gSlider" type="range" min="0" max="255"><input id="gNumber" type="number" min="0" max="255"></div><div class="rgb-row"><b>B</b><input id="bSlider" type="range" min="0" max="255"><input id="bNumber" type="number" min="0" max="255"></div></div><div class="color-preview" id="colorPreview"></div><div class="field" id="markerWidthField" hidden><span>Marker width</span><input id="markerWidthDialog" type="range" min="2" max="24" value="6" step="1"></div></div><div class="dialog-actions"><button class="btn" id="cancelColorBtn">Cancel</button><button class="btn primary" id="applyColorBtn">Apply</button></div></dialog>
 <dialog id="confirmDialog"><div class="dialog-head"><h2 id="confirmTitle">Confirm</h2><p id="confirmText"></p></div><div class="dialog-actions"><button class="btn" id="confirmCancel">Cancel</button><button class="btn danger" id="confirmOkay">Confirm</button></div></dialog>
 <script>
@@ -1218,7 +1274,7 @@ const namesA=["Puck Norris","Dangleberry Finn","Snipeasaurus-Rex","Bardown Barry
 const namesB=["Toe-Drag Tammy","Celly Kelly","Saucer Sammy","Breakaway Brenda","Deke-a-saurus Dan","Muffin McGee","Top-Shelf Tessa","Coast-to-Coast Cody","Forecheck Frankie","Biscuit McGlove","Rocket Roxy","Twiggy Trevor","Blue-Line Belinda","Pinch-Happy Pete","Slot-Machine Sheila","Backdoor Bobby","Hip-Check Holly","Icing Isaac","Five-Hole Fiona","Pads O'Malley","Flamingo Phil","Puck-Bucket Peggy"];
 const positions=["LW","C","RW","LW","C","RW","LW","C","RW","LW","C","RW","LD","RD","LD","RD","LD","RD","G","G","COACH","MANAGER"];
 const lineNos=[1,1,1,2,2,2,3,3,3,4,4,4,1,1,2,2,3,3,0,0,0,0];
-function makeRoster(teamId,names){return names.map((name,i)=>({id:`${teamId}_${i+1}`,teamId,name,number:i<18?String(i+7):i===18?"30":i===19?"35":"",position:positions[i],line:lineNos[i],role:i<18?"skater":i<20?"goalie":i===20?"coach":"manager",hand:i%2?"LH":"RH",captain:i===1,alternate:i===0||i===2,primaryOverride:null,trimOverride:null,glow:{enabled:false,color:null,brightness:65,blink:true,rate:1.2}}))}
+function makeRoster(teamId,names){return names.map((name,i)=>({id:`${teamId}_${i+1}`,teamId,name,number:i<18?String(i+7):i===18?"30":i===19?"35":"",position:positions[i],line:lineNos[i],role:i<18?"skater":i<20?"goalie":i===20?"coach":"manager",hand:i%2?"LH":"RH",captain:i===1,alternate:i===0||i===2,primaryOverride:null,trimOverride:null,numberOverride:null,glow:{enabled:false,color:null,brightness:65,blink:true,rate:1.2}}))}
 
 /* Version 5.2: canonical pieces, safe track editing, and reusable play options. */
 /* Baseline faceoff mirrors the left-team layout exactly across center ice. */
@@ -1503,7 +1559,7 @@ function redo(){if(!ui.future.length)return toast("Nothing to redo.");ui.history
 function teamById(id){return state.teams.find(t=>t.id===id)}
 function allRoster(){return [...state.rosters.A,...state.rosters.B]}
 function playerById(id){return allRoster().find(p=>p.id===id)||null}
-function playerColors(player){const team=teamById(player.teamId);return{primary:player.primaryOverride||team.primary,trim:player.trimOverride||team.trim}}
+function playerColors(player){const team=teamById(player.teamId),primary=player.primaryOverride||team.primary;return{primary,trim:player.trimOverride||team.trim,numbers:v7pcHexColor(player.numberOverride,contrastText(primary))}}
 function rosterSort(a,b){
   const rank=p=>p.role==="skater"?(p.position==="C"?0:p.position==="LW"?1:p.position==="RW"?2:p.position==="LD"?3:4):p.role==="goalie"?20:p.role==="coach"?30:31;
   const group=p=>p.role==="skater"?((p.position==="LD"||p.position==="RD")?p.line*2-1:p.line*2-2):20;
@@ -1673,7 +1729,7 @@ function renderBenches(){
       const c=playerColors(p),tok=document.createElement("button"),roleClass=p.role==="goalie"?"goalie":p.role==="coach"||p.role==="manager"?"staff":"skater";
       const lineText=p.role==="skater"?(p.position==="LD"||p.position==="RD"?`D Pair ${p.line} · ${p.position}`:`F Line ${p.line} · ${p.position}`):p.role==="goalie"?"Goalie":p.role==="coach"?"Head Coach":"Manager";
       const badge=p.role==="coach"?"HC":p.role==="manager"?"MGR":p.role==="goalie"?(p.number||"G"):(p.number||p.position);
-      tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",contrastText(c.primary));
+      tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",c.numbers);
       tok.innerHTML=`<span class="bench-piece"><span>${escapeHtml(badge)}</span></span><span class="bench-card-copy"><strong>${escapeHtml(p.name||"Blank token")}</strong><small>${p.number?`#${escapeHtml(p.number)} · `:""}${escapeHtml(p.position)}${p.hand?` · ${escapeHtml(p.hand)}`:""}</small><em>${escapeHtml(lineText)}</em></span>`;root.appendChild(tok)
     }
   }
@@ -1689,13 +1745,13 @@ function renderObjectLayer(time){
     if(p.role==="goalie"){
       token.append(svgEl("rect",{x:-24,y:-30,width:48,height:60,rx:8,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
       token.append(svgEl("path",{d:"M-13 -22V22M0 -22V22M13 -22V22",fill:"none",stroke:colors.trim,"stroke-width":3.5,"stroke-linecap":"round"}));
-      if(state.display.numbers&&p.number){const number=svgEl("text",{class:"token-number goalie-token-number",x:0,y:0,dy:".1em","text-anchor":"middle","dominant-baseline":"middle",fill:contrastText(colors.primary)});number.textContent=p.number;token.append(number)}
+      if(state.display.numbers&&p.number){const number=svgEl("text",{class:"token-number goalie-token-number",x:0,y:0,dy:".1em","text-anchor":"middle","dominant-baseline":"middle",fill:colors.numbers});number.textContent=p.number;token.append(number)}
       addBadge(token,"G",22,-26)
     }else if(p.role==="coach"||p.role==="manager"){
       token.append(svgEl("rect",{x:-30,y:-22,width:60,height:44,rx:7,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));token.append(svgEl("path",{d:"M-21 0H21",stroke:colors.trim,"stroke-width":5,"stroke-linecap":"round"}));addBadge(token,p.role==="coach"?"HC":"MGR",27,-21)
     }else{
       token.append(svgEl("circle",{r:23,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
-      if(state.display.numbers&&p.number){const number=svgEl("text",{class:"token-number","text-anchor":"middle",y:5,fill:contrastText(colors.primary)});number.textContent=p.number;token.append(number)}
+      if(state.display.numbers&&p.number){const number=svgEl("text",{class:"token-number","text-anchor":"middle",y:5,fill:colors.numbers});number.textContent=p.number;token.append(number)}
       if(state.display.positions)addBadge(token,p.position,20,-20)
     }
     if(state.display.leadership&&(p.captain||p.alternate)){const lead=svgEl("text",{class:"token-leadership","text-anchor":"middle",x:-19,y:27});lead.textContent=p.captain?"C":"A";token.append(lead)}
@@ -1739,7 +1795,7 @@ function closeRight({clearSelection=false}={}){toggleRight(false);if(clearSelect
 function selectItem(type,id,open=true){ui.selectedType=type;ui.selectedId=id;if(type!=="puck"&&type!=="event")ui.possessionTargetId=null;if(open)openRight();renderInspector();renderTimeline();renderFrame(ui.playhead)}
 function playerIdentityHtml(p,kind="player"){
   const c=playerColors(p),role=p.role==="goalie"?"goalie":p.role==="coach"||p.role==="manager"?"staff":"skater",label=p.role==="coach"?"HC":p.role==="manager"?"MGR":p.role==="goalie"?"G":p.number||p.position;
-  return`<div class="identity-card"><div class="identity-token ${role}" style="--piece-primary:${c.primary};--piece-trim:${c.trim};--piece-ink:${contrastText(c.primary)}"><span>${escapeHtml(label)}</span></div><div><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(teamById(p.teamId).name)} · ${escapeHtml(p.position)}${p.line?` · ${p.position==="LD"||p.position==="RD"?"Pair":"Line"} ${p.line}`:""} · ${p.hand}</small></div></div>`
+  return`<div class="identity-card"><div class="identity-token ${role}" style="--piece-primary:${c.primary};--piece-trim:${c.trim};--piece-ink:${c.numbers}"><span>${escapeHtml(label)}</span></div><div><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(teamById(p.teamId).name)} · ${escapeHtml(p.position)}${p.line?` · ${p.position==="LD"||p.position==="RD"?"Pair":"Line"} ${p.line}`:""} · ${p.hand}</small></div></div>`
 }
 function renderInspectorBase(){
   const root=$("#inspectorContent"),title=$("#inspectorTitle"),sub=$("#inspectorSubtitle");if(!root)return;
@@ -1866,7 +1922,7 @@ function onTimelinePointerMove(event){
 function onTimelinePointerUp(){if(!ui.timelineDragging)return;const d=ui.timelineDragging;ui.timelineDragging=null;if(d.kind==="clip"){const clip=state.timeline.movements.find(c=>c.id===d.id);if(clip)sanitizeMovementTracks(clip.playerId)}renderTimeline();renderInspector();renderFrame(ui.playhead);scheduleSave()}
 const COLOR_GRID=["#000000","#FFFFFF","#6B7280","#111827","#EF4444","#F97316","#FEFE00","#84CC16","#00FC05","#10B981","#14B8A6","#39D8FF","#0EA5E9","#2563EB","#4338CA","#8B5CF6","#F100F3","#EC4899","#BE123C","#7C2D12","#92400E","#78350F","#14532D","#164E63"];
 function syncColorControls(hex){ui.colorValue=hex.toUpperCase();const rgb=hexToRgb(ui.colorValue);$("#spectrumColor").value=ui.colorValue;for(const [key,val] of [["r",rgb.r],["g",rgb.g],["b",rgb.b]]){$(`#${key}Slider`).value=val;$(`#${key}Number`).value=val}$("#colorPreview").style.background=ui.colorValue}
-function openColorDialog(target,current,title,{marker=false}={}){ui.colorTarget=target;$("#colorDialogTitle").textContent=title;$("#markerWidthField").hidden=!marker;$("#colorRoleRow")?.classList.toggle("hidden",target.type==="marker"||target.type==="glow"||target.type==="puckGlow");syncColorControls(current||"#111827");if(marker)$("#markerWidthDialog").value=state.marker.width;$("#colorDialog").showModal()}
+function openColorDialog(target,current,title,{marker=false}={}){if(target?.type==="player")return v7OpenPlayerColorDialog(target.id);ui.colorTarget=target;$("#colorDialogTitle").textContent=title;$("#markerWidthField").hidden=!marker;$("#colorRoleRow")?.classList.toggle("hidden",target.type==="marker"||target.type==="glow"||target.type==="puckGlow");syncColorControls(current||"#111827");if(marker)$("#markerWidthDialog").value=state.marker.width;$("#colorDialog").showModal()}
 function targetCurrentColor(){const target=ui.colorTarget;if(!target)return"#111827";if(target.type==="team"){const team=teamById(target.id);return team[target.slot||"primary"]}if(target.type==="player"){const p=playerById(target.id),colors=playerColors(p);return target.slot==="trim"?colors.trim:colors.primary}if(target.type==="glow"){const p=playerById(target.id);return p.glow.color||playerColors(p).primary}if(target.type==="puckGlow")return v7PuckGlowById(target.id).color||"#39D8FF";return state.marker.color}
 function applySelectedColor(){const target=ui.colorTarget;if(!target)return;if(target.type==="team"){pushHistory();teamById(target.id)[target.slot||"primary"]=ui.colorValue}else if(target.type==="player"){pushHistory();const p=playerById(target.id);if((target.slot||"primary")==="primary")p.primaryOverride=ui.colorValue;else p.trimOverride=ui.colorValue}else if(target.type==="glow"){const p=playerById(target.id);p.glow.color=ui.colorValue}else if(target.type==="puckGlow")v7PuckGlowById(target.id).color=ui.colorValue;else{state.marker.color=ui.colorValue;state.marker.width=Number($("#markerWidthDialog").value)||6}$("#colorDialog").close();renderAll()}
 function setupColorDialog(){const grid=$("#colorGrid");for(const color of COLOR_GRID){const b=document.createElement("button");b.style.background=color;b.title=color;b.addEventListener("click",()=>syncColorControls(color));grid.append(b)}$$(".color-tab").forEach(btn=>btn.addEventListener("click",()=>{$$(".color-tab").forEach(x=>x.classList.toggle("active",x===btn));$$(".color-panel").forEach(p=>p.classList.toggle("active",p.id===`color-${btn.dataset.colorTab}-panel`))}));$("#spectrumColor").addEventListener("input",e=>syncColorControls(e.target.value));for(const key of ["r","g","b"]){const update=()=>syncColorControls(rgbToHex($("#rNumber").value,$("#gNumber").value,$("#bNumber").value));$(`#${key}Slider`).addEventListener("input",e=>{$(`#${key}Number`).value=e.target.value;update()});$(`#${key}Number`).addEventListener("input",e=>{$(`#${key}Slider`).value=e.target.value;update()})}$("#cancelColorBtn").addEventListener("click",()=>$("#colorDialog").close());$("#applyColorBtn").addEventListener("click",applySelectedColor);$("#markerWidthDialog").addEventListener("input",e=>state.marker.width=Number(e.target.value));$("#colorRoleRow")?.addEventListener("click",e=>{const b=e.target.closest("[data-color-role]");if(!b||!ui.colorTarget)return;ui.colorTarget.slot=b.dataset.colorRole;syncColorControls(targetCurrentColor());$$("[data-color-role]").forEach(x=>x.classList.toggle("primary",x===b))})}
@@ -2096,8 +2152,8 @@ function setupMainEvents(){
   $("#optimizedPlayerMovement")?.addEventListener("change",event=>v7SetOptimizedPlayerMovement(event.target.checked));
   $("#themeLightBtn").addEventListener("click",()=>{state.appearance.theme="light";renderAll()});$("#themeDarkBtn").addEventListener("click",()=>{state.appearance.theme="dark";renderAll()});$("#languageSelect").addEventListener("change",event=>{state.appearance.language=event.target.value;renderAll()});
   $("#teamCards").addEventListener("click",event=>{const sw=event.target.closest("[data-team-color]");if(sw){const team=teamById(sw.dataset.teamColor);openColorDialog({type:"team",id:team.id,slot:"primary"},team.primary,`${team.name} colors`);return}const swap=event.target.closest("[data-swap-team]");if(swap){pushHistory();const team=teamById(swap.dataset.swapTeam);[team.primary,team.trim]=[team.trim,team.primary];renderAll()}});$("#teamCards").addEventListener("input",event=>{const id=event.target.dataset.teamName;if(id){teamById(id).name=event.target.value;renderBenches();renderRoster();scheduleSave()}});
-  $("#rosterTeamSelect").addEventListener("change",renderRoster);$("#rosterSearch").addEventListener("input",renderRoster);$("#addRosterBtn").addEventListener("click",()=>{const teamId=$("#rosterTeamSelect").value,p={id:uid(`${teamId}_player`),teamId,name:"New Skater",number:"",position:"LW",line:4,role:"skater",hand:"RH",captain:false,alternate:false,primaryOverride:null,trimOverride:null,glow:{enabled:false,color:null,brightness:65,blink:true,rate:1.2}};state.rosters[teamId].push(p);renderRoster();renderBenches();scheduleSave()});
-  $("#rosterList").addEventListener("click",event=>{const card=event.target.closest(".roster-card"),id=card?.dataset.playerId;if(!id)return;const p=playerById(id);if(event.target.closest("[data-expand-player]")){card.classList.toggle("expanded");return}if(event.target.closest("[data-player-color]")){openColorDialog({type:"player",id,slot:"primary"},playerColors(p).primary,`${p.name} colors`);return}if(event.target.closest("[data-reset-player-color]")){p.primaryOverride=null;p.trimOverride=null;renderRoster();renderBenches();renderFrame(ui.playhead);scheduleSave();return}if(event.target.closest("[data-delete-player]")){delete state.onIce[id];state.rosters[p.teamId]=state.rosters[p.teamId].filter(x=>x.id!==id);state.timeline.movements=state.timeline.movements.filter(c=>c.playerId!==id);for(const take of state.timeline.puckTakes)take.events=take.events.filter(ev=>ev.targetId!==id);renderAll()}});
+  $("#rosterTeamSelect").addEventListener("change",renderRoster);$("#rosterSearch").addEventListener("input",renderRoster);$("#addRosterBtn").addEventListener("click",()=>{const teamId=$("#rosterTeamSelect").value,p={id:uid(`${teamId}_player`),teamId,name:"New Skater",number:"",position:"LW",line:4,role:"skater",hand:"RH",captain:false,alternate:false,primaryOverride:null,trimOverride:null,numberOverride:null,glow:{enabled:false,color:null,brightness:65,blink:true,rate:1.2}};state.rosters[teamId].push(p);renderRoster();renderBenches();scheduleSave()});
+  $("#rosterList").addEventListener("click",event=>{const card=event.target.closest(".roster-card"),id=card?.dataset.playerId;if(!id)return;const p=playerById(id);if(event.target.closest("[data-expand-player]")){card.classList.toggle("expanded");return}if(event.target.closest("[data-player-color]")){openColorDialog({type:"player",id,slot:"primary"},playerColors(p).primary,`${p.name} colors`);return}if(event.target.closest("[data-reset-player-color]")){p.primaryOverride=null;p.trimOverride=null;p.numberOverride=null;renderRoster();renderBenches();renderFrame(ui.playhead);scheduleSave();return}if(event.target.closest("[data-delete-player]")){delete state.onIce[id];state.rosters[p.teamId]=state.rosters[p.teamId].filter(x=>x.id!==id);state.timeline.movements=state.timeline.movements.filter(c=>c.playerId!==id);for(const take of state.timeline.puckTakes)take.events=take.events.filter(ev=>ev.targetId!==id);renderAll()}});
   $("#rosterList").addEventListener("change",event=>{const card=event.target.closest(".roster-card"),p=playerById(card?.dataset.playerId);if(!p)return;const field=event.target.dataset.playerField;if(field){if(field==="line")p.line=Number(event.target.value)||0;else if(field==="position"){p.position=event.target.value;p.role=p.position==="G"?"goalie":p.position==="COACH"?"coach":p.position==="MANAGER"?"manager":"skater";if(p.role==="coach"||p.role==="manager"){p.captain=false;p.alternate=false}}else p[field]=event.target.value;renderRoster();renderBenches();renderFrame(ui.playhead);scheduleSave();return}if(event.target.dataset.playerHand){p.hand=event.target.dataset.playerHand;renderFrame(ui.playhead);scheduleSave();return}const lead=event.target.dataset.playerLead;if(lead){if((p.role==="coach"||p.role==="manager")&&event.target.checked){event.target.checked=false;return toast("Coaches and managers cannot be assigned leadership roles.")}if(p.role==="goalie"&&event.target.checked&&!confirm(`Are you sure you want to make the “tendy” a ${lead==="captain"?"Captain":"Alternate Captain"}?`)){event.target.checked=false;return}if(lead==="captain"&&event.target.checked){for(const other of state.rosters[p.teamId])other.captain=false;p.captain=true;p.alternate=false}else if(lead==="alternate"&&event.target.checked){const count=state.rosters[p.teamId].filter(x=>x.alternate&&x.id!==p.id).length;if(count>=2){event.target.checked=false;return toast("A team may have no more than two Alternate Captains.")}p.alternate=true;p.captain=false}else p[lead]=event.target.checked;renderRoster();renderFrame(ui.playhead);scheduleSave()}});
   $$("[data-view]").forEach(btn=>btn.addEventListener("click",()=>changeView(btn.dataset.view)));for(const[id,key]of [["showNames","names"],["showNumbers","numbers"],["showPositions","positions"],["showLeadership","leadership"],["showOffside","offside"]])$("#"+id).addEventListener("change",event=>{state.display[key]=event.target.checked;renderFrame(ui.playhead);scheduleSave()});
   $("#showRoutes").addEventListener("change",event=>{state.display.routes=event.target.checked;$("#toolbarRoutes").checked=event.target.checked;renderRoutes(ui.playhead);scheduleSave()});$("#toolbarRoutes").addEventListener("change",event=>{state.display.routes=event.target.checked;$("#showRoutes").checked=event.target.checked;renderRoutes(ui.playhead);scheduleSave()});$("#routeMode").addEventListener("change",event=>{state.display.routeMode=event.target.value;$("#toolbarRouteMode").value=event.target.value;renderRoutes(ui.playhead);scheduleSave()});$("#toolbarRouteMode").addEventListener("change",event=>{state.display.routeMode=event.target.value;$("#routeMode").value=event.target.value;renderRoutes(ui.playhead);scheduleSave()});
@@ -2279,7 +2335,7 @@ renderBenches=function(){
       const c=playerColors(p),team=teamById(p.teamId),tok=document.createElement("button"),roleClass=p.role==="goalie"?"goalie":p.role==="coach"||p.role==="manager"?"staff":"skater";
       const lineText=p.role==="skater"?(p.position==="LD"||p.position==="RD"?`D Pair ${p.line} · ${p.position}`:`F Line ${p.line} · ${p.position}`):p.role==="goalie"?"Goalie":p.role==="coach"?"Head Coach":"Manager";
       const badge=p.role==="coach"?"HC":p.role==="manager"?"MGR":p.role==="goalie"?(p.number||"G"):(p.number||p.position);
-      tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",contrastText(c.primary));
+      tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",c.numbers);
       tok.innerHTML=`<span class="bench-piece"><span>${escapeHtml(badge)}</span></span><span class="bench-card-copy"><strong>${escapeHtml(p.name||"Blank token")}</strong><small><span class="team-line">${escapeHtml(team?.name||p.teamId)}</span>${p.number?` · #${escapeHtml(p.number)}`:""} · ${escapeHtml(p.position)}${p.hand&&p.role==="skater"?` · ${escapeHtml(p.hand)}`:""}</small><em>${escapeHtml(lineText)}</em></span>`;
       root.appendChild(tok);
     }
@@ -2415,7 +2471,7 @@ renderBenches=function(){
     for(const player of bench){
       const colors=playerColors(player),token=document.createElement("button"),roleClass=player.role==="goalie"?"goalie":player.role==="coach"||player.role==="manager"?"staff":"skater";
       const badge=player.role==="coach"?"HC":player.role==="manager"?"MGR":player.role==="goalie"?(player.number||"G"):(player.number||player.position);
-      token.className=`bench-token bench-card ${roleClass}`;token.dataset.benchPlayer=player.id;token.title=t("placeOnIce",{name:player.name});token.style.setProperty("--piece-primary",colors.primary);token.style.setProperty("--piece-trim",colors.trim);token.style.setProperty("--piece-ink",contrastText(colors.primary));
+      token.className=`bench-token bench-card ${roleClass}`;token.dataset.benchPlayer=player.id;token.title=t("placeOnIce",{name:player.name});token.style.setProperty("--piece-primary",colors.primary);token.style.setProperty("--piece-trim",colors.trim);token.style.setProperty("--piece-ink",colors.numbers);
       token.innerHTML=`<span class="bench-piece"><span>${escapeHtml(badge)}</span></span><span class="bench-card-copy"><strong>${escapeHtml(player.name||"Blank token")}</strong><small>${player.number?`#${escapeHtml(player.number)} · `:""}${escapeHtml(player.position)}${player.hand&&player.role==="skater"?` · ${escapeHtml(player.hand)}`:""}</small><em>${escapeHtml(teamBenchRoleLabel(player))}</em></span>`;
       root.appendChild(token);
     }
@@ -9967,6 +10023,95 @@ Object.assign(window.BOTD_TEST,{
  moveDialogOpen:()=>!!$("#v7MovementTypeDialog")?.open,
  playerHasPuck:(id,t=ui.playhead)=>v7PlayerPossessesPuck(id,t)
 });
+
+
+/* Dedicated player-color dialog: keep drawing/marker controls independent. */
+function v7pcHexColor(value,fallback="#000000"){return /^#[0-9A-F]{6}$/i.test(String(value||""))?String(value).toUpperCase():fallback}
+function v7pcDraft(player){const colors=playerColors(player);return{
+ playerId:player.id,slot:"primary",method:"grid",
+ primary:v7pcHexColor(colors.primary),trim:v7pcHexColor(colors.trim),
+ numbers:v7pcHexColor(colors.numbers),numberAuto:player.numberOverride==null
+}}
+function v7pcChoose(draft,slot,value){
+ if(!draft||!["primary","trim","numbers"].includes(slot)||!/^#[0-9a-f]{6}$/i.test(String(value)))return draft;
+ const d={...draft,[slot]:v7pcHexColor(value)};
+ if(slot==="numbers")d.numberAuto=false;
+ if(slot==="primary"&&d.numberAuto)d.numbers=contrastText(d.primary);
+ return d
+}
+function v7pcResetDraft(draft,team){return{...draft,primary:team.primary,trim:team.trim,numbers:contrastText(team.primary),numberAuto:true}}
+function v7pcCommit(player,draft,team){
+ const primary=v7pcHexColor(draft.primary,team.primary),trim=v7pcHexColor(draft.trim,team.trim);
+ player.primaryOverride=primary.toUpperCase()===team.primary.toUpperCase()?null:primary;
+ player.trimOverride=trim.toUpperCase()===team.trim.toUpperCase()?null:trim;
+ player.numberOverride=draft.numberAuto?null:v7pcHexColor(draft.numbers,contrastText(primary))
+}
+function v7pcChange(value){
+ const d=ui.v7pcDraft;if(!d)return;
+ ui.v7pcDraft=v7pcChoose(d,d.slot,value);v7pcSync()
+}
+function v7pcSync(){
+ const d=ui.v7pcDraft,dialog=$("#v7PlayerColorDialog");
+ if(!d||!dialog)return;
+ const player=playerById(d.playerId);if(!player)return;
+ const color=d[d.slot],rgb=hexToRgb(color);
+ dialog.querySelectorAll("[data-v7pc-slot]").forEach(btn=>{
+  const slot=btn.dataset.v7pcSlot;btn.setAttribute("aria-pressed",String(slot===d.slot));
+  btn.querySelector(".v7pc-swatch").style.background=d[slot];
+  btn.querySelector(".v7pc-hexsmall").textContent=d[slot]+(slot==="numbers"&&d.numberAuto?" · Auto":"")
+ });
+ dialog.querySelectorAll("[data-v7pc-method]").forEach(btn=>btn.setAttribute("aria-selected",String(btn.dataset.v7pcMethod===d.method)));
+ for(const method of ["grid","spectrum","sliders"])
+  $("#v7pc"+method[0].toUpperCase()+method.slice(1)+"Panel").hidden=method!==d.method;
+ dialog.querySelectorAll("#v7pcGrid button").forEach(btn=>btn.setAttribute("aria-pressed",String(btn.dataset.v7pcColor===color)));
+ $("#v7pcSpectrum").value=color;$("#v7pcHex").value=color;
+ for(const [key,value] of [["r",rgb.r],["g",rgb.g],["b",rgb.b]]){
+  dialog.querySelector('[data-v7pc-range="'+key+'"]').value=value;
+  dialog.querySelector('[data-v7pc-number="'+key+'"]').value=value
+ }
+ $("#v7pcAuto").hidden=d.slot!=="numbers";
+ const preview=$("#v7pcPreview");
+ for(const [key,value] of [["--v7pc-primary",d.primary],["--v7pc-trim",d.trim],["--v7pc-number",d.numbers]])preview.style.setProperty(key,value);
+ for(const id of ["v7pcIceToken","v7pcBenchToken"]){
+  const node=$("#"+id);node.textContent=player.number||((player.role==="coach"||player.role==="manager")?"HC":player.position||"");
+  node.classList.toggle("goalie",player.role==="goalie");
+  node.classList.toggle("staff",player.role==="coach"||player.role==="manager")
+ }
+}
+function v7pcSetup(){
+ const dialog=$("#v7PlayerColorDialog");if(dialog.dataset.ready)return dialog;
+ dialog.dataset.ready="1";
+ for(const hex of COLOR_GRID){
+  const b=document.createElement("button");b.type="button";b.dataset.v7pcColor=v7pcHexColor(hex);b.style.background=hex;b.setAttribute("aria-label","Select "+hex);
+  b.addEventListener("click",()=>v7pcChange(b.dataset.v7pcColor));$("#v7pcGrid").append(b)
+ }
+ dialog.querySelectorAll("[data-v7pc-slot]").forEach(b=>b.addEventListener("click",()=>{
+  if(!ui.v7pcDraft)return;ui.v7pcDraft.slot=b.dataset.v7pcSlot;v7pcSync()
+ }));
+ dialog.querySelectorAll("[data-v7pc-method]").forEach(b=>b.addEventListener("click",()=>{
+  if(!ui.v7pcDraft)return;ui.v7pcDraft.method=b.dataset.v7pcMethod;v7pcSync()
+ }));
+ $("#v7pcSpectrum").addEventListener("input",event=>v7pcChange(event.target.value));
+ $("#v7pcHex").addEventListener("input",event=>{if(/^#[0-9a-f]{6}$/i.test(event.target.value))v7pcChange(event.target.value)});
+ $("#v7pcHex").addEventListener("change",v7pcSync);
+ const updateRgb=(key,n)=>{const d=ui.v7pcDraft;if(!d)return;const rgb=hexToRgb(d[d.slot]);rgb[key]=clamp(Math.round(Number(n)||0),0,255);v7pcChange(rgbToHex(rgb.r,rgb.g,rgb.b))};
+ for(const key of ["r","g","b"]){
+  dialog.querySelector('[data-v7pc-range="'+key+'"]').addEventListener("input",e=>updateRgb(key,e.target.value));
+  dialog.querySelector('[data-v7pc-number="'+key+'"]').addEventListener("change",e=>updateRgb(key,e.target.value))
+ }
+ $("#v7pcAuto").addEventListener("click",()=>{const d=ui.v7pcDraft;if(!d)return;ui.v7pcDraft={...d,numbers:contrastText(d.primary),numberAuto:true};v7pcSync()});
+ $("#v7pcReset").addEventListener("click",()=>{const d=ui.v7pcDraft,p=playerById(d?.playerId);if(!p)return;ui.v7pcDraft=v7pcResetDraft(d,teamById(p.teamId));v7pcSync()});
+ $("#v7pcCancel").addEventListener("click",()=>dialog.close());
+ $("#v7pcApply").addEventListener("click",()=>{const d=ui.v7pcDraft,p=playerById(d?.playerId);if(!p||!d)return dialog.close();pushHistory();v7pcCommit(p,d,teamById(p.teamId));dialog.close();renderAll();scheduleSave()});
+ dialog.addEventListener("close",()=>{ui.v7pcDraft=null});return dialog
+}
+function v7OpenPlayerColorDialog(playerId){
+ const player=playerById(playerId);if(!player)return;
+ const dialog=v7pcSetup();ui.v7pcDraft=v7pcDraft(player);
+ $("#v7pcTitle").textContent=player.name+" colors";
+ $("#v7pcName").textContent=player.name+" · #"+(player.number||"—");
+ v7pcSync();if(!dialog.open)dialog.showModal()
+}
 
 </script>
 </body>

@@ -1476,4 +1476,49 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal(ctx.duration({...aRoute,points:[{x:0,y:0},{x:134.4,y:0}]},{scale:2.4}),4,
   "Pace must scale with the selected ice dimensions");
 }
+/* Player color editor must be independent of the shared marker picker, and
+   new number ink must persist through roster render, reopen and team reset. */
+{
+ const start=app.indexOf('<dialog id="v7PlayerColorDialog"'),end=app.indexOf('<dialog id="colorDialog"',start);
+ assert.ok(start>0&&end>start,"Dedicated player-color dialog is missing");
+ const dialog=app.slice(start,end);
+ for(const marker of ['data-v7pc-slot="primary"','data-v7pc-slot="trim"','data-v7pc-slot="numbers"',
+  'data-v7pc-method="grid"','data-v7pc-method="spectrum"','data-v7pc-method="sliders"',
+  'id="v7pcIceToken"','id="v7pcBenchToken"','id="v7pcReset"','id="v7pcCancel"','id="v7pcApply"'])
+  assert.ok(dialog.includes(marker),"Player-color dialog missing "+marker);
+ assert.ok(!/markerWidth|LINE PATTERN|ARROW ENDING|data-v61-marker/.test(dialog));
+ assert.ok(app.includes('if(target?.type==="player")return v7OpenPlayerColorDialog(target.id)'));
+ assert.ok(app.includes('p.primaryOverride=null;p.trimOverride=null;p.numberOverride=null;'));
+ assert.equal((app.match(/fill:colors\.numbers/g)||[]).length,2,
+  "Goalie and skater SVG number fills must use number color");
+ assert.ok(app.includes('tok.style.setProperty("--piece-ink",c.numbers)'));
+ assert.ok(app.includes('--piece-ink:${c.numbers}'));
+ assert.ok(app.includes('numberOverride:null,glow:'));
+ const colorStart=app.indexOf('function playerColors(player)'),colorEnd=app.indexOf('function rosterSort(',colorStart);
+ const editorStart=app.indexOf('function v7pcHexColor('),editorEnd=app.indexOf('function v7pcChange(',editorStart);
+ assert.ok(colorStart>0&&colorEnd>colorStart&&editorStart>0&&editorEnd>editorStart);
+ const team={id:"A",primary:"#00FC05",trim:"#000000"};
+ const ctx={teamById:()=>team,contrastText:hex=>/^#(?:ffffff|00fc05)$/i.test(hex)?"#08131e":"#ffffff"};
+ vm.runInNewContext(app.slice(colorStart,colorEnd)+"\n"+app.slice(editorStart,editorEnd)+
+  "\nthis.colors=playerColors;this.draft=v7pcDraft;this.choose=v7pcChoose;"+
+  "this.reset=v7pcResetDraft;this.commit=v7pcCommit;",ctx,{timeout:2000});
+ const player={id:"A_8",teamId:"A",number:"8",primaryOverride:null,trimOverride:null,numberOverride:null};
+ assert.equal(ctx.colors(player).numbers,"#08131e");
+ const draft=ctx.draft(player);
+ const edited=ctx.choose(ctx.choose(ctx.choose(draft,"primary","#335577"),"trim","#DDAABB"),"numbers","#FFFF00");
+ assert.equal(player.primaryOverride,null,"Cancel/preview must not commit");
+ assert.equal(edited.numberAuto,false);
+ assert.equal(ctx.choose(edited,"primary","#446688").numbers,"#FFFF00");
+ ctx.commit(player,edited,team);
+ assert.equal(player.primaryOverride,"#335577");
+ assert.equal(player.trimOverride,"#DDAABB");
+ assert.equal(player.numberOverride,"#FFFF00");
+ assert.equal(ctx.colors(player).numbers,"#FFFF00");
+ assert.equal(ctx.draft(player).numbers,"#FFFF00");
+ ctx.commit(player,ctx.reset(edited,team),team);
+ assert.equal(player.primaryOverride,null);assert.equal(player.trimOverride,null);
+ assert.equal(player.numberOverride,null);assert.equal(ctx.colors(player).numbers,"#08131e");
+ const auto=ctx.choose(draft,"primary","#112233");
+ assert.equal(auto.numbers,"#ffffff");assert.equal(auto.numberAuto,true);
+}
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
