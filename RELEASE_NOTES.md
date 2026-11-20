@@ -1,5 +1,15 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.8 Preview — November 19, 2026 (staging only)
+
+- Replaced piecewise-constant puck animation with smooth, physically decelerating travel between contacts; keep sharp directional changes only at genuine impacts.
+- Included object-collision clearance displacement in playback timing to prevent small visual jumps.
+- Reused computed puck timelines throughout each playback session to eliminate repeated expensive collision simulation during animation, with automatic invalidation on stop/restart and bypass during editing/video export.
+- Added 120 Hz progress-continuity and per-puck cache regression coverage. Staging only; production remains unchanged.
+
+---
+
+
 ## V7.1.7 Preview — November 19, 2026 (staging only)
 
 - Replaced shallow-shot wall following with angle-correct board reflections on the inset puck-center ice boundary.

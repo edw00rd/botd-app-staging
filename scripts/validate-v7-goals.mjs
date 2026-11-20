@@ -1526,8 +1526,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.7 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.7"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.8 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.8"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1592,7 +1592,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   assert.ok(!app.includes(obsolete),"V7.1.2 badge code was not fully reverted: "+obsolete);
 }
 
-/* V7.1.7 regression: the rink is a reflective boundary, never a puck rail.
+/* V7.1.8 regression: the rink is a reflective boundary, never a puck rail.
    Test the same downhill-to-endboard shot shown in the screenshot, plus
    head-on, grazing and rounded-corner impacts. */
 {
@@ -1686,10 +1686,70 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  check("rounded-corner",corner);
  assert.ok(corner.contacts[0].point.x>900&&corner.contacts[0].point.y>510,
   "Corner ray should strike the curved surface, not a square wall");
- assert.ok(app.includes('motionProfile:collisions.length||original.bounced?motionProfile:null,'),
+ assert.ok(app.includes('motionProfile:legs.length>0?motionProfile:null,'),
   "Bank speed changes must carry into saved playback");
  assert.ok(app.includes('const built=v7PhysicalShotTrajectory(origin,aim,mode.power,'),
   "Aim preview must share exactly the saved collision solver");
+}
+
+
+/* V7.1.8: frame-continuous puck motion, preserving impact direction and
+   all playbook coordinates. Physics is computed once per puck per playback. */
+{
+ const motionSource=app.slice(app.indexOf("function v7ShotMotionProgress("),
+  app.indexOf("function v7PhysicalShotTrajectory("));
+ assert.ok(motionSource.includes("v0+v1"),
+  "Puck glide must integrate changing velocity rather than constant-speed stepping");
+ const math={clamp:(v,lo,hi)=>Math.min(hi,Math.max(lo,v))};
+ vm.runInNewContext(motionSource+"\nthis.progress=v7ShotMotionProgress;",math,{timeout:1000});
+ const smooth=[
+  {time:0,progress:0},
+  {time:.5,progress:.6,speedStart:1,speedEnd:.5},
+  {time:1,progress:1,speedStart:.5,speedEnd:.1}
+ ];
+ assert.ok(math.progress(smooth,.25)>.3,
+  "Friction should move the puck farther in the earlier half of a glide");
+ let prev=-1;
+ for(let frame=0;frame<=120;frame++){
+  const p=math.progress(smooth,frame/120);
+  assert.ok(p>=prev-.0000001&&p<=1.0000001,
+   "120 Hz puck animation must progress monotonically without position jumps");
+  assert.ok(frame===0||p-prev<.025,
+   "Adjacent animation frames must not jump along the route");
+  prev=p
+ }
+ assert.ok(Math.abs(math.progress(smooth,.5-1e-6)-math.progress(smooth,.5+1e-6))<.0001,
+  "Puck cannot teleport between adjoining motion segments");
+ assert.equal(math.progress(smooth,0),0);
+ assert.equal(math.progress(smooth,1),1);
+ const cacheBegin=app.indexOf("/* V7.1.8: One deterministic puck timeline");
+ assert.ok(cacheBegin>0,"Per-playback collision cache must exist");
+ let computes=0;
+ const runtime={
+  ui:{playing:false,recordingMove:null},v7VideoBusy:false,
+  buildPuckTimeline:id=>({id:id||"puck",run:++computes}),
+  stopPlayback:()=>{runtime.ui.playing=false},
+  togglePlayback:()=>{runtime.ui.playing=!runtime.ui.playing}
+ };
+ vm.runInNewContext(app.slice(cacheBegin,app.indexOf("</script>",cacheBegin)),runtime,{timeout:1000});
+ runtime.togglePlayback();
+ const first=runtime.buildPuckTimeline("puck");
+ for(let frame=0;frame<120;frame++)
+  assert.equal(runtime.buildPuckTimeline("puck"),first,
+   "Playback must reuse the same puck route instead of redoing collisions each frame");
+ assert.equal(computes,1);
+ const second=runtime.buildPuckTimeline("puck-two");
+ assert.equal(computes,2);
+ assert.equal(runtime.buildPuckTimeline("puck-two"),second);
+ runtime.stopPlayback();
+ assert.notEqual(runtime.buildPuckTimeline("puck"),first,
+  "Stopped playback must invalidate the old route");
+ runtime.togglePlayback();
+ assert.notEqual(runtime.buildPuckTimeline("puck"),first,
+  "Replay must recalculate the timeline rather than retaining stale geometry");
+ runtime.ui.recordingMove={started:true};
+ assert.notEqual(runtime.buildPuckTimeline("puck"),runtime.buildPuckTimeline("puck"),
+  "Editing must bypass the playback-only cache");
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.7 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.8 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.7 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.8 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.8 staging change — November 19, 2026
+
+- Smoothed puck glide using continuously changing speed between collisions, without altering board-bank geometry or stopping distance.
+- Prevented small post-impact clearance jumps by including those distances in animation timing.
+- Cached each puck's deterministic trajectory for the duration of playback instead of recalculating collision physics on every rendered frame.
+- Added 120 Hz continuity and playback-cache regression tests. Staging only; production and saved-play format unchanged.
 
 ## V7.1.7 staging change — November 19, 2026
 
