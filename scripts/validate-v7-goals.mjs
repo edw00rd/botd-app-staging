@@ -1022,7 +1022,7 @@ assert.deepEqual(Array.from(lampCtx.active()),[],"Blink must end when puck leave
   'menu.style.position="fixed";menu.style.zIndex="2147483001"',
   'document.body.append(menu)',
   'element===menu?v7FloatingPlaceMenu(element,anchor,options)',
-  'if(top<8){top=rect.bottom+clearance;menu.classList.add("below")}',
+  'if(top<8){top=bottomEdge+clearance;menu.classList.add("below")}',
   'v7FloatingOldMultiDraw();',
   'new ResizeObserver(refresh)'
  ])assert.ok(src.includes(term),"Floating control regression: "+term);
