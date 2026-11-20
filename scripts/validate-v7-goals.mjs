@@ -1747,7 +1747,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Puck cannot teleport between adjoining motion segments");
  assert.equal(math.progress(smooth,0),0);
  assert.equal(math.progress(smooth,1),1);
- const cacheBegin=app.indexOf("/* V7.1.8: One deterministic puck timeline");
+ const cacheBegin=app.indexOf("/* V7.1.9: One deterministic puck timeline");
  assert.ok(cacheBegin>0,"Per-playback collision cache must exist");
  let computes=0;
  const runtime={
