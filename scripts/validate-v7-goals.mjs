@@ -335,9 +335,9 @@ assert.ok(app.includes('layer.append(v7RinkDispensePuckControl(pile.id,point))')
  "Each pile must keep its dispensing mark after spawning a puck");
 assert.ok(!app.includes('v7PuckPileDispenserBeforeClone'),
  "Old late override must not turn the small + into a big puck");
-assert.ok(app.includes('isPile?{x:31,y:34}')&&app.includes('isPile?31:30')&&
- app.includes('isPile?34:-27'),
- "Selected pile must use the same below-puck +/- positions");
+assert.ok(app.includes('v7RinkRemoveControl(selected.id,"equipment",slots.bottomLeft)')&&
+ app.includes('selected.type==="net"?"topLeft":"bottomRight"'),
+ "Selected pile must use the shared bottom-left minus and bottom-right clone pill");
 assert.ok(!app.includes('isPile?.64:isNet?.78:1'),
  "Selected pile minus must match standard puck-control size");
 const markStart=app.indexOf("function v7RinkDispensePuckControl(id,point){");
