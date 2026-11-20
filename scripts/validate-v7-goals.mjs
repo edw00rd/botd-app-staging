@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.10 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.10"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.11 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.11"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1748,7 +1748,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Puck cannot teleport between adjoining motion segments");
  assert.equal(math.progress(smooth,0),0);
  assert.equal(math.progress(smooth,1),1);
- const cacheBegin=app.indexOf("/* V7.1.10: One deterministic puck timeline");
+ const cacheBegin=app.indexOf("/* V7.1.11: One deterministic puck timeline");
  assert.ok(cacheBegin>0,"Per-playback collision cache must exist");
  let computes=0;
  const runtime={
@@ -1792,6 +1792,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.ok(controls.topRight.x>500&&controls.topRight.y<300);
  assert.ok(controls.bottomLeft.x<500&&controls.bottomLeft.y>300);
  assert.ok(controls.bottomRight.x>500&&controls.bottomRight.y>300);
+ assert.ok(app.includes('layer.append(v7RoundButton(selected.id,slots.topRight,"size"))'),"Round-object size-cycle arrow must occupy upper-right slot");
+ assert.ok(!app.includes('layer.append(v7RoundButton(selected.id,slots.topLeft,"size"))'),"Old upper-left size-cycle slot must be removed");
  assert.ok(app.includes('v7RinkRemoveControl(selected.id,"equipment",slots.bottomLeft)'));
  assert.ok(app.includes('v7RinkGoalResetControl(selected.id,slots.topRight)'));
  assert.ok(app.includes('v7RinkNetSizeControl(selected.id,slots.bottomRight)'));

@@ -1,5 +1,12 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.11 Preview — November 20, 2026 (staging only)
+
+- Fixed a missed control-layout detail from V7.1.10: cone and tire size-cycle arrows now appear at the **upper-right**, with their clone + at the lower-right and remove − at the lower-left.
+- Added a direct corner-position regression check. Rink goal controls, gray stretch handles and the hockey-stick toolbar icon remain unchanged. Staging only; production and saved-play format unchanged.
+
+---
+
 ## V7.1.10 Preview — November 20, 2026 (staging only)
 
 - Standardized selected rink-object action pills to one full-size 28-unit diameter and common geometry-aware corner anchors: **minus bottom-left**, **clone plus bottom-right** on ordinary equipment; for goals **clone plus top-left**, **reset top-right**, **minus bottom-left**, **net-size arrows bottom-right**.
