@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.2.0 Preview — November 20, 2026 (staging only)
+
+- Experimental collision-aware Pass uses the same board and equipment physics as Shoot. The on-ice crosshair previews the saved path, including deflections and rebounds.
+- The first on-ice player touched by the actual puck path gains possession, including bank passes. An uncaught puck stays loose rather than snapping to the crosshair.
+- Pass power and speed use the existing pass-speed preference. New passes carry `physicsPass`, `passPower` and a normalized aim vector; existing passes retain their previous direct-target behavior.
+- Smooth motion profile for new passes, optional sauce lift, no changes to production, shot physics or storage schema. Automated regression coverage included.
+
+---
+
 ## V7.1.11 Preview — November 20, 2026 (staging only)
 
 - Fixed a missed control-layout detail from V7.1.10: cone and tire size-cycle arrows now appear at the **upper-right**, with their clone + at the lower-right and remove − at the lower-left.
