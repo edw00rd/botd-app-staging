@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.11 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.12 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.11 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.12 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.12 staging fix — November 20, 2026
+
+- Fixed unwanted puck movement when placing a divider pad or any other rink object over the primary or an added puck. Both the legacy and first-class puck pointer handlers yield to active equipment placement, so the same click places the object instead of moving the puck.
+- Clear a pending puck tap or drag when the Rink Objects placement mode is armed.
+- Added regression coverage for placing equipment on top of Puck 1, an additional puck and the puck's remove-control target, while preserving the puck coordinates.
+- Existing shoot-path recalculation when collidable rink objects change is intentional and unchanged. Pass behavior, production, and saved-play schema remain unchanged.
 
 ## V7.1.11 staging correction — November 20, 2026
 
@@ -85,7 +92,7 @@ Copyright © 2026 FENRIR LLC. All rights reserved.
 
 
 
-The following sections document the historical v6.8.2 baseline, not the current V7.1.11 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
+The following sections document the historical v6.8.2 baseline, not the current V7.1.12 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
 
 ## Included scope
 

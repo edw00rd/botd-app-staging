@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.12 Preview — November 20, 2026 (staging only)
+
+- **Fixed:** placing a divider pad or another rink object on a puck can no longer trigger the puck's drag/selection handler.
+- The legacy and first-class puck pointer listeners now yield to equipment placement. Arming that mode also clears pending puck tap/drag state.
+- Regression coverage verifies placement clicks on Puck 1, additional pucks and the puck remove-control target reach the rink-object handler without moving or deleting a puck.
+- Intentional physical shot-path recalculation on equipment changes is unchanged. No changes to production, pass behavior or saved-play schema.
+
+---
+
 ## V7.1.11 Preview — November 20, 2026 (staging only)
 
 - Fixed a missed control-layout detail from V7.1.10: cone and tire size-cycle arrows now appear at the **upper-right**, with their clone + at the lower-right and remove − at the lower-left.

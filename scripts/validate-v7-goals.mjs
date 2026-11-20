@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.11 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.11"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.12 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.12"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1829,6 +1829,65 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   'window.addEventListener("pointercancel",finish,true)',
   'v7ApplyStretchLength(item,{...drag,point}'
  ])assert.ok(app.includes(phrase),"Stretch handler regression: "+phrase);
+}
+
+
+/* V7.1.12 regression: object placement clicks cannot start a puck drag. */
+{
+ const a=app.indexOf("function onRinkPointerDown(event){"),b=app.indexOf("function onRinkPointerMove(event){",a);
+ const c=app.indexOf("function v7SetupAdditionalPuckEvents(){"),d=app.indexOf("function v7SetEquipmentPlacement(",c);
+ const e=app.indexOf("function v7SetupEquipmentEvents(){"),f=app.indexOf("/* Shot collision options",e);
+ const g=app.indexOf("function v7SetEquipmentPlacement("),h=app.indexOf("function v7CancelEquipmentPlacement(",g);
+ assert.ok(a>0&&b>a&&c>0&&d>c&&e>0&&f>e&&g>0&&h>g);
+ const callbacks=[];
+ const svg={dataset:{},addEventListener(type,fn){if(type==="pointerdown")callbacks.push(fn)}};
+ const puckStart={x:500,y:300};
+ const ui={tool:"select",v7EquipmentPlacement:"divider",v7AdditionalPuckPlacement:false,
+  selectedType:null,selectedId:null,playhead:0,playing:false,pendingTap:null};
+ let placed=0,deleted=0,consumed=0;
+ const ctx={ui,state:{puckStart},window:{addEventListener(){}},document:{activeElement:null},
+  $:sel=>sel==="#rinkSvg"?svg:null,svgPoint:()=>({x:500,y:300}),
+  v7SelectAdditionalPuckFromTrack:()=>{},
+  V7_RINK_OBJECT_TYPES:{divider:{label:"Divider pad"}},V7_ROUND_SIZES:{},
+  v7AddEquipment:(type,point)=>{assert.equal(type,"divider");assert.equal(point.x,500);placed++},
+  v7CancelEquipmentPlacement:()=>{ui.v7EquipmentPlacement=null},
+  v7DeletePrimaryPuck:()=>{deleted++},v7DeleteAdditionalPuck:()=>{deleted++},
+  v7CancelAdditionalPuckPlacement:()=>{},toast:()=>{}
+ };
+ vm.runInNewContext(
+  app.slice(a,b)+app.slice(c,d)+app.slice(e,f)+
+  "\nthis.legacy=onRinkPointerDown;this.setupPuck=v7SetupAdditionalPuckEvents;this.setupEquip=v7SetupEquipmentEvents;",
+  ctx,{timeout:2000});
+ ctx.setupPuck();ctx.setupEquip();
+ assert.equal(callbacks.length,2,"Puck listener must precede equipment listener");
+ const makeTarget=kind=>({closest:sel=>{
+  if(kind==="primary"&&sel==="[data-puck]")return{dataset:{puck:"1"}};
+  if(kind==="additional"&&sel==="[data-v7-additional-puck-id]")return{dataset:{v7AdditionalPuckId:"extra"}};
+  if(kind==="minus"&&sel==="[data-v7-remove-primary-puck]")return{dataset:{}};
+  return null
+ }});
+ for(const [i,kind] of ["primary","additional","minus"].entries()){
+  ui.v7EquipmentPlacement="divider";
+  const event={button:0,pointerId:i+1,target:makeTarget(kind),clientX:500,clientY:300,
+   preventDefault(){consumed++},stopImmediatePropagation(){},stopPropagation(){}};
+  ctx.legacy(event);for(const cb of callbacks)cb(event);
+  assert.equal(placed,i+1,"Placement must reach equipment handler over "+kind);
+  assert.equal(ui.dragPuck,undefined,"Legacy puck drag must remain unset");
+  assert.equal(ui.v7PrimaryPuckDrag,undefined,"Primary puck drag must remain unset");
+  assert.equal(ui.v7AdditionalPuckDrag,undefined,"Additional puck drag must remain unset");
+  assert.equal(ui.pendingTap,null,"Legacy tap must not be primed");
+  assert.equal(ctx.state.puckStart.x,500,"Primary puck X must not move");
+  assert.equal(ctx.state.puckStart.y,300,"Primary puck Y must not move");
+ }
+ assert.equal(deleted,0,"Placement on puck removal glyph must not delete a puck");
+ assert.equal(consumed,3,"Only placement must consume pointerdown");
+ vm.runInNewContext(app.slice(g,h)+"\nthis.arm=v7SetEquipmentPlacement;",ctx,{timeout:1000});
+ ui.pendingTap={type:"puck"};ui.dragPuck={pointerId:1};
+ ui.v7PrimaryPuckDrag={pointerId:1};ui.v7AdditionalPuckDrag={pointerId:1};
+ ctx.arm("divider");
+ for(const key of ["pendingTap","dragPuck","v7PrimaryPuckDrag","v7AdditionalPuckDrag"])
+  assert.equal(ui[key],null,"Arm placement must cancel pending gesture: "+key);
+ assert.equal(ui.v7EquipmentPlacement,"divider");
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
