@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.12 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.12"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.13 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.13"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1888,6 +1888,81 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  for(const key of ["pendingTap","dragPuck","v7PrimaryPuckDrag","v7AdditionalPuckDrag"])
   assert.equal(ui[key],null,"Arm placement must cancel pending gesture: "+key);
  assert.equal(ui.v7EquipmentPlacement,"divider");
+}
+
+
+/* V7.1.13: Give puck is instant possession, never a pass or shot. */
+{
+ const menuStart=app.indexOf("function v60ContextMarkup(){");
+ const menuEnd=app.indexOf("function v60RenderContextMenu(){",menuStart);
+ const featureStart=app.indexOf("/* V7.1.13: Give puck to an on-ice player");
+ const featureEnd=app.indexOf("\ninit();",featureStart);
+ assert.ok(menuStart>0&&menuEnd>menuStart&&featureStart>0&&featureEnd>featureStart,
+  "Give puck interface must be installed before editor init");
+ const ctx={
+  ui:{tool:"select",playhead:4,playing:false,selectedType:"puck",selectedId:"puck",
+   v7ActivePuckId:"puck",v60DirectSelection:true},
+  state:{primaryPuckVisible:true,onIce:{skater:{x:100,y:200},goalie:{x:100,y:100},staff:{x:200,y:200}},
+   puckStart:{x:500,y:300}},
+  players:{skater:{id:"skater",name:"Skater",role:"forward"},
+   goalie:{id:"goalie",name:"Goalie",role:"goalie"},
+   staff:{id:"staff",name:"Coach",role:"coach"}},
+  $:()=>null,escapeHtml:x=>x,
+  renderFrame:()=>{},renderAll:()=>{},syncActiveVariation:()=>{},stopPlayback:()=>{},
+  renderInspector:()=>{},toast:()=>{},v60CancelTransientMode:()=>{},v60FinishPuckAction:()=>{},
+  v60RenderCancel:()=>{},onRinkPointerDown:()=>{ctx.legacyClicks++},
+  v7SelectedPuckId:()=>ctx.ui.selectedType==="puck"?"puck":ctx.ui.selectedId,
+  v7AdditionalPuckById:id=>id==="puck-two"?{id,x:450,y:300}:null,
+  playerById:id=>ctx.players[id],buildPuckTimeline:id=>({puckId:id}),
+  puckStateAt:()=>({mode:"loose"}),v60PuckCanBeDirected:()=>true,
+  addPuckEvent:(event,options)=>{ctx.events.push({event,options});return event},
+  events:[],legacyClicks:0
+ };
+ vm.runInNewContext(
+  app.slice(menuStart,menuEnd)+app.slice(featureStart,featureEnd)+
+  "\nthis.markup=v60ContextMarkup;this.startGive=v713StartGive;this.commitGive=v713CommitGive;this.pointerDown=onRinkPointerDown;",
+  ctx,{timeout:2000});
+ assert.match(ctx.markup(),/data-v60-action="give"[^>]*>Give<\/button>/);
+ assert.match(ctx.markup(),/data-v60-action="pass"/);
+ assert.match(ctx.markup(),/data-v60-action="shoot"/);
+ assert.equal(ctx.startGive(),true);
+ assert.equal(ctx.ui.v60Mode.type,"give");
+ assert.equal(ctx.ui.v60Mode.puckId,"puck");
+ assert.equal(ctx.events.length,0,"Starting Give must not change possession yet");
+ const eventFor=id=>({button:0,target:{closest:sel=>sel==="[data-player-id]"?{dataset:{playerId:id}}:null},
+  preventDefault(){ctx.prevented=(ctx.prevented||0)+1},
+  stopImmediatePropagation(){ctx.stopped=(ctx.stopped||0)+1}});
+ ctx.pointerDown(eventFor("staff"));
+ assert.equal(ctx.events.length,0,"Coaches cannot receive puck possession");
+ assert.equal(ctx.ui.v60Mode.type,"give","Invalid receiver must keep give mode active");
+ ctx.pointerDown(eventFor("skater"));
+ assert.equal(ctx.events.length,1);
+ assert.equal(ctx.events[0].event.type,"possess","Give must create a possession event");
+ assert.equal(ctx.events[0].event.targetId,"skater");
+ assert.equal(ctx.events[0].event.time,4,"Possession is immediate at playhead");
+ assert.equal(ctx.events[0].event.replace,true,"Possession must interrupt an existing flight");
+ assert.equal(ctx.events[0].event.puckId,undefined,"Primary puck keeps legacy puck ID");
+ assert.equal(ctx.events[0].options.select,false);
+ assert.equal(ctx.legacyClicks,0,"Give targeting must not start skater drag");
+ ctx.ui.v60Mode=null;ctx.ui.v60DirectSelection=true;
+ ctx.ui.selectedType="additionalPuck";ctx.ui.selectedId="puck-two";ctx.ui.playhead=7;
+ assert.match(ctx.markup(),/data-v60-action="give"/,"Added pucks expose the same Give control");
+ assert.equal(ctx.startGive(),true);
+ ctx.pointerDown(eventFor("goalie"));
+ assert.equal(ctx.events.length,2);
+ assert.equal(ctx.events[1].event.puckId,"puck-two","Only the selected added puck changes holder");
+ assert.equal(ctx.events[1].event.targetId,"goalie","Goalies are valid receivers");
+ assert.equal(ctx.events[1].event.time,7);
+ // Even a puck mid-flight must be assignable, while Pass/Shoot remain unavailable.
+ ctx.ui.v60Mode=null;ctx.ui.v60DirectSelection=true;ctx.ui.selectedType="additionalPuck";
+ ctx.v60PuckCanBeDirected=()=>false;
+ assert.match(ctx.markup(),/data-v60-action="give"/);
+ assert.doesNotMatch(ctx.markup(),/data-v60-action="pass"/);
+ assert.doesNotMatch(ctx.markup(),/data-v60-action="shoot"/);
+ assert.ok(app.includes('else if(action==="give")v713StartGive();'),
+  "Both normal and portaled puck menus must dispatch Give");
+ assert.equal(app.split('else if(action==="give")v713StartGive();').length-1,2);
+ assert.ok(app.includes('v713CancelBeforeGive();'));
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.12 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.13 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.12 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.13 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.13 staging feature — November 20, 2026
+
+- Added **Give** to the on-ice action menu for the primary puck and every additional puck. Select a puck, click Give, and then click an on-ice skater or goalie to put that puck immediately in their possession at the current playhead time; no pass or shot is generated.
+- The feature uses the existing saved `possess` puck-timeline event, follows the selected player's stick during movement, and preserves the other pucks' timelines. It can interrupt an in-progress puck flight when explicitly chosen.
+- Off-ice players, coaches and managers are not valid targets. The Cancel action exits targeting without a change. Added regression tests for primary/extra puck, skater/goalie and flight behavior.
+- The existing Pass, Shoot, rink-object physics and stored-play compatibility are unchanged. Staging only; production untouched.
 
 ## V7.1.12 staging fix — November 20, 2026
 
@@ -92,7 +99,7 @@ Copyright © 2026 FENRIR LLC. All rights reserved.
 
 
 
-The following sections document the historical v6.8.2 baseline, not the current V7.1.12 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
+The following sections document the historical v6.8.2 baseline, not the current V7.1.13 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
 
 ## Included scope
 

@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.13 Preview — November 20, 2026 (staging only)
+
+- Added a short **Give** button next to the puck's Pass/Shoot controls. Choose a puck and click Give, then tap any on-ice skater or goalie to assign immediate possession without a pass, shot, or travel path.
+- Uses the native `possess` timeline event at the playhead, with explicit replacement if a puck was mid-flight; correctly targets Puck 1 or the selected additional puck, following the receiver's stick as they skate.
+- Empty ice / staff cannot receive possession. Cancel exits targeting; while a puck is mid-flight, Give remains available but Pass/Shoot stay disabled.
+- Includes targeted regression tests, visible staging version bump and checksums. Saved-play schema and production remain unchanged.
+
+---
+
 ## V7.1.12 Preview — November 20, 2026 (staging only)
 
 - **Fixed:** placing a divider pad or another rink object on a puck can no longer trigger the puck's drag/selection handler.
