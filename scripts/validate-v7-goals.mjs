@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.2.0 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.2.0"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.11 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.11"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1748,7 +1748,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Puck cannot teleport between adjoining motion segments");
  assert.equal(math.progress(smooth,0),0);
  assert.equal(math.progress(smooth,1),1);
- const cacheBegin=app.indexOf("/* V7.2.0: One deterministic puck timeline");
+ const cacheBegin=app.indexOf("/* V7.1.11: One deterministic puck timeline");
  assert.ok(cacheBegin>0,"Per-playback collision cache must exist");
  let computes=0;
  const runtime={
@@ -1757,7 +1757,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   stopPlayback:()=>{runtime.ui.playing=false},
   togglePlayback:()=>{runtime.ui.playing=!runtime.ui.playing}
  };
- vm.runInNewContext(app.slice(cacheBegin,app.indexOf("/* V7.2.0: physical bank-pass solver",cacheBegin)),runtime,{timeout:1000});
+ vm.runInNewContext(app.slice(cacheBegin,app.indexOf("</script>",cacheBegin)),runtime,{timeout:1000});
  runtime.togglePlayback();
  const first=runtime.buildPuckTimeline("puck");
  for(let frame=0;frame<120;frame++)
@@ -1829,63 +1829,6 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   'window.addEventListener("pointercancel",finish,true)',
   'v7ApplyStretchLength(item,{...drag,point}'
  ])assert.ok(app.includes(phrase),"Stretch handler regression: "+phrase);
-}
-
-
-/* V7.2.0 bank passing: same solver in preview and recorded travel. */
-{
- const begin=app.indexOf("/* V7.2.0: physical bank-pass solver");
- const end=app.indexOf("/* V7.2.0 pass UI integration.",begin);
- assert.ok(begin>0&&end>begin,"Shared bank pass solver must be present");
- const positions={A:{x:0,y:0},B:{x:100,y:55},C:{x:40,y:0}},
-  roles={A:"skater",B:"skater",C:"coach"};
- const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
- const lerp=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
- const length=p=>p.slice(1).reduce((sum,v,i)=>sum+dist(p[i],v),0);
- const slice=(p,_start,end)=>{
-  let todo=length(p)*end,points=[{...p[0]}];
-  for(let i=1;i<p.length;i++){
-   const d=dist(p[i-1],p[i]);
-   if(d>=todo){points.push(lerp(p[i-1],p[i],todo/Math.max(.00001,d)));return points}
-   todo-=d;points.push({...p[i]})
-  }
-  return points
- };
- const context={
-  state:{onIce:{A:{},B:{},C:{}}},
-  playerById:id=>({id,role:roles[id]}),
-  playerPositionAt:id=>positions[id],stickPosition:id=>positions[id],
-  dist,pointLerp:lerp,polylineLength:length,slicePolylineByProgress:slice,
-  clamp:(x,a,b)=>Math.min(b,Math.max(a,x)),passSpeedUnits:x=>175+43*x,
-  v7ShotMotionProgress:(_profile,t)=>t,v7ContactProgress:()=>.5,
-  v7PhysicalShotTrajectory:()=>({
-   path:[{x:0,y:0},{x:100,y:0},{x:100,y:100}],
-   contacts:[{kind:"board",point:{x:100,y:0}}],
-   durationWeight:200,motionProfile:null,bounced:true})
- };
- vm.runInNewContext(app.slice(begin,end)+"\nthis.solve=v720PhysicalPassTrajectory;",context,{timeout:1500});
- const bank=context.solve({x:0,y:0},{x:180,y:0},6,0,"A");
- assert.equal(bank.receiverId,"B","Receiver beyond rebound must gain possession");
- assert.ok(bank.path.length>=3&&bank.path[1].x===100&&bank.path[1].y===0,
-   "Physical rebound waypoint must remain in pass");
- assert.ok(bank.path.at(-1).y<100,"Pass must stop on player catch");
- assert.ok(bank.duration>0&&bank.duration<200/(175+6*43),
-   "Player interception must shorten the flight");
- positions.A={x:-500,y:-500};positions.B={x:500,y:500};
- const missed=context.solve({x:0,y:0},{x:180,y:0},6,0,null);
- assert.equal(missed.receiverId,null,"Uncaught pass must stay loose");
- assert.equal(missed.path.length,3,"Uncaught pass must retain rebound");
- for(const marker of [
-  'if(event.type==="passSpace"&&event.physicsPass===true)',
-  'v720PhysicalPassTrajectory(start,aim,strength,at,source,event.travelDuration)',
-  'mode=receiverId?"attached":"loose";holder=receiverId',
-  'v720PhysicalPassTrajectory(origin,aim,mode.passPower||ui.puckOptions.passSpeed',
-  'v60CommitPassToPlayer=function(id)',
-  'v60CommitPassToPoint=function(point)',
-  'if(event.type==="passSpace"){',
-  'if(event.type==="pass"){',
-  'if(interval?.physicsPass&&!interval.sauce)return null'
- ])assert.ok(app.includes(marker),"Missing pass regression marker: "+marker);
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
