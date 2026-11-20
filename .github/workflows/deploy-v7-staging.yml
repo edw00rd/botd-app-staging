@@ -123,14 +123,23 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
+          import { execFileSync } from 'node:child_process';
           const log = fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'botd-staging-deploy.log'),'utf8');
           const version = log.match(/Current Version ID:\s*([0-9a-f-]{36})/i)?.[1];
           if (!version) {
             console.error('::error::Wrangler completed without an identifiable deployed Worker version ID.');
             process.exit(1);
           }
+          // The initial Wrangler upload may report "No targets deployed".
+          // A version upload is not proof it is serving any traffic. Explicitly
+          // activate the exact uploaded version against STAGING only.
+          console.log('Promoting uploaded staging Worker version ' + version + ' to 100% traffic.');
+          execFileSync('./node_modules/.bin/wrangler',
+            ['versions', 'deploy', version + '@100%', '--config', 'wrangler.jsonc',
+             '--name', 'botd-app-staging', '--yes'],
+            { stdio: 'inherit' });
           fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version_id=' + version + '\n');
-          console.log('Recorded deployed staging Worker version: ' + version);
+          console.log('Activated staging Worker version: ' + version);
           NODE
 
       - name: Verify active staging deployment through Cloudflare API
