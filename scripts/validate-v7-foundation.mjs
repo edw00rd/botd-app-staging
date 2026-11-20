@@ -305,7 +305,7 @@ for(const marker of [
   "On-ice additional puck minus must still delete");
 }
 // Regression: v7 object collisions must preserve v6.1 aim-vector shot geometry.
-const v7Timeline=app.slice(app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'));
+const v7Timeline=app.slice(app.indexOf('buildPuckTimeline=function(puckId="puck"){'));
 const v7Shot=v7Timeline.slice(v7Timeline.indexOf('if(event.type==="shot"){'),v7Timeline.indexOf("function v7EquipmentSvg"));
 for(const required of [
   "v60BuildShotPath(start",
@@ -318,7 +318,7 @@ for(const required of [
 // Execute the v7 shot engine, not just its syntax. Missing closure helpers
 // previously caused renderFrame() to throw and disabled the entire editor.
 {
-  const engineStart=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){');
+  const engineStart=app.indexOf('buildPuckTimeline=function(puckId="puck"){');
   const engineEnd=app.indexOf("\nfunction v7EquipmentSvg",engineStart);
   assert.ok(engineStart>0&&engineEnd>engineStart,"v7 timeline engine not found");
   const evt={id:"shot-test",type:"shot",time:0,target:{x:800,y:400},aimVector:{x:1,y:0},power:7,travelDuration:3};
@@ -353,7 +353,7 @@ for(const required of [
 // Exercise both Pass interactions. v7 previously rejected loose-puck passes
 // and silently dropped the "passSpace" action, leaving the puck stationary.
 {
-  const engineStart=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){');
+  const engineStart=app.indexOf('buildPuckTimeline=function(puckId="puck"){');
   const engineEnd=app.indexOf("\nfunction v7EquipmentSvg",engineStart);
   const engine="var buildPuckTimeline;\n"+app.slice(engineStart,engineEnd);
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -422,7 +422,7 @@ for(const required of [
 // Each puck must animate its own simultaneous passes/shots, never steal
 // another puck's event stream, and retain a stable origin after save/load.
 {
- const a=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'),b=app.indexOf("\nfunction v7EquipmentSvg",a);
+ const a=app.indexOf('buildPuckTimeline=function(puckId="puck"){'),b=app.indexOf("\nfunction v7EquipmentSvg",a);
  assert.ok(a>0&&b>a);
  const actions=[
   {id:"p1-pass",type:"passSpace",time:0,target:{x:260,y:120},speed:6},
@@ -466,7 +466,7 @@ assert.ok(app.includes('transform:"scale(0.92)"'),"On-ice token scale reduction 
 // Runtime gates: independent shot collision policies, clearance geometry,
 // visual lift and commit persistence. These run against the actual v7 engine.
 {
-  const a=app.lastIndexOf('buildPuckTimeline=function(puckId="puck"){'),b=app.indexOf("\nfunction v7EquipmentSvg",a);
+  const a=app.indexOf('buildPuckTimeline=function(puckId="puck"){'),b=app.indexOf("\nfunction v7EquipmentSvg",a);
   assert.ok(a>0&&b>a);
   const path=[{x:100,y:100},{x:200,y:100},{x:300,y:100}];
   const run=(defense,objects)=>{
