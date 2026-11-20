@@ -211,8 +211,8 @@ for(const marker of [
    app.indexOf("/* V7 on-ice visual scale.",app.indexOf("function v7RenderEquipment()")));
  assert.ok(equipmentRender.includes("if(!rotatingNet&&selected){"),
  "The default goals must have the same minus control as other equipment");
- assert.ok(equipmentRender.includes('v7RinkGoalResetControl(selected.id,point,.78)'),"Permanent goal selection needs a reset icon");
- assert.ok(equipmentRender.includes('v7RinkNetSizeControl(selected.id,point,.78)'),"Selected nets need an on-ice size selector");
+ assert.ok(equipmentRender.includes('v7RinkGoalResetControl(selected.id,slots.topRight)'),"Permanent goal selection needs a reset icon");
+ assert.ok(equipmentRender.includes('v7RinkNetSizeControl(selected.id,slots.bottomRight)'),"Selected nets need an on-ice size selector");
  assert.ok(equipmentRender.includes('v7RinkRemoveControl(selected.id,"equipment"'),"Selected equipment must show minus");
  const puckRender=app.slice(app.indexOf("function v7RenderAdditionalPucks("),
    app.indexOf("/* Reuse original route geometry",app.indexOf("function v7RenderAdditionalPucks(")));

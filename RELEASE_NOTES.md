@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.10 Preview — November 20, 2026 (staging only)
+
+- Standardized selected rink-object action pills to one full-size 28-unit diameter and common geometry-aware corner anchors: **minus bottom-left**, **clone plus bottom-right** on ordinary equipment; for goals **clone plus top-left**, **reset top-right**, **minus bottom-left**, **net-size arrows bottom-right**.
+- Rebuilt the length-stretch interaction for pads, bumpers, dividers, sticks and rebounders. Dragging now changes length relative to the initial grab rather than jumping to the handle's location; pointer updates remain active even after the floating controls redraw, and resized geometry is checked against the boards.
+- Gave the stretch handle a distinct gray finish and double-ended arrow, leaving rotation handles blue/white.
+- Replaced the Rink Objects toolbar diamond with a hockey-stick icon. Updated regression tests, checksums and staging version labels. Puck physics, saved-play schema and production unchanged.
+
+---
+
 ## V7.1.9 Preview — November 20, 2026 (staging only)
 
 - Widened the dashed player selection outline so it clears the position pill and C/A leadership marker without changing player size or the shared selection style.

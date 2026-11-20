@@ -241,9 +241,9 @@ assert.ok(app.includes('function v7NetRotateOverlay(item)')&&
   "Net handle must render in its own topmost world-camera layer above the boards");
 assert.ok(app.includes('desired=ry+37'),"Shortened rotation arm must be preserved");
 assert.ok(!app.includes('for(const reach of [desired,'),"No disappearing or flipping handle near boards");
-assert.ok(app.includes('v7RinkNetSizeControl(selected.id,point,.78)')&&
-  app.includes('v7RinkGoalResetControl(selected.id,point,.78)'),
-  "Net action buttons must be compact and grouped closer together");
+assert.ok(app.includes('v7RinkNetSizeControl(selected.id,slots.bottomRight)')&&
+  app.includes('v7RinkGoalResetControl(selected.id,slots.topRight)'),
+  "Goal controls must occupy the shared corner slots at full size");
 
 /* Fine rotation snapping: 0, 90, 180, 270 degrees, only within ±2°. */
 for(const [input,expected] of [[0,0],[1.9,0],[-1.9,0],[88.1,90],
@@ -284,6 +284,7 @@ const renderContext={
  v7RinkGoalResetControl:()=>({kind:"reset-control"}),
  v7RinkNetSizeControl:()=>({kind:"size-control"}),
  v7RinkDispensePuckControl:()=>({kind:"dispense-control"}),
+ v7EquipmentActionSlots:()=>({topLeft:{},topRight:{},bottomLeft:{},bottomRight:{}}),
  v7NetRotateOverlay:()=>({kind:"rotate-overlay"})
 };
 vm.runInNewContext(app.slice(renderStart,renderEnd)+"\nthis.draw=v7RenderEquipment",renderContext,{timeout:1500});
@@ -1551,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.9 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.9"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.10 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.10"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1747,7 +1748,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   "Puck cannot teleport between adjoining motion segments");
  assert.equal(math.progress(smooth,0),0);
  assert.equal(math.progress(smooth,1),1);
- const cacheBegin=app.indexOf("/* V7.1.9: One deterministic puck timeline");
+ const cacheBegin=app.indexOf("/* V7.1.10: One deterministic puck timeline");
  assert.ok(cacheBegin>0,"Per-playback collision cache must exist");
  let computes=0;
  const runtime={
@@ -1775,6 +1776,57 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  runtime.ui.recordingMove={started:true};
  assert.notEqual(runtime.buildPuckTimeline("puck"),runtime.buildPuckTimeline("puck"),
   "Editing must bypass the playback-only cache");
+}
+
+
+/* Unified equipment controls and durable length-stretch behavior. */
+{
+ const start=app.indexOf("function v7EquipmentActionSlots("),end=app.indexOf("function v7RenderEquipment(",start);
+ assert.ok(start>0&&end>start,"Shared equipment control slots missing");
+ const scope={v7CollisionGeometry:item=>item.geometry,
+  v59ClampVisiblePoint:p=>p,round:(x,n)=>Math.round(x*10**n)/10**n};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.slots=v7EquipmentActionSlots;",scope,{timeout:1500});
+ const net={x:500,y:300,rotation:0,geometry:{length:36,width:48,radius:0}};
+ const controls=scope.slots(net);
+ assert.ok(controls.topLeft.x<500&&controls.topLeft.y<300);
+ assert.ok(controls.topRight.x>500&&controls.topRight.y<300);
+ assert.ok(controls.bottomLeft.x<500&&controls.bottomLeft.y>300);
+ assert.ok(controls.bottomRight.x>500&&controls.bottomRight.y>300);
+ assert.ok(app.includes('v7RinkRemoveControl(selected.id,"equipment",slots.bottomLeft)'));
+ assert.ok(app.includes('v7RinkGoalResetControl(selected.id,slots.topRight)'));
+ assert.ok(app.includes('v7RinkNetSizeControl(selected.id,slots.bottomRight)'));
+ assert.ok(app.includes('selected.type==="net"?"topLeft":"bottomRight"'));
+ assert.ok(app.includes('v7RoundButton(selected.id,slots.bottomRight,"duplicate")'));
+ assert.ok(!app.includes('v7RinkGoalResetControl(selected.id,point,.78)'));
+ assert.ok(app.includes('btn.textContent="🏒"'),"Rink objects toolbar icon must be a hockey stick");
+ const stretchStart=app.indexOf("function v7ApplyStretchLength(");
+ const stretchEnd=app.indexOf("function v7SetupEquipmentEvents(",stretchStart);
+ assert.ok(stretchStart>0&&stretchEnd>stretchStart);
+ const ctx={v7WorldToLocal:(item,p)=>({x:p.x-item.x,y:p.y-item.y}),
+  clamp:(v,a,b)=>Math.min(b,Math.max(a,v)),
+  round:(v,n)=>Math.round(v*10**n)/10**n,
+  v7ClampEquipmentToIce:()=>({x:500,y:300})};
+ vm.runInNewContext(app.slice(stretchStart,stretchEnd)+"\nthis.stretch=v7ApplyStretchLength;",ctx,{timeout:1500});
+ const item={type:"pad",x:500,y:300,geometry:{length:32,width:12},rotation:0,scale:1};
+ let saves=0;
+ assert.equal(ctx.stretch(item,{startLength:32,startLocalX:46,point:{x:556,y:300}},()=>saves++),true);
+ assert.equal(item.geometry.length,52);
+ assert.equal(saves,1);
+ assert.equal(ctx.stretch(item,{startLength:32,startLocalX:46,point:{x:536,y:300}},()=>saves++),true);
+ assert.equal(item.geometry.length,18);
+ ctx.v7ClampEquipmentToIce=()=>null;
+ assert.equal(ctx.stretch(item,{startLength:32,startLocalX:46,point:{x:568,y:300}},()=>saves++),false);
+ assert.equal(item.geometry.length,18,"Invalid board-fit stretches must be rejected");
+ assert.equal(saves,2);
+ for(const phrase of [
+  'class:"v7-object-handle v7-stretch-handle"',
+  'class:"v7-stretch-symbol"',
+  'portaled:true,historyPushed:false,changed:false',
+  'window.addEventListener("pointermove",event=>',
+  'window.addEventListener("pointerup",finish,true)',
+  'window.addEventListener("pointercancel",finish,true)',
+  'v7ApplyStretchLength(item,{...drag,point}'
+ ])assert.ok(app.includes(phrase),"Stretch handler regression: "+phrase);
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
