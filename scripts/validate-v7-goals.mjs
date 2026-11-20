@@ -1757,7 +1757,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
   stopPlayback:()=>{runtime.ui.playing=false},
   togglePlayback:()=>{runtime.ui.playing=!runtime.ui.playing}
  };
- vm.runInNewContext(app.slice(cacheBegin,app.indexOf("</script>",cacheBegin)),runtime,{timeout:1000});
+ vm.runInNewContext(app.slice(cacheBegin,app.indexOf("/* V7.2.0: physical bank-pass solver",cacheBegin)),runtime,{timeout:1000});
  runtime.togglePlayback();
  const first=runtime.buildPuckTimeline("puck");
  for(let frame=0;frame<120;frame++)
