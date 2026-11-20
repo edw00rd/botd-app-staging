@@ -1157,7 +1157,7 @@ body.v682-glow-range-dragging .v63-glow-editor input[type="range"][data-v61-glow
 <script>
 "use strict";
 const APP_VERSION="6.8.2"; // Saved-play and stable-production compatibility.
-const V7_UI_VERSION="7.1.8"; // Bump for each accepted staging update.
+const V7_UI_VERSION="7.1.9"; // Bump for each accepted staging update.
 const BOTD_ACCOUNT_ID="__BOTD_ACCOUNT_ID__";
 if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(BOTD_ACCOUNT_ID))throw new Error("A valid B.O.T.D. account context is required.");
 const ACCOUNT_STORAGE_NAMESPACE=`botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}`;
