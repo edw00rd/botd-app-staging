@@ -1,8 +1,14 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.8 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.9 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.8 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.9 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.9 staging change — November 20, 2026
+
+- Enlarged the dashed player selection ring to clear position and leadership markers; player token sizes and ring styling are unchanged.
+- Moved player labels outside the wider ring, and positioned Move/Bench above the actual name or below the ring near the top edge.
+- Added targeted regression coverage. Puck physics, production and play compatibility are unchanged.
 
 ## V7.1.8 staging change — November 19, 2026
 
@@ -67,7 +73,7 @@ Copyright © 2026 FENRIR LLC. All rights reserved.
 
 
 
-The following sections document the historical v6.8.2 baseline, not the current V7.1.6 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
+The following sections document the historical v6.8.2 baseline, not the current V7.1.9 preview. It is based on the feature source accepted in staging at commit `71741c6914e723e46081fefa74950bad02da6861` and Worker version `b37d093c-1bc7-4274-b123-31ac7daec44b`. V7 staging work requires independent validation and approval before any production promotion.
 
 ## Included scope
 

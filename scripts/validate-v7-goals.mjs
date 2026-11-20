@@ -25,13 +25,15 @@ const visual=metricScope.metrics,goalWidth=6*4.8;
 const skaterOutline=metricScope.v7PlayerSelectionFootprint("forward",visual);
 const goalieOutline=metricScope.v7PlayerSelectionFootprint("goalie",visual);
 const staffOutline=metricScope.v7PlayerSelectionFootprint("coach",visual);
-assert.ok(skaterOutline.radius>visual.skaterDiameter/2&&
- skaterOutline.radius<visual.skaterDiameter*.75,
- "Selected player outline must hug the visible player, not the hitbox");
-assert.ok(goalieOutline.width<visual.goalieWidth*1.5 &&
- staffOutline.width<visual.skaterDiameter*1.5,
- "Staff and goalie outlines must be similarly compact");
+const badgeReach=Math.hypot(20*visual.skaterScale,20*visual.skaterScale)+14*visual.skaterScale;
+assert.ok(skaterOutline.radius>badgeReach+3&&skaterOutline.radius<visual.playerHitRadius+3,
+ "Selected player outline must surround position and leadership badges without growing oversized");
+assert.ok(goalieOutline.width>visual.goalieWidth+18&&goalieOutline.width<visual.goalieWidth+26&&
+ staffOutline.width>visual.skaterDiameter+18&&staffOutline.width<visual.skaterDiameter+26,
+ "Goalie and staff selection outlines must clear their markers");
 const playerScaleSource=app.slice(metricsEnd,app.indexOf("/* Shared circular selection marker",metricsEnd));
+assert.ok(playerScaleSource.includes('const y=p.role==="goalie"?-30:-26'),
+ "Names must sit outside the enlarged selection ring");
 assert.ok(playerScaleSource.includes('ring.removeAttribute("transform")')&&
  playerScaleSource.includes('ring.setAttribute("r",String(outline.radius))')&&
  playerScaleSource.includes('ring.setAttribute("pointer-events","none")'),
@@ -48,6 +50,29 @@ assert.ok(app.includes("v7RenderEquipment();v7RenderAdditionalPucks(time);v7Scal
  "Rink renderer must draw equipment, individual added pucks, and correctly scaled player symbols");
 assert.ok(app.includes('layer.append(v7CreatePuckToken("puck",0,pos,ps,time,timeline))')&&app.includes('v7CreatePuckToken(puck.id,index+1,pos,ps,time,timeline)'),"All pucks must share the same shadow-free renderer");
 assert.ok(app.includes(".v7-player-hitbox,.v7-puck-hitbox,[data-selection-handle]"));
+
+/* Player action menu must avoid both the name label and ring, even at top edge. */
+{
+ const start=app.indexOf("function v7FloatingPlaceMenu("),end=app.indexOf("function v7FloatingInstall(",start);
+ assert.ok(start>0&&end>start,"Floating action placement function missing");
+ const ctx={ui:{selectedType:"player"},window:{innerWidth:800,innerHeight:600},
+  clamp:(v,a,b)=>Math.min(b,Math.max(a,v)),round:(v,n)=>Math.round(v*10**n)/10**n};
+ vm.runInNewContext(app.slice(start,end)+"\nthis.place=v7FloatingPlaceMenu;",ctx,{timeout:1500});
+ const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+ const menu={hidden:true,style:{},offsetWidth:184,offsetHeight:42,
+  classList:{items:new Set(),add(k){this.items.add(k)},remove(k){this.items.delete(k)}}};
+ function anchor(token,label,ring){return{getBoundingClientRect:()=>token,
+  closest:()=>({querySelector:s=>({".token-label":{getBoundingClientRect:()=>label},
+   ".selection-ring":{getBoundingClientRect:()=>ring}}[s])})}}
+ const label=rect(275,268,70,10);
+ assert.equal(ctx.place(menu,anchor(rect(300,300,18,18),label,rect(290,287,38,38)),{gap:12}),true);
+ assert.ok(parseFloat(menu.style.top)+42<=label.top-12,
+  "Move/Bench actions must clear the full player name");
+ const ringHigh=rect(290,32,38,38);
+ assert.equal(ctx.place(menu,anchor(rect(300,45,18,18),rect(275,14,70,10),ringHigh),{gap:12}),true);
+ assert.ok(parseFloat(menu.style.top)>=ringHigh.bottom+12,
+  "Actions must flip below the ring when the player's name is near the top");
+}
 
 const round=(v,places=2)=>Math.round(v*10**places)/10**places;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));

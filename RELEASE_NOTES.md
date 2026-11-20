@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.9 Preview — November 20, 2026 (staging only)
+
+- Widened the dashed player selection outline so it clears the position pill and C/A leadership marker without changing player size or the shared selection style.
+- Shifted names above the expanded ring and positioned Move/Bench against measured name and ring bounds, with a top-edge fallback.
+- Added geometry and floating-menu regression checks. No changes to puck physics, stored plays, billing, or production.
+
+---
+
 ## V7.1.8 Preview — November 19, 2026 (staging only)
 
 - Replaced piecewise-constant puck animation with smooth, physically decelerating travel between contacts; keep sharp directional changes only at genuine impacts.
