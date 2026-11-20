@@ -123,23 +123,14 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
-          import { execFileSync } from 'node:child_process';
           const log = fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'botd-staging-deploy.log'),'utf8');
           const version = log.match(/Current Version ID:\s*([0-9a-f-]{36})/i)?.[1];
           if (!version) {
             console.error('::error::Wrangler completed without an identifiable deployed Worker version ID.');
             process.exit(1);
           }
-          // The initial Wrangler upload may report "No targets deployed".
-          // A version upload is not proof it is serving any traffic. Explicitly
-          // activate the exact uploaded version against STAGING only.
-          console.log('Promoting uploaded staging Worker version ' + version + ' to 100% traffic.');
-          execFileSync('./node_modules/.bin/wrangler',
-            ['versions', 'deploy', version + '@100%', '--config', 'wrangler.jsonc',
-             '--name', 'botd-app-staging', '--yes'],
-            { stdio: 'inherit' });
           fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version_id=' + version + '\n');
-          console.log('Activated staging Worker version: ' + version);
+          console.log('Recorded deployed staging Worker version: ' + version);
           NODE
 
       - name: Verify active staging deployment through Cloudflare API
@@ -159,13 +150,13 @@ jobs:
           const account = process.env.CLOUDFLARE_ACCOUNT_ID;
           const token = process.env.CLOUDFLARE_API_TOKEN;
           const endpoint = 'https://api.cloudflare.com/client/v4/accounts/' +
-            account + '/workers/scripts/botd-app-staging/deployments?per_page=1';
+            account + '/workers/scripts/botd-app-staging/deployments?per_page=10';
           // Cloudflare's deployment list can lag an accepted Worker upload.
           // Retain the strict 100% active-version requirement, but let the
           // control plane converge before declaring a deployment failure.
           let matched = false;
           let lastActive = 'none';
-          for (let attempt = 1; attempt <= 12; attempt++) {
+          for (let attempt = 1; attempt <= 40; attempt++) {
             const response = await fetch(endpoint, {
               headers: { Authorization: 'Bearer ' + token, 'Cache-Control': 'no-cache' },
               signal: AbortSignal.timeout(15000)
@@ -188,8 +179,8 @@ jobs:
             );
             if (matched) break;
             console.log('Cloudflare staging activation pending (' + attempt +
-              '/12). Active versions: ' + lastActive);
-            if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 2500));
+              '/40). Active versions: ' + lastActive);
+            if (attempt < 40) await new Promise(resolve => setTimeout(resolve, 3000));
           }
           if (!matched) {
             console.error('::error::Uploaded staging Worker version ' + version +
