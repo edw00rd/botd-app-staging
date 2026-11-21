@@ -1,8 +1,16 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.15 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.16 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.15 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.16 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.16 roster properties — November 21, 2026
+
+- Adding a roster member now opens a modal **Player Properties** editor. A nonblank name is mandatory, and no placeholder person enters the roster until the user submits.
+- The editor sets the team, role (skater, goalie, coach, manager), position, line/pair, jersey number where applicable, shooting/catching hand, leadership, and optional palette overrides. Role-dependent fields are hidden when irrelevant.
+- All staff stay number-free: the roster number field and displayed number are removed for coaches/managers, including legacy entries and role changes. Their existing square C tokens remain unchanged.
+- On save, the roster filter clears, the new member's team is selected, and the newly inserted alphabetical roster card expands, scrolls into view, and highlights briefly. Cancel makes no change.
+- Includes a focused regression test. Staging only; saved-play schema and production unchanged.
 
 ## V7.1.15 staff token appearance — November 21, 2026
 

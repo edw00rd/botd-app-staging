@@ -1,5 +1,15 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.16 Preview — November 21, 2026 (staging only)
+
+- Replaced immediate "New Skater" insertion with required **Player Properties** setup when choosing Add player; creating a skater, goalie, coach or manager now happens only after saving a valid name and role-appropriate attributes.
+- Added team, position/line, number (players/goalies only), hand, leadership, and optional color overrides in the creation dialog. Cancel discards everything.
+- Removed the editable number field and number text from coach/manager roster cards, ignored numbers on staff bench cards, and clear legacy staff numbers on rendering or conversion.
+- Newly saved members are expanded, highlighted and scrolled into view in the alphabetized team roster, even when a search filter was active. Existing square C staff artwork retained.
+- Added targeted regression coverage. Staging only; no saved-play schema or production change.
+
+---
+
 ## V7.1.15 Preview — November 21, 2026 (staging only)
 
 - All coach and manager staff tokens now use a square shape with a large, centered **C** in the configurable number color.
