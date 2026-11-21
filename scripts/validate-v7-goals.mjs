@@ -1518,8 +1518,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.equal((dialog.match(/class="v7pc-mini"/g)||[]).length,1,"Only the on-ice preview should remain");
  assert.ok(app.includes('if(target?.type==="player")return v7OpenPlayerColorDialog(target.id)'));
  assert.ok(app.includes('p.primaryOverride=null;p.trimOverride=null;p.numberOverride=null;'));
- assert.equal((app.match(/fill:colors\.numbers/g)||[]).length,2,
-  "Goalie and skater SVG number fills must use number color");
+ assert.equal((app.match(/fill:colors\.numbers/g)||[]).length,3,
+  "Goalie, skater and staff C SVG number fills must use the customizable Numbers color");
  assert.ok(app.includes('tok.style.setProperty("--piece-ink",c.numbers)'));
  assert.ok(app.includes('--piece-ink:${c.numbers}'));
  assert.ok(app.includes('numberOverride:null,glow:'));
