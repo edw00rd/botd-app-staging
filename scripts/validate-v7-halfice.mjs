@@ -121,7 +121,7 @@ for(const side of ["right","left"]){
     assert.ok(Math.abs(TR.y-TL.y)<.001&&Math.abs(BR.x-TR.x)<.001,
       side+": object controls remain symmetric");
   }
-  const bounds={x:730,y:175,width:135,height:165};
+  const bounds={x:side==="right"?730:130,y:175,width:135,height:165};
   const pair=env.v719HalfGroupControls(bounds,side),h=pair.view;
   assert.ok(h.rotate.y<h.label.y,side+": rotate above selection label");
   assert.ok(h.remove.x>h.rotate.x,side+": delete at visible right");
