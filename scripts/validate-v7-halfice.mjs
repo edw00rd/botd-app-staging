@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.17 Preview/);
-assert.match(shell,/V7\.1\.17 Preview/);
+assert.match(app,/V7\.1\.18 Preview/);
+assert.match(shell,/V7\.1\.18 Preview/);
 assert.ok(app.includes('const V7_UI_VERSION="7.1.18"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
@@ -99,4 +99,4 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.17 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.18 Half Ice camera, faces, controls and visible spawns verified.");
