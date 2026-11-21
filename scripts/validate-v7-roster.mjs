@@ -3,7 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.16 Preview/);
+assert.match(app,/V7\.1\.17 Preview/);
 assert.match(app,/id="v716PersonName"[^>]*required/);
 assert.match(app,/id="v716PersonRole"/);
 assert.match(app,/id="v716RosterDialog"/);
@@ -12,8 +12,8 @@ assert.ok(!app.includes('name:"New Skater"'),"No unnamed roster placeholders sho
 assert.match(app,/root\.appendChild\(card\)\}v716RosterFinalizeCards\(\)/);
 assert.match(app,/!v716IsStaff\(player\)&&player\.number/);
 assert.match(app,/p\.number="";p\.line=0/);
-const start=app.indexOf("/* V7.1.17 — Validate before creating");
-const end=app.indexOf("</script>",start);
+const start=app.indexOf("/* V7.1.16 — Validate before creating");
+const end=app.indexOf("/* V7.1.17 — Half Ice",start);
 assert.ok(start>0&&end>start,"Roster helpers missing");
 const helpers=app.slice(start,end);
 const members=[];
