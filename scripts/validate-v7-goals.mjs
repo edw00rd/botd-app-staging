@@ -639,7 +639,7 @@ for(const marker of ['n.setAttribute("x","0")','n.setAttribute("y","0")','n.setA
  'n.style.fontFamily="inherit"'])
  assert.ok(playerScale.includes(marker),"Number centering regression: "+marker);
 for(const marker of ['n.style.fontWeight="950"',
- 'n.style.fontSize=(p.role==="goalie"?24:21)+"px"',
+ 'n.style.fontSize=(p.role==="goalie"?24:(p.role==="coach"||p.role==="manager")?34:21)+"px"',
  'n.style.stroke="none"','n.style.strokeWidth="0px"']){
  assert.ok(playerScale.includes(marker),"On-ice jersey typography must match bench: "+marker);
 }
@@ -1601,7 +1601,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const scaler=app.slice(start,end);
  assert.ok(scaler.includes('token.querySelectorAll(".token-role-badge").forEach(b=>'),
   "Position badges must be scaled as part of the original player token");
- assert.ok(scaler.includes('n.style.fontSize=(p.role==="goalie"?24:21)+"px"'),
+ assert.ok(scaler.includes('n.style.fontSize=(p.role==="goalie"?24:(p.role==="coach"||p.role==="manager")?34:21)+"px"'),
   "Player number font must be 1.5x");
  assert.ok(scaler.includes('const ink=t.getBBox()') &&
   scaler.includes('t.setAttribute("text-anchor","middle")') &&
