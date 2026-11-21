@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.15 Preview — November 21, 2026 (staging only)
+
+- All coach and manager staff tokens now use a square shape with a large, centered **C** in the configurable number color.
+- Removed the HC/MGR role pill and horizontal stripe from on-ice staff artwork; bench and inspector icons and color customization preview display the same square C design.
+- Kept names, staff roles, team palette, interactions and world coordinates unchanged. Added regression checks; production untouched.
+
+---
+
 ## V7.1.14 Preview — November 20, 2026 (staging only)
 
 - **Fixed:** a coach or manager could vanish from the bench without showing up on ice because its historical Y=64 spawn point lies beyond the physical rink (NHL top board near Y=96).

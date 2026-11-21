@@ -1,8 +1,14 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.14 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.15 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.14 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.15 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.15 staff token appearance — November 21, 2026
+
+- Head Coaches, Managers and other coach/manager-role staff now display a square C token with no HC/MGR role pill and no horizontal stripe. The large C uses the customizable Numbers color.
+- Staff artwork is consistent on the ice, team benches, player identity details and color preview; individual names and role descriptions remain distinct.
+- The staff selection outline follows the square token, preserving skater/goalie styling, on-ice coordinates and saved plays. Added regression coverage; staging only, production unaffected.
 
 ## V7.1.14 staging fix — November 20, 2026
 

@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.14 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.14"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.15 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.15"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -2028,6 +2028,56 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.ok(ctx.state.onIce.B_22.x>500&&ctx.state.onIce.B_22.y>=126);
  assert.equal(ctx.state.onIce.A_22.x,215,"Keep manually positioned manager");
  assert.equal(ctx.state.onIce.B_21.y,200,"Keep manually positioned coach");
+}
+
+
+// V7.1.15: all staff use a square C, no role pill or stripe.
+{
+ const begin=app.indexOf("function renderObjectLayer(time){");
+ const end=app.indexOf("\nfunction renderPuckLayer(time,puckTimeline)",begin);
+ assert.ok(begin>0&&end>begin);
+ const nodes=[],players={
+  coach:{id:"coach",role:"coach",name:"Head Coach"},
+  manager:{id:"manager",role:"manager",name:"Manager"},
+  skater:{id:"skater",role:"skater",position:"LW",name:"Skater",number:"12"}
+ };
+ const layer={innerHTML:"",append(node){nodes.push(node)}};
+ const state={onIce:{coach:{x:100,y:200},manager:{x:200,y:200},skater:{x:300,y:200}},
+  display:{numbers:true,positions:true,leadership:false}};
+ const svgEl=(tag,props={})=>({tag,props,children:[],append(...items){this.children.push(...items)}});
+ const ctx={state,ui:{selectedType:null,selectedId:null,possessionTargetId:null},
+  $:()=>layer,playerById:id=>players[id],playerPositionAt:id=>state.onIce[id],
+  playerColors:()=>({primary:"#00ff00",trim:"#000000",numbers:"#ffffff"}),
+  round:v=>v,setGlowStyle:()=>{},svgEl,tokenLabelParts:()=>[]};
+ vm.runInNewContext(app.slice(begin,end)+"\nthis.draw=renderObjectLayer;",ctx,{timeout:2000});
+ ctx.draw(0);assert.equal(nodes.length,3);
+ for(const item of nodes.slice(0,2)){
+  const token=item.children.find(n=>n.props.class?.includes("ice-token"));
+  assert.ok(token);
+  const rect=token.children.find(n=>n.tag==="rect");
+  assert.ok(rect&&rect.props.width===rect.props.height,"Staff token must be square");
+  const letter=token.children.find(n=>n.props.class?.includes("staff-token-letter"));
+  assert.equal(letter?.textContent,"C");
+  assert.equal(letter?.props.fill,"#ffffff");
+  assert.equal(letter?.props.x,0);assert.equal(letter?.props.y,0);
+  assert.ok(!token.children.some(n=>n.props.class==="token-role-badge"),"No staff role pill");
+  assert.ok(!token.children.some(n=>n.tag==="path"),"No staff stripe");
+ }
+ const skater=nodes[2].children.find(n=>n.props.class?.includes("ice-token"));
+ assert.ok(skater.children.some(n=>n.tag==="circle"),"Skater token remains round");
+ assert.ok(skater.children.some(n=>n.props.class==="token-role-badge"),"Skater badge unchanged");
+ state.display.numbers=false;nodes.length=0;ctx.draw(0);
+ for(const item of nodes.slice(0,2)){
+  const token=item.children.find(n=>n.props.class?.includes("ice-token"));
+  assert.ok(token.children.some(n=>n.textContent==="C"),"Staff identity C remains visible");
+ }
+ assert.ok(app.includes("staffScale:3*u/52"));
+ assert.ok(app.includes('return{width:n(d+2*pad),height:n(d+2*pad)'));
+ assert.ok(app.includes('staff-token-letter')&&app.includes('34:21)+"px"'));
+ assert.ok(app.includes('.bench-card.staff .bench-piece{width:38px;height:38px;flex-basis:38px'));
+ assert.ok(app.includes('.v7pc-token.staff{width:47px;height:47px;'));
+ assert.ok(app.includes('label=(p.role==="coach"||p.role==="manager")?"C"'));
+ assert.ok(app.includes('node.textContent=teamMode?"88":((player.role==="coach"||player.role==="manager")?"C"'));
 }
 
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");
