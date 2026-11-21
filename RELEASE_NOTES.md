@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.14 Preview — November 20, 2026 (staging only)
+
+- **Fixed:** a coach or manager could vanish from the bench without showing up on ice because its historical Y=64 spawn point lies beyond the physical rink (NHL top board near Y=96).
+- Staff now spawn inside the selected rink geometry and inside the visible left/right Half Ice camera; team and role positions are distinct.
+- The editor and saved-play loader recover exactly those historical defaults, without moving staff with custom positions or changing puck/play behavior.
+- Added regression checks; staging only. No production or stored-play schema changes.
+
+---
+
 ## V7.1.13 Preview — November 20, 2026 (staging only)
 
 - Added a short **Give** button next to the puck's Pass/Shoot controls. Choose a puck and click Give, then tap any on-ice skater or goalie to assign immediate possession without a pass, shot, or travel path.

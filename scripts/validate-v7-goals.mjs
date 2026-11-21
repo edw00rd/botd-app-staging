@@ -1965,4 +1965,69 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  assert.ok(app.includes('v713CancelBeforeGive();'));
 }
 
+
+/* V7.1.14: staff bench placement stays inside visible playable ice. */
+{
+ const begin=app.indexOf("setupPositionFor=function(teamId,index=0,playerId=null){");
+ const end=app.indexOf("\nrinkBounds=function()",begin);
+ assert.ok(begin>0&&end>begin);
+ const roster={
+  A_21:{id:"A_21",teamId:"A",role:"coach"},
+  A_22:{id:"A_22",teamId:"A",role:"manager"},
+  B_21:{id:"B_21",teamId:"B",role:"coach"},
+  B_22:{id:"B_22",teamId:"B",role:"manager"},
+  A_1:{id:"A_1",teamId:"A",role:"skater"},
+  A_19:{id:"A_19",teamId:"A",role:"goalie"}
+ };
+ const lineup={A_21:{x:455,y:64},A_22:{x:390,y:64},
+  B_21:{x:545,y:64},B_22:{x:610,y:64},A_1:{x:488,y:222}};
+ const ctx={
+  state:{view:"whole",halfSide:"right",ice:{},onIce:{}},setupPositionFor:null,
+  playerById:id=>roster[id]||null,
+  v7CanonicalFaceoffLineup:()=>lineup,
+  v7IceGeometry:()=>({y:96}),v7DefaultGoalieCreasePosition:()=>({x:62,y:300}),
+  deepClone:v=>structuredClone(v),round,ui:{playhead:0},
+  pushHistory:()=>{},renderBenches:()=>{},renderTimeline:()=>{},renderFrame:()=>{},
+  scheduleSave:()=>{},toast:()=>{},$:()=>({textContent:""}),
+  syncActiveVariation:()=>{},renderAll:()=>{}
+ };
+ vm.runInNewContext(app.slice(begin,end),ctx,{timeout:2000});
+ for(const id of ["A_21","A_22","B_21","B_22"]){
+  const point=ctx.setupPositionFor(roster[id].teamId,0,id);
+  assert.ok(point.y>=126&&point.y<=250,"Staff must be on ice: "+id);
+ }
+ assert.equal(ctx.setupPositionFor("A",0,"A_1").y,222,"Skater spawn unchanged");
+ assert.equal(ctx.setupPositionFor("A",0,"A_19").x,62,"Goalie spawn unchanged");
+ for(const side of ["left","right"]){
+  ctx.state.view="half";ctx.state.halfSide=side;
+  for(const id of ["A_21","A_22","B_21","B_22"]){
+   const point=ctx.setupPositionFor(roster[id].teamId,0,id);
+   assert.ok(side==="left"?point.x>=50&&point.x<=450:point.x>=550&&point.x<=950,
+    id+" must appear in "+side+" Half Ice end");
+   assert.ok(point.y>=126,"Half Ice staff must remain inside the physical rink");
+  }
+ }
+ const placeBegin=app.indexOf("addToIce=function(playerId){");
+ const placeEnd=app.indexOf("\nnewBoard=function()",placeBegin);
+ assert.ok(placeBegin>0&&placeEnd>placeBegin);
+ vm.runInNewContext(app.slice(placeBegin,placeEnd),ctx,{timeout:2000});
+ ctx.state.view="half";ctx.state.halfSide="right";
+ ctx.addToIce("A_21");
+ assert.ok(ctx.state.onIce.A_21&&ctx.state.onIce.A_21.x>500,
+  "Coach clicked on bench must appear in visible Half Ice");
+ assert.ok(!["A_21","A_22"].filter(id=>!ctx.state.onIce[id]).includes("A_21"),
+  "Placed coach is removed from bench only after it appears on ice");
+ const fixBegin=app.indexOf("function v714RepairLegacyStaffPlacements(){");
+ const fixEnd=app.indexOf("\nconst v714InitBeforeStaffFix",fixBegin);
+ assert.ok(fixBegin>0&&fixEnd>fixBegin);
+ vm.runInNewContext(app.slice(fixBegin,fixEnd),ctx,{timeout:2000});
+ ctx.state.onIce={A_21:{x:455,y:64},B_22:{x:610,y:64},
+  A_22:{x:215,y:180},B_21:{x:690,y:200}};
+ assert.equal(ctx.v714RepairLegacyStaffPlacements(),2);
+ assert.ok(ctx.state.onIce.A_21.x>500&&ctx.state.onIce.A_21.y>=126);
+ assert.ok(ctx.state.onIce.B_22.x>500&&ctx.state.onIce.B_22.y>=126);
+ assert.equal(ctx.state.onIce.A_22.x,215,"Keep manually positioned manager");
+ assert.equal(ctx.state.onIce.B_21.y,200,"Keep manually positioned coach");
+}
+
 console.log("V7 goal/rink regressions passed: NHL true aspect, physical markings, user presets, saved rink and goal/net physics.");

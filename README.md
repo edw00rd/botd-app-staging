@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.13 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.14 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.13 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.14 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.14 staging fix — November 20, 2026
+
+- Coaches/managers no longer vanish from the bench when clicked: the legacy Y=64 setup was outside the real rink boundary (NHL top board roughly Y=96).
+- Staff are now placed within the configured ice, inside the currently visible Half Ice end, with separate team/role positions.
+- Exact legacy default placements are repaired when opening the app or loading a play. Custom staff coordinates, movement, pucks and other rink elements are untouched.
+- Added regressions for Full/Half Ice, both staff roles, both teams and legacy recovery. Staging only; production and saved-play schema unchanged.
 
 ## V7.1.13 staging feature — November 20, 2026
 
