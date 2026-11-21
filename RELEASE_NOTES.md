@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.19 Preview — November 21, 2026 (staging only)
+
+- Fixed Half Ice goalie/staff/skater artwork and the selected goalie outline to remain upright with its jersey number and optional badges. New goalie placements sit farther inside the visible crease.
+- Centered action buttons for rink objects and pucks from displayed geometry; corrected net rotation handles and group rotate/remove/count positioning for both rink ends.
+- Added camera-space geometry regression tests; preserved Full Ice placements, stored coordinates, puck paths and existing plays. Production unchanged.
+
+---
+
 ## V7.1.18 Preview — November 21, 2026 (staging only)
 
 - The goalie G position pill respects Settings → Positions, consistent with skaters. The jersey number still respects Settings → Numbers separately; staff C remains unchanged.

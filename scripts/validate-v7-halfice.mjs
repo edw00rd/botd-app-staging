@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.18 Preview/);
-assert.match(shell,/V7\.1\.18 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.18"'));
+assert.match(app,/V7\.1\.19 Preview/);
+assert.match(shell,/V7\.1\.19 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.19"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -99,4 +99,40 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.18 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.19 Half Ice camera, faces, controls and visible spawns verified.");
+
+
+const v719Start=app.indexOf("function v719HalfCornerSlots(");
+const v719End=app.indexOf("const v719PreviousEquipmentActionSlots=",v719Start);
+assert.ok(v719Start>0&&v719End>v719Start,"new Half Ice control geometry present");
+vm.runInNewContext(app.slice(v719Start,v719End),env,{timeout:1500});
+for(const side of ["right","left"]){
+  env.state.halfSide=side;
+  for(const item of [{x:910,y:300,rotation:0,type:"net"},
+     {x:845,y:220,rotation:52,type:"divider"},
+     {x:745,y:360,rotation:90,type:"tire"}]){
+    const center=v(item,side),s=env.v719HalfCornerSlots(item,side);
+    const TL=v(s.topLeft,side),TR=v(s.topRight,side);
+    const BL=v(s.bottomLeft,side),BR=v(s.bottomRight,side);
+    assert.ok(TL.x<center.x&&TR.x>center.x&&TL.y<center.y&&BL.y>center.y,
+      side+": object controls occupy visible corners");
+    assert.ok(Math.abs((TL.x+TR.x)/2-center.x)<.001,side+": controls centered horizontally");
+    assert.ok(Math.abs((TL.y+BL.y)/2-center.y)<.001,side+": controls centered vertically");
+    assert.ok(Math.abs(TR.y-TL.y)<.001&&Math.abs(BR.x-TR.x)<.001,
+      side+": object controls remain symmetric");
+  }
+  const bounds={x:730,y:175,width:135,height:165};
+  const pair=env.v719HalfGroupControls(bounds,side),h=pair.view;
+  assert.ok(h.rotate.y<h.label.y,side+": rotate above selection label");
+  assert.ok(h.remove.x>h.rotate.x,side+": delete at visible right");
+  assert.ok(Math.abs(h.rotate.x-h.label.x)<.001,side+": centered rotate control");
+  for(const key of ["rotate","remove","label"]){
+    const actual=v(pair.world[key],side);
+    assert.ok(Math.abs(actual.x-h[key].x)<.001&&Math.abs(actual.y-h[key].y)<.001,
+      side+": group handles round-trip through the camera");
+  }
+}
+assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
+assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
+  "net handle follows the displayed view");
+console.log("V7.1.19 Half Ice goalie, puck, net, equipment and group controls verified.");

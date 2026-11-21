@@ -1,8 +1,16 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.18 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.19 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.18 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.19 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.19 Half Ice goalie and selection control alignment — November 21, 2026
+
+- Goalie, staff and skater silhouettes, numbers, position pills and leadership badges stay upright when switching to Half Ice. Goalie/staff selection outlines no longer inherit a conflicting CSS spin transform.
+- Newly placed goalies sit farther forward in the visible crease. Switching views never alters saved on-ice player coordinates.
+- Rink-object corner controls and puck plus/minus actions use symmetric, unclipped view-relative offsets. Net rotate handles sit above the goal in both Half Ice ends.
+- Multi-select rotate/delete handles and the selection count align with the visible selection box rather than full-rink axes. Full Ice positioning remains unchanged.
+- Extended left/right Half Ice regression coverage. Staging preview only, production untouched.
 
 ## V7.1.18 Goalie position toggle and forward position choices — November 21, 2026
 
