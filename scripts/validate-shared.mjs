@@ -8,8 +8,12 @@ const app=read('private/app-v6.8.html.txt');
 const shell=read('public/index.html');
 assert.ok(app.includes('.video-export-dialog [hidden]{display:none!important}'));
 for(const marker of ['id="exportVideoBtn"','function v7ExportVideo()','canvas.captureStream(24)','new MediaRecorder(stream','download.click()','v7VideoFrame(canvas,0)','v7VideoCancelled'])assert.ok(app.includes(marker),`Video export missing: ${marker}`);
-assert.equal(crypto.createHash('sha256').update(app).digest('hex'),'c1c2a15201e19c7813a80cb68bb7f78771822da62a7e8578ad5646a16f2e2406');
-assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),'16b7ba628c7f023deacf8f577cbe1ea773dc9ec7e87011218ad327109278d11f');
+const expectedEditorHash=read('SHA256SUMS.txt').split('\n').find(line=>line.endsWith('  private/app-v6.8.html.txt'))?.slice(0,64);
+assert.match(expectedEditorHash||'',/^[a-f0-9]{64}$/,'Reviewed editor checksum must exist in SHA256SUMS.txt');
+assert.equal(crypto.createHash('sha256').update(app).digest('hex'),expectedEditorHash,'Editor source must match the reviewed SHA256 manifest');
+const expectedShellHash=read('SHA256SUMS.txt').split('\n').find(line=>line.endsWith('  public/index.html'))?.slice(0,64);
+assert.match(expectedShellHash||'',/^[a-f0-9]{64}$/,'Reviewed outer-shell checksum must exist');
+assert.equal(crypto.createHash('sha256').update(shell).digest('hex'),expectedShellHash,'Outer shell must match the reviewed SHA256 manifest');
 assert.equal((app.match(/__BOTD_ACCOUNT_ID__/g)||[]).length,1);
 for(const marker of ['.session.v6_8','.playbook.v6_8','botdHockeyCoachingAid.user.${BOTD_ACCOUNT_ID.toLowerCase()}','Version 6.8.2'])assert.ok(app.includes(marker));
 for(const retired of ['US English','Canadian English','canadianize','canadaLeaf','canadianNote'])assert.ok(!app.includes(retired));
@@ -38,7 +42,7 @@ const headerOrder=['id="headerSubscription"','id="editorActions"','id="headerAct
 let previous=-1;
 for(const marker of headerOrder){const position=masthead.indexOf(marker);assert.ok(position>previous,`Incorrect masthead order: ${marker}`);previous=position;}
 assert.match(masthead,/id="fullscreenButton"[\s\S]*?<\/button>\s*$/);
-assert.ok(masthead.indexOf('V7 Preview')<masthead.indexOf('id="headerSubscription"'));
+assert.ok(masthead.indexOf('V7.1.15 Preview')<masthead.indexOf('id="headerSubscription"'));
 assert.ok(shell.includes('id="headerSubscription" class="brand-subscription hidden" aria-live="polite"'));
 assert.ok(shell.includes('id="headerSubscriptionText" class="brand-subscription-text"'));
 assert.ok(shell.includes('id="headerSecureLock" class="header-secure-lock hidden" role="img" aria-label="Secure access" title="Secure access"'));
@@ -230,9 +234,10 @@ assert.equal(packageLock.packages[''].version,'6.8.2');
 assert.ok(app.includes('const APP_VERSION="6.8.2";'));
 assert.ok(app.includes('BOTD Playbook v6\\.8\\.1'),'The v6.8.2 release must retain migration of the former default v6.8.1 playbook name');
 assert.ok(app.includes('V7 Preview: coaching tools ready for staging evaluation.'));
-assert.ok(shell.includes('V7 Preview'));
+assert.ok(shell.includes('V7.1.15 Preview'));
 assert.ok(!shell.includes('class="brand-version">Version 6.8.2</span>'));
-assert.ok(app.includes('Hockey Playbook Studio · V7 Preview'));
+assert.ok(shell.includes('class="brand-version" title="V7.1.15 staging UI · compatible with 6.8.2 play files">V7.1.15 Preview</span>'));
+assert.ok(app.includes('V7.1.15 Preview · staging'));
 assert.ok(worker.includes('const STAGING_PREVIEW_VERSION = "7.0.0-preview.1";'));
 assert.ok(worker.includes('previewVersion: isLive(env) ? null : STAGING_PREVIEW_VERSION'));
 
