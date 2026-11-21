@@ -1896,7 +1896,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const menuStart=app.indexOf("function v60ContextMarkup(){");
  const menuEnd=app.indexOf("function v60RenderContextMenu(){",menuStart);
  const featureStart=app.indexOf("/* V7.1.13: Give puck to an on-ice player");
- const featureEnd=app.indexOf("\ninit();",featureStart);
+ const featureEnd=app.indexOf("\n/* V7.1.14: repair only historical invisible staff defaults",featureStart);
  assert.ok(menuStart>0&&menuEnd>menuStart&&featureStart>0&&featureEnd>featureStart,
   "Give puck interface must be installed before editor init");
  const ctx={
