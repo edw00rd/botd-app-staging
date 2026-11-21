@@ -1,8 +1,17 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.16 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.17 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.16 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.17 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.17 Half Ice readability and faceoff placement — November 21, 2026
+
+- Fixed rotated player/goalie/staff names, jersey numbers, role pills and captain/alternate badges: all now remain upright relative to the selected Half Ice view.
+- Name callouts sit above or beside each visible player, with deterministic overlap-avoidance for busy faceoff diagrams. The underlying player coordinates are unchanged by camera selection.
+- Rink equipment action buttons and puck plus/minus controls now use on-screen corner positions and upright symbols on either Half Ice end. World-coordinate object paths, physical rotations and puck trajectories remain intact.
+- Adding a player, goalie, coach or manager while in Half Ice spawns within that visible end; the first five skaters for each side use appropriate offensive/defensive alignment around the viewer's upper-left faceoff circle. Goalie enters the visible crease; staff occupy a safe visible area.
+- Additional same-position skaters are placed in nearby open spots. Existing placed tokens and saved plays are never repositioned on a camera switch. Full Ice behavior remains unchanged.
+- Added independent two-end regression tests and versioned staging notes; production remains untouched.
 
 ## V7.1.16 roster properties — November 21, 2026
 

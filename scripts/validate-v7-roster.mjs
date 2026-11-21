@@ -12,7 +12,7 @@ assert.ok(!app.includes('name:"New Skater"'),"No unnamed roster placeholders sho
 assert.match(app,/root\.appendChild\(card\)\}v716RosterFinalizeCards\(\)/);
 assert.match(app,/!v716IsStaff\(player\)&&player\.number/);
 assert.match(app,/p\.number="";p\.line=0/);
-const start=app.indexOf("/* V7.1.16 — Validate before creating");
+const start=app.indexOf("/* V7.1.17 — Validate before creating");
 const end=app.indexOf("</script>",start);
 assert.ok(start>0&&end>start,"Roster helpers missing");
 const helpers=app.slice(start,end);
@@ -95,4 +95,4 @@ values.v716Alternate.checked=true;
 state.rosters.A.push({alternate:true},{alternate:true});
 context.v716SaveRosterMember({preventDefault(){}});
 assert.equal(saved,initialSaved,"Third alternate should not be saved");
-console.log("V7.1.16 roster creation and number-free staff regression tests passed.");
+console.log("V7.1.17 roster creation and number-free staff regression tests passed.");

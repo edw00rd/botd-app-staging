@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.17 Preview — November 21, 2026 (staging only)
+
+- Fixed Half Ice orientation of name callouts, skater/goalie/staff tokens, badges and controls. The view camera rotates visible art while maintaining full-rink world coordinates.
+- Repositioned Half Ice player names in screen space with deterministic collision-aware labels. Screen-corner controls keep the same positions and upright icons on both left and right ends.
+- New bench placements in Half Ice always appear in the visible end, using the upper-left end-zone circle for faceoff alignment: offensive center/wingers/points, defensive center/coverage, visible-crease goalies and safe-area staff.
+- Preserved Full Ice placement and all existing on-ice routes/plays; added both-end geometry and UI regression coverage. Staging only; production untouched.
+
+---
+
 ## V7.1.16 Preview — November 21, 2026 (staging only)
 
 - Replaced immediate "New Skater" insertion with required **Player Properties** setup when choosing Add player; creating a skater, goalie, coach or manager now happens only after saving a valid name and role-appropriate attributes.
