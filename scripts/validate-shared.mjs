@@ -42,7 +42,7 @@ const headerOrder=['id="headerSubscription"','id="editorActions"','id="headerAct
 let previous=-1;
 for(const marker of headerOrder){const position=masthead.indexOf(marker);assert.ok(position>previous,`Incorrect masthead order: ${marker}`);previous=position;}
 assert.match(masthead,/id="fullscreenButton"[\s\S]*?<\/button>\s*$/);
-assert.ok(masthead.indexOf('V7.1.18 Preview')<masthead.indexOf('id="headerSubscription"'));
+assert.ok(masthead.indexOf('V7.1.19 Preview')<masthead.indexOf('id="headerSubscription"'));
 assert.ok(shell.includes('id="headerSubscription" class="brand-subscription hidden" aria-live="polite"'));
 assert.ok(shell.includes('id="headerSubscriptionText" class="brand-subscription-text"'));
 assert.ok(shell.includes('id="headerSecureLock" class="header-secure-lock hidden" role="img" aria-label="Secure access" title="Secure access"'));
@@ -234,10 +234,10 @@ assert.equal(packageLock.packages[''].version,'6.8.2');
 assert.ok(app.includes('const APP_VERSION="6.8.2";'));
 assert.ok(app.includes('BOTD Playbook v6\\.8\\.1'),'The v6.8.2 release must retain migration of the former default v6.8.1 playbook name');
 assert.ok(app.includes('V7 Preview: coaching tools ready for staging evaluation.'));
-assert.ok(shell.includes('V7.1.18 Preview'));
+assert.ok(shell.includes('V7.1.19 Preview'));
 assert.ok(!shell.includes('class="brand-version">Version 6.8.2</span>'));
-assert.ok(shell.includes('class="brand-version" title="V7.1.18 staging UI · compatible with 6.8.2 play files">V7.1.18 Preview</span>'));
-assert.ok(app.includes('V7.1.18 Preview · staging'));
+assert.ok(shell.includes('class="brand-version" title="V7.1.19 staging UI · compatible with 6.8.2 play files">V7.1.19 Preview</span>'));
+assert.ok(app.includes('V7.1.19 Preview · staging'));
 assert.ok(worker.includes('const STAGING_PREVIEW_VERSION = "7.0.0-preview.1";'));
 assert.ok(worker.includes('previewVersion: isLive(env) ? null : STAGING_PREVIEW_VERSION'));
 
