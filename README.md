@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.17 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.18 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.17 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.18 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.18 Goalie position toggle and forward position choices — November 21, 2026
+
+- **Goalies:** The small on-ice G position pill now honors Settings → Positions exactly like LW, C, RW and defense labels; it appears only when positions are enabled. Jersey numbers remain governed independently by Settings → Numbers, and goalie role/crease behavior is unchanged.
+- **Forward position options:** Added F1, F2 and F3 to the new-person Player Properties dialog and the editable roster-card position dropdown. These are skater/forward positions and do not change the person's role to goalie or staff.
+- Forward-position choices have predictable line/bench order (F1/LW, F2/C, F3/RW), and Half Ice faceoff placement maps F1/F2/F3 to the equivalent left/center/right forward lanes for both ends.
+- Added dedicated goalie-position visibility and position-choice regression tests. Updated release notes and exact-source checksums; production and saved-play schema unchanged.
 
 ## V7.1.17 Half Ice readability and faceoff placement — November 21, 2026
 

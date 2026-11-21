@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.17 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.17"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.18 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.18"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));

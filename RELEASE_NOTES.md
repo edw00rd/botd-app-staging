@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.18 Preview — November 21, 2026 (staging only)
+
+- The goalie G position pill respects Settings → Positions, consistent with skaters. The jersey number still respects Settings → Numbers separately; staff C remains unchanged.
+- F1, F2 and F3 are available as forward positions when creating and editing roster members. Bench order and Half Ice faceoff placements recognize them as left, center and right forward lanes.
+- Added targeted regression coverage and kept saved-play storage format unchanged. Staging only; production untouched.
+
+---
+
 ## V7.1.17 Preview — November 21, 2026 (staging only)
 
 - Fixed Half Ice orientation of name callouts, skater/goalie/staff tokens, badges and controls. The view camera rotates visible art while maintaining full-rink world coordinates.

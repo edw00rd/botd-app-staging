@@ -6,7 +6,7 @@ const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
 assert.match(app,/V7\.1\.17 Preview/);
 assert.match(shell,/V7\.1\.17 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.17"'));
+assert.ok(app.includes('const V7_UI_VERSION="7.1.18"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -58,7 +58,7 @@ for(const side of ["right","left"]){
  assert.ok(Math.abs(v(bc,side).y-(setup.faceoff.y-13))<.01,
   "Opposing center must remain across faceoff dot, not relocate to the slot");
  env.players[b.id]=b;env.state.onIce[b.id]=bc;
- for(const position of ["LW","RW","LD","RD"]){
+ for(const position of ["LW","RW","F1","F2","F3","LD","RD"]){
   for(const [teamId,role] of [[attacker,"offense"],[defender,"defense"]]){
    const p={id:role+position,teamId,position,role:"skater"};
    const point=env.v717HalfSpawnPoint(p);
