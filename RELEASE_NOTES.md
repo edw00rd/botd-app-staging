@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.21 Preview — November 21, 2026 (staging only)
+
+- Coaches and managers can now receive Give and Pass just like any skater or goalie. Updated all puck recipient filters, puck drop detection and physical collision participation.
+- Added a cartoon whistle pill for coaches, alongside Move and Bench. Activating it generates a short two-chirp Web Audio whistle and a quick coach-token buzz with a friendly on-ice exclamation emote; it is presentation-only and respects reduced-motion accessibility.
+- Added automatic role/recipient/whistle regressions and updated the reviewed source manifest. Production untouched.
+
+---
+
 ## V7.1.20 Preview — November 21, 2026 (staging only)
 
 - Fixed goalie placement by team, not camera view: Team A always in the left crease, Team B in the right crease. Backup goalies also remain within their own crease; existing saved coordinates are not moved.
