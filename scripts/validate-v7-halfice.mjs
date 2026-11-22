@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.20 Preview/);
-assert.match(shell,/V7\.1\.20 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.20"'));
+assert.match(app,/V7\.1\.21 Preview/);
+assert.match(shell,/V7\.1\.21 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.21"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -105,7 +105,7 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.20 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.21 Half Ice camera, faces, controls and visible spawns verified.");
 
 
 const v719Start=app.indexOf("function v719HalfCornerSlots(");
@@ -141,7 +141,7 @@ for(const side of ["right","left"]){
 assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
 assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
   "net handle follows the displayed view");
-console.log("V7.1.20 Half Ice goalie, puck, net, equipment and group controls verified.");
+console.log("V7.1.21 Half Ice goalie, puck, net, equipment and group controls verified.");
 
 
 
@@ -149,7 +149,7 @@ console.log("V7.1.20 Half Ice goalie, puck, net, equipment and group controls ve
    announcement must point toward the bottom of Half Ice, not relocate goalie. */
 const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
 const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
-assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.20 goalie/announcement helpers missing");
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.21 goalie/announcement helpers missing");
 const home={
  state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
  v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
@@ -182,4 +182,4 @@ assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn
 assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
 assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
   "Far-end arrow must point below the rink toward the actual player");
-console.log("V7.1.20 goalie ownership and speech bubble pointers verified.");
+console.log("V7.1.21 goalie ownership and speech bubble pointers verified.");
