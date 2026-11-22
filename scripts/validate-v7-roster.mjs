@@ -3,7 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.19 Preview/);
+assert.match(app,/V7\.1\.20 Preview/);
 assert.match(app,/id="v716PersonName"[^>]*required/);
 assert.match(app,/id="v716PersonRole"/);
 assert.match(app,/id="v716RosterDialog"/);
