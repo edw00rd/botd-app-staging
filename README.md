@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.20 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.21 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.20 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.21 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.21 Pass/Give to everyone and coach whistle — November 21, 2026
+
+- All **on-ice people**—skaters, goalies, coaches, and managers—now qualify for puck reception through both Give and Pass, the Puck Director receiver selection, legacy tap-to-target, and dropping a puck onto a person. Benched staff remain ineligible. Puck possession, stick-follow behavior, timeline events, and saved-play compatibility remain unchanged.
+- Coaches receive a small SVG **cartoon whistle** action pill alongside Move and Bench. Managers, goalies and skaters keep their existing actions.
+- Clicking the whistle plays two short synthesized referee-style chirps via Web Audio and briefly shakes only that coach's SVG token while a cartoon exclamation pops beside it. The effect does not alter play history or puck simulation, respects reduced-motion preferences, and triggers only from a user click.
+- New automated tests exercise all-person targeting, staff exclusions while benched, coach-only control visibility, whistle sound generation, and the emote. Staging only; production not promoted.
 
 ## V7.1.20 Team crease placement and player-entry speech bubbles — November 21, 2026
 
