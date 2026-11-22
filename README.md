@@ -1,8 +1,16 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.19 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.20 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.19 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.20 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.20 Team crease placement and player-entry speech bubbles — November 21, 2026
+
+- Goalies always enter their own team's crease in world coordinates: Team A on the left, Team B on the right, in Full Ice and either Half Ice view. Backup goalies share staggered slots *within* that same crease.
+- Skaters and staff retain current-view placement: Half Ice faceoff formation around the visible end, Full Ice default positions.
+- Adding any person displays a short, pointed, on-rink speech bubble with their name. Visible entries point toward their token; entries on the opposite end appear at the very bottom with the tail pointing toward the far end and a clear FAR LEFT/RIGHT CREASE label.
+- Announcements are queued to avoid losing rapid additions, accessible to screen readers, and cleared on view switches/resets; no sound playback or extra network calls.
+- Added regression checks for home crease, both Half Ice cameras, Full Ice, and directional offscreen callouts. Stored plays and production remain unchanged.
 
 ## V7.1.19 Half Ice goalie and selection control alignment — November 21, 2026
 
