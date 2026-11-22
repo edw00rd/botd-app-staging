@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.19 Preview/);
-assert.match(shell,/V7\.1\.19 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.19"'));
+assert.match(app,/V7\.1\.20 Preview/);
+assert.match(shell,/V7\.1\.20 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.20"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -41,6 +41,7 @@ const env={
  round:(n,prec=2)=>Number(n.toFixed(prec)),
  console,Math
 };
+env.v720GoalieCreaseSpawn=p=>({x:p.teamId==="A"?92:908,y:300});
 vm.runInNewContext(app.slice(start,end),env,{timeout:1500});
 function v(p,side){return env.v59WholeToHalfView(p,side)}
 for(const side of ["right","left"]){
@@ -70,10 +71,15 @@ for(const side of ["right","left"]){
   "Offensive defencemen stay nearer blue line");
  assert.ok(v(env.state.onIce.defenseRD,side).y<setup.faceoff.y,
   "Defensive defencemen protect net side");
- const goalie={id:"goalie",teamId:defender,role:"goalie",position:"G"};
- const goaliePos=env.v717HalfSpawnPoint(goalie);
- assert.ok(env.v717OnVisibleHalf(goaliePos));
- assert.ok(v(goaliePos,side).y<setup.faceoff.y,"Goalie must be near visible crease");
+ for(const teamId of ["A","B"]){
+   const goalie={id:"goalie-"+teamId,teamId,role:"goalie",position:"G"};
+   const goaliePos=env.v717HalfSpawnPoint(goalie);
+   const g=env.v7IceGeometry(),line=teamId==="A"?g.goalLeft:g.goalRight;
+   assert.ok(Math.abs(goaliePos.x-line)<g.scale*6,
+     teamId+": goalie must stay inside its own crease");
+   assert.equal(env.v717OnVisibleHalf(goaliePos),teamId===defender,
+     side+": the away goalie is legitimately offscreen");
+ }
  const coach={id:"coach",teamId:attacker,role:"coach",position:"COACH"};
  assert.ok(env.v717OnVisibleHalf(env.v717HalfSpawnPoint(coach)));
  const extra={id:"second-center",teamId:attacker,role:"skater",position:"C"};
@@ -99,7 +105,7 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.19 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.20 Half Ice camera, faces, controls and visible spawns verified.");
 
 
 const v719Start=app.indexOf("function v719HalfCornerSlots(");
@@ -135,4 +141,45 @@ for(const side of ["right","left"]){
 assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
 assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
   "net handle follows the displayed view");
-console.log("V7.1.19 Half Ice goalie, puck, net, equipment and group controls verified.");
+console.log("V7.1.20 Half Ice goalie, puck, net, equipment and group controls verified.");
+
+
+
+/* Placement must honor team/crease independently of camera. A far-end
+   announcement must point toward the bottom of Half Ice, not relocate goalie. */
+const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
+const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.20 goalie/announcement helpers missing");
+const home={
+ state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
+ v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
+ v59ValidPoint:p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.y),
+ playerById:()=>null,
+ round:(n,d=2)=>Number(n.toFixed(d)),Math
+};
+vm.runInNewContext(app.slice(goalieStart,goalieEnd),home,{timeout:1500});
+for(const view of ["whole","half"])for(const side of ["left","right"]){
+ home.state.view=view;home.state.halfSide=side;
+ for(const team of ["A","B"]){
+  const line=team==="A"?73:927,sign=team==="A"?1:-1;
+  for(const index of [0,1,2,3,4,9]){
+   const pos=home.v720GoalieCreaseCoordinates(team,index),radius=6*4.8;
+   assert.ok((pos.x-line)*sign>0,team+" starts inside its own net");
+   assert.ok(Math.hypot(pos.x-line,pos.y-300)<radius,
+     "All goalies stay physically inside their own crease");
+   const expected=view==="whole"||(side==="left"?team==="A":team==="B");
+   const info=home.v720AnnouncementSpec({role:"goalie",teamId:team},pos,view,side);
+   assert.equal(info.visible,expected,team+" "+view+" "+side+" visibility");
+   assert.equal(info.edge,expected?"player":"bottom");
+   if(!expected)assert.match(info.subtitle,/FAR (LEFT|RIGHT) CREASE · OFFSCREEN/);
+  }
+ }
+}
+assert.ok(app.includes('if(type==="goalie")return v720GoalieCreaseSpawn(player);'),
+  "Half Ice goalie must bypass shared faceoff placement");
+assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn(player):'),
+  "Every view must use a team-specific goalie crease");
+assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
+assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
+  "Far-end arrow must point below the rink toward the actual player");
+console.log("V7.1.20 goalie ownership and speech bubble pointers verified.");
