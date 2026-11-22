@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.20 Preview — November 21, 2026 (staging only)
+
+- Fixed goalie placement by team, not camera view: Team A always in the left crease, Team B in the right crease. Backup goalies also remain within their own crease; existing saved coordinates are not moved.
+- Introduced temporary speech-bubble announcements for every new on-ice player. The bubble points to a visible player, or sits at the rink bottom with a downward pointer and far-crease label when the player is offscreen.
+- Maintained Half Ice skater formation, Full Ice positions, puck trajectories and stable saved-play schema. Added goalie and offscreen-announcement regression coverage. Staging only, production unchanged.
+
+---
+
 ## V7.1.19 Preview — November 21, 2026 (staging only)
 
 - Fixed Half Ice goalie/staff/skater artwork and the selected goalie outline to remain upright with its jersey number and optional badges. New goalie placements sit farther inside the visible crease.
