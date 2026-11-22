@@ -30,7 +30,7 @@ const eligibleEnd=app.indexOf("function ensureV56DisclosureState(",eligibleStart
 assert.ok(eligibleStart>0&&eligibleEnd>eligibleStart);
 vm.runInNewContext(app.slice(eligibleStart,eligibleEnd),eligibility,{timeout:1000});
 const ids=eligibility.v56EligiblePlayers().map(p=>p.id).sort();
-assert.deepEqual(ids,["coach","goalie","manager","skater"],
+assert.deepEqual(Array.from(ids),["coach","goalie","manager","skater"],
   "Every on-ice human can receive a pass or possess the puck; benched people cannot");
 assert.ok(app.includes("onIcePlayers=v56EligiblePlayers()"),
   "Puck Director lists skaters, goalies, coaches and managers alike");
