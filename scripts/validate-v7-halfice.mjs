@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.26 Preview/);
-assert.match(shell,/V7\.1\.26 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.26"'));
+assert.match(app,/V7\.1\.27 Preview/);
+assert.match(shell,/V7\.1\.27 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.27"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -105,7 +105,7 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.26 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.27 Half Ice camera, faces, controls and visible spawns verified.");
 
 
 const v719Start=app.indexOf("function v719HalfCornerSlots(");
@@ -141,7 +141,7 @@ for(const side of ["right","left"]){
 assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
 assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
   "net handle follows the displayed view");
-console.log("V7.1.26 Half Ice goalie, puck, net, equipment and group controls verified.");
+console.log("V7.1.27 Half Ice goalie, puck, net, equipment and group controls verified.");
 
 
 
@@ -149,7 +149,7 @@ console.log("V7.1.26 Half Ice goalie, puck, net, equipment and group controls ve
    announcement must point toward the bottom of Half Ice, not relocate goalie. */
 const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
 const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
-assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.26 goalie/announcement helpers missing");
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.27 goalie/announcement helpers missing");
 const home={
  state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
  v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
@@ -182,45 +182,87 @@ assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn
 assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
 assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
   "Far-end arrow must point below the rink toward the actual player");
-console.log("V7.1.26 goalie ownership and speech bubble pointers verified.");
+console.log("V7.1.27 goalie ownership and speech bubble pointers verified.");
 
 
-/* V7.1.26: rounded chat-bubble shape and directional tails. This geometry
-   is pure SVG and must remain stable for visible and far-end arrivals. */
-const balloonStart=app.indexOf("function v720BubblePath(");
-const balloonEnd=app.indexOf("function v720DrawAnnouncement(",balloonStart);
-assert.ok(balloonStart>0&&balloonEnd>balloonStart,
-  "Player entry speech-bubble generator must be present");
-const balloon={clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),
-  round:(n,p=2)=>Number(n.toFixed(p)),Math};
-vm.runInNewContext(app.slice(balloonStart,balloonEnd),balloon,{timeout:1500});
-for(const [w,h] of [[260,76],[166,76],[220,76]]){
-  for(const [direction,tip] of [["down",{x:142,y:180}],
-                                 ["up",{x:142,y:55}]]){
-    const path=balloon.v720BubblePath(12,80,w,h,125,tip,direction);
-    assert.match(path,/^M /,"Bubble starts with an SVG move");
-    assert.match(path,/ Z$/,"Balloon silhouette must close");
-    assert.ok((path.match(/C /g)||[]).length>=6,
-      "Bubble body and directional tail use smooth cubic curves");
-    assert.ok((path.match(/Q /g)||[]).length>=1,
-      "Bubble tail has a soft curved tip, not a sharp triangular point");
-    assert.doesNotMatch(path,/NaN|Infinity|undefined/,
-      "All scaled and oriented speech bubbles use finite coordinates");
-  }
+/* V7.1.27 Option 1 broadcast player-entry banner.
+   Test geometry and all four requested content slots against real helper output:
+   jersey number left, name top, CTA bottom, position bottom right. */
+const bannerBegin=app.indexOf("function v720BubblePath(");
+const bannerEnd=app.indexOf("function v720DrawAnnouncement(",bannerBegin);
+assert.ok(bannerBegin>0&&bannerEnd>bannerBegin,
+  "Broadcast announcement drawing helpers must be present");
+const banner={
+ clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
+ round:(x,p=2)=>Number(x.toFixed(p)),
+ svgEl:(tag,attrs={})=>({tag,attrs,children:[],textContent:"",
+   append(child){this.children.push(child)},
+   setAttribute(k,v){this.attrs[k]=v},
+   getComputedTextLength(){return this.textContent.length*
+     Number(this.attrs["font-size"]||12)*.61}})
+};
+vm.runInNewContext(app.slice(bannerBegin,bannerEnd),banner,{timeout:1500});
+for(const [w,h] of [[292,68],[225,68],[166,68]]){
+ for(const [direction,tip] of [["down",{x:130,y:190}],
+                               ["up",{x:130,y:30}]]){
+  const l=12,t=72,shape=banner.v720BubblePath(l,t,w,h,130,tip,direction);
+  assert.match(shape,/^M /,"Banner begins with an SVG path move");
+  assert.match(shape,/ Z$/,"Banner outline closes");
+  assert.ok((shape.match(/Q /g)||[]).length>=3,
+    "Option 1 banner has gently rounded corners");
+  assert.ok(shape.includes(String(tip.x))&&shape.includes(String(tip.y)),
+    "Both directional tails point toward their intended target");
+  assert.doesNotMatch(shape,/NaN|Infinity|undefined/);
+ }
 }
-assert.ok(app.includes('const w=Math.min(260,Math.max(166,rect.width-24)),h=76'),
-  "The balloon has soft oval proportions rather than a flat box");
-assert.ok(app.includes('fill:"#ffffff",stroke:"#c9ced3","stroke-width":2.2'),
-  "Reference-style light fill and subtle gray outline must be applied");
-assert.ok(!app.includes('group.append(svgEl("rect",{x:l+11,y:t+10,width:4,height:h-20'),
-  "Reference balloon must not have a rectangular side accent");
+const build=(player,w=292,far=false)=>{
+ const group={children:[],append(node){this.children.push(node)}};
+ banner.v727BroadcastBanner(group,12,72,w,68,player,far);
+ const byClass=className=>group.children.find(x=>x.attrs.class===className);
+ return {group,byClass}
+};
+for(const {role,number,position,expectedNum,expectedPos} of [
+ {role:"skater",number:21,position:"RW",expectedNum:"21",expectedPos:"RW"},
+ {role:"skater",number:7,position:"F2",expectedNum:"7",expectedPos:"F2"},
+ {role:"goalie",number:30,position:"G",expectedNum:"30",expectedPos:"G"},
+ {role:"coach",number:null,position:null,expectedNum:"C",expectedPos:"C"},
+ {role:"manager",number:null,position:null,expectedNum:"C",expectedPos:"C"}]){
+ const {byClass}=build({role,number,position,name:"Clapper McSnap"});
+ const jersey=byClass("v727-jersey-number"),name=byClass("v727-player-name"),
+       action=byClass("v727-entry-action"),badge=byClass("v727-position-label");
+ assert.ok(jersey&&name&&action&&badge,"All four user-specified text slots present");
+ assert.equal(jersey.textContent,expectedNum);
+ assert.equal(badge.textContent,expectedPos);
+ assert.equal(action.textContent,"TO THE ICE!");
+ assert.ok(Number(jersey.attrs.x)<Number(name.attrs.x),"Jersey number must be on left");
+ assert.ok(Number(name.attrs.y)<Number(action.attrs.y),"Name must be on top");
+ assert.ok(Number(badge.attrs.x)>Number(action.attrs.x),
+   "Position must live in lower-right corner");
+ assert.ok(Number(badge.attrs.y)>Number(name.attrs.y),
+   "Position belongs in the lower half, not the name row");
+}
+for(const width of [166,225,292]){
+ const {byClass}=build({role:"skater",name:"A Very Long Player Name Indeed",
+    number:111,position:"LD"},width,true);
+ const name=byClass("v727-player-name"),far=byClass("v727-far-end");
+ assert.ok(far&&far.textContent==="FAR END",
+   "Offscreen players retain a visible far-end cue");
+ assert.ok(name.textContent.length<32,
+   "Long player names must be shortened rather than spilling into position");
+ assert.ok(byClass("v727-jersey-number").attrs["font-size"]<=26,
+   "Three-digit jersey numbers should fit the left panel");
+}
+assert.ok(app.includes('const w=Math.min(292,Math.max(166,rect.width-24)),h=68'),
+ "Broadcast banner must stay compact and width responsive");
 assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)};tail="down"'),
-  "Offscreen arrivals keep the bottom edge and downward-pointing tail");
+ "Far-end announcement must point toward the bottom of the visible rink");
 assert.ok(app.includes('tip={x:round(pixel.x,2),y:round(pixel.y+10,2)};tail="up"'),
-  "Visible arrivals keep an upward-pointing tail when the bubble is beneath a player");
-console.log("V7.1.26 oval speech balloons and curved directional tails verified.");
+ "On-screen arrival below the player must point upward");
+assert.ok(app.includes('root.setAttribute("aria-label",player.name+" to the ice. "+info.subtitle)'),
+ "Announcement retains accessible speech and offscreen location");
+console.log("V7.1.27 broadcast announcement geometry, typography and role badges verified.");
 
-// V7.1.26: the remove pill is drawn with symmetric SVG geometry, not a
+// V7.1.27: the remove pill is drawn with symmetric SVG geometry, not a
 // font glyph whose baseline can drift when the Half Ice camera rotates.
 const minusDraw=app.slice(app.indexOf("function v7MultiDraw(){"),
   app.indexOf("function v7MultiWorldPoint(",app.indexOf("function v7MultiDraw(){")));
@@ -238,10 +280,10 @@ assert.ok(minusCamera.includes('set(minus,{x:point.x-5,y:point.y},"x1","y1")')&&
   "Half Ice must recenter both ends of the minus around the delete control");
 assert.ok(minusCamera.includes('minus.setAttribute("transform","rotate("+angle+'),
   "Half Ice must counterrotate the minus stroke to remain horizontal");
-console.log("V7.1.26 centered multi-select remove stroke verified.");
+console.log("V7.1.27 centered multi-select remove stroke verified.");
 
 
-/* V7.1.26: The Half Ice goalie number must be legible in either camera.
+/* V7.1.27: The Half Ice goalie number must be legible in either camera.
    Older passes rotate an individual numeral even when its pad is upright.
    Verify a final dedicated overlay corrects all text without touching pads. */
 const v724Start=app.indexOf("function v724OrientGoalieContents(");
@@ -284,10 +326,10 @@ assert.ok(app.includes('if(playerById(group.dataset.playerId)?.role!=="goalie")c
  "The fix must not affect skaters or coaches");
 assert.ok(app.includes("v724OrientGoalieContents(group,token,labelsTransform)"),
  "The goalie overlay must run after all earlier render passes");
-console.log("V7.1.26 left/right Half Ice goalie numerals and optional badges verified.");
+console.log("V7.1.27 left/right Half Ice goalie numerals and optional badges verified.");
 
 
-/* V7.1.26: saved Half Ice initial state was rendered by the old goalie
+/* V7.1.27: saved Half Ice initial state was rendered by the old goalie
    rotation pass because init() executes before the V7.1.17+ decorators.
    Validate the last boot refresh actually calls the FINAL renderer for
    both Half Ice camera sides, and leaves Full Ice untouched. */
@@ -316,10 +358,10 @@ console.log("V7.1.26 left/right Half Ice goalie numerals and optional badges ver
  vm.runInNewContext(source,pending,{timeout:1000});
  assert.equal(pending.v725RefreshInitialHalfIce(),false);
 }
-console.log("V7.1.26 initial Half Ice goalie startup repaint verified for both cameras.");
+console.log("V7.1.27 initial Half Ice goalie startup repaint verified for both cameras.");
 
 
-/* V7.1.26: The goalie body must remain parallel to the camera-rotated goal
+/* V7.1.27: The goalie body must remain parallel to the camera-rotated goal
    line (horizontal in Half Ice), while text counters the camera. This tests
    the actual last-rendered SVG transforms for both ends, not just the label. */
 {
@@ -373,4 +415,4 @@ console.log("V7.1.26 initial Half Ice goalie startup repaint verified for both c
   assert.equal(calls.length,oldCalls+1,"Full Ice must skip the goalie overlay");
  }
 }
-console.log("V7.1.26 full-body goalie direction matches the goal line for both Half Ice cameras.");
+console.log("V7.1.27 full-body goalie direction matches the goal line for both Half Ice cameras.");

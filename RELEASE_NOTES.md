@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.27 Preview — November 23, 2026 (staging only)
+
+- Implemented the selected Option 1 broadcast-entry design: red jersey-number tile on the left, player name in the upper white panel, **TO THE ICE!** across the lower red action strip, and position badge in the lower-right corner.
+- For goalies the badge reads G; for coaches/managers without jersey numbers, the left tile and badge use the established C staff identifier. Offscreen Half Ice arrivals retain a far-end label and downward pointer.
+- Kept queued announcements, auto-dismiss, screen-space pointer positioning, accessible labels and reduced-motion behavior. Added source-level dynamic SVG layout regressions.
+- No production, schema, subscription, saved-play or puck-physics changes.
+
+---
+
 ## V7.1.26 Preview — November 23, 2026 (staging only)
 
 - Fixed the goalie silhouette being incorrectly vertical on screen in Half Ice. It now rotates with the rink so the long edge runs parallel to the horizontal goal line, matching its relative orientation in Full Ice.

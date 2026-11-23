@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.26 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.27 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.26 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.27 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.27 Broadcast-style player entry — November 23, 2026
+
+- Replaced the prior oval player-arrival speech bubbles with the selected Option 1 red, white and charcoal broadcast lower-third.
+- Layout: **jersey number on the left**, **player name on top**, **TO THE ICE!** on the red bottom strip, and the player's **position in the bottom-right pill** (including LW/RW/C/LD/RD/F1/F2/F3, G for goalies, and C for staff).
+- Kept arrows following on-ice players, bottom-edge arrows and **FAR END** cue for offscreen Half Ice arrivals, and spoken/accessibility announcement context. The callouts retain automatic dismissal, queuing, reduced-motion behavior and responsive width.
+- Added regression checks for both pointer directions, narrow rink sizes, long names, all player roles and the specified four-slot arrangement. No saved-play schema, player placement, gameplay or production changes.
 
 ## V7.1.26 Goalie orientation relative to the goal line — November 23, 2026
 
