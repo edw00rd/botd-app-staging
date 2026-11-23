@@ -352,7 +352,7 @@ console.log("V7.1.26 initial Half Ice goalie startup repaint verified for both c
   assert.equal(ctx.renderObjectLayer(4),"ok");
   assert.equal(token.attrs.transform,"scale(0.36)",
    side+" pads must inherit camera rotation, not counterrotate upright");
-  assert.equal(token.cleared,true,"Remove old CSS overrides from pad");
+  assert.equal(token.style.cleared,true,"Remove old CSS overrides from pad");
   assert.equal(ring.cleared,true,"Old ring counterrotation must be cleared");
   assert.equal(ring.attrs.transform,undefined);
   assert.equal(ring.style.animation,"none");
