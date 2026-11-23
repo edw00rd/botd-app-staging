@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.25 Preview/);
-assert.match(shell,/V7\.1\.25 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.25"'));
+assert.match(app,/V7\.1\.26 Preview/);
+assert.match(shell,/V7\.1\.26 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.26"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -105,7 +105,7 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.25 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.26 Half Ice camera, faces, controls and visible spawns verified.");
 
 
 const v719Start=app.indexOf("function v719HalfCornerSlots(");
@@ -141,7 +141,7 @@ for(const side of ["right","left"]){
 assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
 assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
   "net handle follows the displayed view");
-console.log("V7.1.25 Half Ice goalie, puck, net, equipment and group controls verified.");
+console.log("V7.1.26 Half Ice goalie, puck, net, equipment and group controls verified.");
 
 
 
@@ -149,7 +149,7 @@ console.log("V7.1.25 Half Ice goalie, puck, net, equipment and group controls ve
    announcement must point toward the bottom of Half Ice, not relocate goalie. */
 const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
 const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
-assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.25 goalie/announcement helpers missing");
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.26 goalie/announcement helpers missing");
 const home={
  state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
  v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
@@ -182,10 +182,10 @@ assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn
 assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
 assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
   "Far-end arrow must point below the rink toward the actual player");
-console.log("V7.1.25 goalie ownership and speech bubble pointers verified.");
+console.log("V7.1.26 goalie ownership and speech bubble pointers verified.");
 
 
-/* V7.1.25: rounded chat-bubble shape and directional tails. This geometry
+/* V7.1.26: rounded chat-bubble shape and directional tails. This geometry
    is pure SVG and must remain stable for visible and far-end arrivals. */
 const balloonStart=app.indexOf("function v720BubblePath(");
 const balloonEnd=app.indexOf("function v720DrawAnnouncement(",balloonStart);
@@ -218,9 +218,9 @@ assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)};tail="down"
   "Offscreen arrivals keep the bottom edge and downward-pointing tail");
 assert.ok(app.includes('tip={x:round(pixel.x,2),y:round(pixel.y+10,2)};tail="up"'),
   "Visible arrivals keep an upward-pointing tail when the bubble is beneath a player");
-console.log("V7.1.25 oval speech balloons and curved directional tails verified.");
+console.log("V7.1.26 oval speech balloons and curved directional tails verified.");
 
-// V7.1.25: the remove pill is drawn with symmetric SVG geometry, not a
+// V7.1.26: the remove pill is drawn with symmetric SVG geometry, not a
 // font glyph whose baseline can drift when the Half Ice camera rotates.
 const minusDraw=app.slice(app.indexOf("function v7MultiDraw(){"),
   app.indexOf("function v7MultiWorldPoint(",app.indexOf("function v7MultiDraw(){")));
@@ -238,10 +238,10 @@ assert.ok(minusCamera.includes('set(minus,{x:point.x-5,y:point.y},"x1","y1")')&&
   "Half Ice must recenter both ends of the minus around the delete control");
 assert.ok(minusCamera.includes('minus.setAttribute("transform","rotate("+angle+'),
   "Half Ice must counterrotate the minus stroke to remain horizontal");
-console.log("V7.1.25 centered multi-select remove stroke verified.");
+console.log("V7.1.26 centered multi-select remove stroke verified.");
 
 
-/* V7.1.25: The Half Ice goalie number must be legible in either camera.
+/* V7.1.26: The Half Ice goalie number must be legible in either camera.
    Older passes rotate an individual numeral even when its pad is upright.
    Verify a final dedicated overlay corrects all text without touching pads. */
 const v724Start=app.indexOf("function v724OrientGoalieContents(");
@@ -282,12 +282,12 @@ assert.ok(app.includes('if(state.view!=="half")return result;'),
  "Full Ice must remain unchanged");
 assert.ok(app.includes('if(playerById(group.dataset.playerId)?.role!=="goalie")continue'),
  "The fix must not affect skaters or coaches");
-assert.ok(app.includes("v724OrientGoalieContents(group,token,transform)"),
+assert.ok(app.includes("v724OrientGoalieContents(group,token,labelsTransform)"),
  "The goalie overlay must run after all earlier render passes");
-console.log("V7.1.25 left/right Half Ice goalie numerals and optional badges verified.");
+console.log("V7.1.26 left/right Half Ice goalie numerals and optional badges verified.");
 
 
-/* V7.1.25: saved Half Ice initial state was rendered by the old goalie
+/* V7.1.26: saved Half Ice initial state was rendered by the old goalie
    rotation pass because init() executes before the V7.1.17+ decorators.
    Validate the last boot refresh actually calls the FINAL renderer for
    both Half Ice camera sides, and leaves Full Ice untouched. */
@@ -316,4 +316,61 @@ console.log("V7.1.25 left/right Half Ice goalie numerals and optional badges ver
  vm.runInNewContext(source,pending,{timeout:1000});
  assert.equal(pending.v725RefreshInitialHalfIce(),false);
 }
-console.log("V7.1.25 initial Half Ice goalie startup repaint verified for both cameras.");
+console.log("V7.1.26 initial Half Ice goalie startup repaint verified for both cameras.");
+
+
+/* V7.1.26: The goalie body must remain parallel to the camera-rotated goal
+   line (horizontal in Half Ice), while text counters the camera. This tests
+   the actual last-rendered SVG transforms for both ends, not just the label. */
+{
+ const begin=app.indexOf("const v724PriorObjectRender=renderObjectLayer;");
+ const end=app.indexOf("/* V7.1.25",begin);
+ assert.ok(begin>0&&end>begin,"Final goalie render override must precede startup refresh");
+ const code=app.slice(begin,end);
+ for(const side of ["left","right"]){
+  const calls=[];
+  const token={attrs:{},removed:[],
+   style:{removeProperty(name){if(name==="transform")this.cleared=true}},
+   setAttribute(name,value){this.attrs[name]=value}};
+  const ring={classList:{contains:name=>name==="selection-ring"},
+   attrs:{transform:"rotate(90)"},style:{animation:"spin"},
+   removeAttribute(name){delete this.attrs[name];this.cleared=true}};
+  const goalie={dataset:{playerId:"goalie"},children:[ring],
+   querySelector:selector=>selector===".ice-token"?token:null};
+  const skater={dataset:{playerId:"skater"},children:[],
+   querySelector:()=>{throw new Error("Skater rendering was modified")}};
+  const ctx={state:{view:"half",halfSide:side,ice:{}},
+   renderObjectLayer:()=>{calls.push("base");return "ok"},
+   v59CounterAngle:()=>side==="left"?-90:90,
+   v7OnIceSymbolMetrics:()=>({goalieScale:0.36}),
+   v7IceGeometry:()=>({scale:4.8}),
+   round:v=>Math.round(v*10000)/10000,
+   playerById:id=>({role:id==="goalie"?"goalie":"skater"}),
+   $:()=>({querySelectorAll:()=>[goalie,skater]}),
+   v724OrientGoalieContents:(g,t,transform)=>calls.push({g,t,transform})};
+  vm.runInNewContext(code,ctx,{timeout:1000});
+  assert.equal(ctx.renderObjectLayer(4),"ok");
+  assert.equal(token.attrs.transform,"scale(0.36)",
+   side+" pads must inherit camera rotation, not counterrotate upright");
+  assert.equal(token.cleared,true,"Remove old CSS overrides from pad");
+  assert.equal(ring.cleared,true,"Old ring counterrotation must be cleared");
+  assert.equal(ring.attrs.transform,undefined);
+  assert.equal(ring.style.animation,"none");
+  assert.equal(calls.length,2,"Underlying renderer + goalie overlay only");
+  assert.equal(calls[1].transform,
+   "rotate("+(side==="left"?-90:90)+") scale(0.36)",
+   side+" goalie number must counterrotate to screen upright");
+  assert.equal(calls[1].g,goalie);
+  assert.equal(calls[1].t,token);
+  // The long Y axis of the full-ice goalie pad rotates into X in Half Ice;
+  // the numerals have zero net rotation once the camera is applied.
+  const cameraAngle=side==="left"?90:-90;
+  assert.ok(Math.abs(Math.cos(cameraAngle*Math.PI/180))<1e-10);
+  assert.equal(cameraAngle+(side==="left"?-90:90),0);
+  ctx.state.view="whole";
+  const oldCalls=calls.length;
+  ctx.renderObjectLayer(5);
+  assert.equal(calls.length,oldCalls+1,"Full Ice must skip the goalie overlay");
+ }
+}
+console.log("V7.1.26 full-body goalie direction matches the goal line for both Half Ice cameras.");

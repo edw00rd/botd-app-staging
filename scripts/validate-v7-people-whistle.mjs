@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.25 Preview/);
-assert.match(shell,/V7\.1\.25 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.25"'));
+assert.match(app,/V7\.1\.26 Preview/);
+assert.match(shell,/V7\.1\.26 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.26"'));
 
 const people={
   skater:{id:"skater",teamId:"A",name:"Skater",role:"skater"},
@@ -100,4 +100,4 @@ assert.ok(app.includes('if(ui.selectedType==="player")v721BlowCoachWhistle(ui.se
   "The selected coach receives the sound and buzz action");
 assert.ok(app.includes("@media(prefers-reduced-motion:reduce)"),
   "Whistle presentation respects reduced motion");
-console.log("V7.1.25 all-person puck targeting and coach whistle checks passed.");
+console.log("V7.1.26 all-person puck targeting and coach whistle checks passed.");
