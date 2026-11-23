@@ -1,5 +1,15 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.28 Preview — November 23, 2026 (staging feature branch only)
+
+- Added five ice appearance presets in RINK → Ice Surface: Classic (legacy), Fresh Arena, Lightly Skated, Game Worn and Outdoor Frost, each with a preview swatch.
+- Fresh Arena uses subtle resurfacing lanes, cloudy subsurface highlights, and frozen-in grain; worn presets add skate cuts and rink traffic, and outdoor ice includes translucent frost fissures.
+- Texture overlays stay underneath regulation lines, center-ice logos, players and game objects; they use deterministic lightweight SVG, not external image files or animated filters.
+- Surface texture is optional persisted metadata on the existing ice object. Older plays load with their original Classic appearance; changing rink standard preserves the appearance.
+- Added validation for preset normalization and texture integration. No rink geometry, puck physics, authentication, billing, schema migration or production deployment.
+
+---
+
 ## V7.1.27 Preview — November 23, 2026 (staging only)
 
 - Implemented the selected Option 1 broadcast-entry design: red jersey-number tile on the left, player name in the upper white panel, **TO THE ICE!** across the lower red action strip, and position badge in the lower-right corner.
