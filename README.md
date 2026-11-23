@@ -1,8 +1,14 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.23 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.24 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.23 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.24 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.24 Half Ice goalie number orientation — November 23, 2026
+
+- Corrected sideways goalie numerals by rendering the jersey number, optional G badge and leadership marks on a dedicated screen-upright SVG overlay after legacy Half Ice rendering.
+- Both Half Ice ends retain upright digits; goalie pad artwork, crease placement, name labels and selection rings remain in place. Full Ice and saved-play behavior are unchanged.
+- Extended Half Ice regression coverage and source integrity checks. Staging only; production is untouched.
 
 ## V7.1.23 Centered multi-selection minus — November 23, 2026
 
