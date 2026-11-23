@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.21 Preview/);
-assert.match(shell,/V7\.1\.21 Preview/);
-assert.ok(app.includes('const V7_UI_VERSION="7.1.21"'));
+assert.match(app,/V7\.1\.22 Preview/);
+assert.match(shell,/V7\.1\.22 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.22"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
 assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
@@ -105,7 +105,7 @@ for(const side of ["right","left"]){
  assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
  assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
 }
-console.log("V7.1.21 Half Ice camera, faces, controls and visible spawns verified.");
+console.log("V7.1.22 Half Ice camera, faces, controls and visible spawns verified.");
 
 
 const v719Start=app.indexOf("function v719HalfCornerSlots(");
@@ -141,7 +141,7 @@ for(const side of ["right","left"]){
 assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
 assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
   "net handle follows the displayed view");
-console.log("V7.1.21 Half Ice goalie, puck, net, equipment and group controls verified.");
+console.log("V7.1.22 Half Ice goalie, puck, net, equipment and group controls verified.");
 
 
 
@@ -149,7 +149,7 @@ console.log("V7.1.21 Half Ice goalie, puck, net, equipment and group controls ve
    announcement must point toward the bottom of Half Ice, not relocate goalie. */
 const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
 const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
-assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.21 goalie/announcement helpers missing");
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.22 goalie/announcement helpers missing");
 const home={
  state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
  v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
@@ -182,4 +182,40 @@ assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn
 assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
 assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
   "Far-end arrow must point below the rink toward the actual player");
-console.log("V7.1.21 goalie ownership and speech bubble pointers verified.");
+console.log("V7.1.22 goalie ownership and speech bubble pointers verified.");
+
+
+/* V7.1.22: rounded chat-bubble shape and directional tails. This geometry
+   is pure SVG and must remain stable for visible and far-end arrivals. */
+const balloonStart=app.indexOf("function v720BubblePath(");
+const balloonEnd=app.indexOf("function v720DrawAnnouncement(",balloonStart);
+assert.ok(balloonStart>0&&balloonEnd>balloonStart,
+  "Player entry speech-bubble generator must be present");
+const balloon={clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),
+  round:(n,p=2)=>Number(n.toFixed(p)),Math};
+vm.runInNewContext(app.slice(balloonStart,balloonEnd),balloon,{timeout:1500});
+for(const [w,h] of [[260,76],[166,76],[220,76]]){
+  for(const [direction,tip] of [["down",{x:142,y:180}],
+                                 ["up",{x:142,y:55}]]){
+    const path=balloon.v720BubblePath(12,80,w,h,125,tip,direction);
+    assert.match(path,/^M /,"Bubble starts with an SVG move");
+    assert.match(path,/ Z$/,"Balloon silhouette must close");
+    assert.ok((path.match(/C /g)||[]).length>=6,
+      "Bubble body and directional tail use smooth cubic curves");
+    assert.ok((path.match(/Q /g)||[]).length>=1,
+      "Bubble tail has a soft curved tip, not a sharp triangular point");
+    assert.doesNotMatch(path,/NaN|Infinity|undefined/,
+      "All scaled and oriented speech bubbles use finite coordinates");
+  }
+}
+assert.ok(app.includes('const w=Math.min(260,Math.max(166,rect.width-24)),h=76'),
+  "The balloon has soft oval proportions rather than a flat box");
+assert.ok(app.includes('fill:"#ffffff",stroke:"#c9ced3","stroke-width":2.2'),
+  "Reference-style light fill and subtle gray outline must be applied");
+assert.ok(!app.includes('group.append(svgEl("rect",{x:l+11,y:t+10,width:4,height:h-20'),
+  "Reference balloon must not have a rectangular side accent");
+assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)};tail="down"'),
+  "Offscreen arrivals keep the bottom edge and downward-pointing tail");
+assert.ok(app.includes('tip={x:round(pixel.x,2),y:round(pixel.y+10,2)};tail="up"'),
+  "Visible arrivals keep an upward-pointing tail when the bubble is beneath a player");
+console.log("V7.1.22 oval speech balloons and curved directional tails verified.");
