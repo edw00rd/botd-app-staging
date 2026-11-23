@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.22 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.23 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.22 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.23 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.23 Centered multi-selection minus — November 23, 2026
+
+- Replaced the group remove button's baseline-dependent minus character with an exactly centered, round-capped SVG line inside its red circle.
+- Aligned the minus stroke to the same selection-control center during Half Ice camera positioning and counterrotation for both left and right ends.
+- Preserved the button's position, size, click/tap removal behavior, selection count, Full Ice layout, and production isolation.
+- Added a Half Ice regression assertion for geometric centering; updated the V7 preview label and source manifest.
 
 ## V7.1.22 Rounded player-entry chat bubbles — November 23, 2026
 
