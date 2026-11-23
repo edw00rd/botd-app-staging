@@ -1,5 +1,13 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.22 Preview — November 23, 2026 (staging only)
+
+- Redesigned player entry announcements to match the supplied rounded, oval comic chat-bubble shape, with an unobtrusive white fill, thin gray edge, soft shadow, and short curved pointer instead of angular callout geometry.
+- Kept visible-player pointers and bottom-edge directional notifications for players entering the far end of Half Ice. Text remains legible, centered and accessible.
+- Added regression checks for bubble geometry, top/bottom pointer direction, compact widths, and preserved goalie view cues. No changes to existing plays, puck physics, whistle action, or production.
+
+---
+
 ## V7.1.21 Preview — November 21, 2026 (staging only)
 
 - Coaches and managers can now receive Give and Pass just like any skater or goalie. Updated all puck recipient filters, puck drop detection and physical collision participation.
