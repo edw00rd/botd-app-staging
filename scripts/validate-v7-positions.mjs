@@ -3,7 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.21 Preview/);
+assert.match(app,/V7\.1\.22 Preview/);
 assert.ok(app.includes('if(state.display.positions)addBadge(token,"G",22,-26)'),
   "Goalie G position pill must follow the Positions setting");
 assert.ok(app.includes('if(state.display.numbers&&p.number)'),
@@ -87,4 +87,4 @@ for(const [alias,traditional] of [["F1","LW"],["F2","C"],["F3","RW"]]){
  assert.equal(values[alias][0],values[traditional][0],alias+" must stay in a forward line group");
  assert.equal(values[alias][1],values[traditional][1],alias+" must use equivalent forward bench ordering");
 }
-console.log("V7.1.21 goalie position visibility and F1/F2/F3 roster behavior passed.");
+console.log("V7.1.22 goalie position visibility and F1/F2/F3 roster behavior passed.");
