@@ -3,7 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.27 Preview/);
+assert.match(app,/V7\.1\.28 Preview/);
 assert.ok(app.includes('if(state.display.positions)addBadge(token,"G",22,-26)'),
   "Goalie G position pill must follow the Positions setting");
 assert.ok(app.includes('if(state.display.numbers&&p.number)'),

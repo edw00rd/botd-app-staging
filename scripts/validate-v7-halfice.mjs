@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
 const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.27 Preview/);
-assert.match(shell,/V7\.1\.27 Preview/);
+assert.match(app,/V7\.1\.28 Preview/);
+assert.match(shell,/V7\.1\.28 Preview/);
 assert.ok(app.includes('const V7_UI_VERSION="7.1.28"'));
 assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
 assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
