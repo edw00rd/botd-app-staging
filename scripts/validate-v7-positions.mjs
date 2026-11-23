@@ -87,4 +87,4 @@ for(const [alias,traditional] of [["F1","LW"],["F2","C"],["F3","RW"]]){
  assert.equal(values[alias][0],values[traditional][0],alias+" must stay in a forward line group");
  assert.equal(values[alias][1],values[traditional][1],alias+" must use equivalent forward bench ordering");
 }
-console.log("V7.1.27 goalie position visibility and F1/F2/F3 roster behavior passed.");
+console.log("V7.1.28 goalie position visibility and F1/F2/F3 roster behavior passed.");
