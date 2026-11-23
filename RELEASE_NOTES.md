@@ -1,6 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
-## V7.1.24 Preview — November 23, 2026 (staging only)
+## V7.1.25 Preview — November 23, 2026 (staging only)
+
+- Fixed stale initial Half Ice goalie number orientation: older initial rendering happened before newer orientation overrides were installed. Force one targeted first-frame redraw only after the final goalie renderer registers.
+- Applies on saved left/right Half Ice views immediately at startup, with jerseys and optional badges upright; maintains Full Ice appearance, crease placement and existing play coordinates.
+- Added boot-order regressions for both Half Ice sides and kept production unchanged.
+
+---
+
+## V7.1.25 Preview — November 23, 2026 (staging only)
 
 - Fixed the sideways goalie jersey numbers shown in Half Ice by separating jersey digits, optional G position badge and leadership marks from the older goalie token rotation chain.
 - Introduced a final goalie-only, screen-upright SVG overlay for both Half Ice camera orientations. The body, crease positions, names, selection rings, Full Ice appearance, puck physics, and saved data are unchanged.
