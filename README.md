@@ -1,8 +1,15 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.21 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.22 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.21 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.22 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.22 Rounded player-entry chat bubbles — November 23, 2026
+
+- Replaced the sharp, rectangular player-announcement callout with a soft, **white oval speech balloon**, inspired by the supplied glossy chat-bubble reference. Smooth cubic curves form the body and a short, curved tail; removed the colored vertical accent and softened the outline and shadow.
+- Rebalanced the two-line player name and arrival text inside a slightly taller balloon. Width continues to respond to smaller rink viewports without covering unrelated controls.
+- Preserved directional cues: on-screen arrivals point toward the player's token; offscreen Half Ice arrivals remain at the bottom with their tail pointing toward the far end, and the far-crease label remains intact.
+- Added an automated SVG geometry regression for left/right Half Ice and both tail orientations. No changes to play geometry, player placements, whistle control, puck physics, or production.
 
 ## V7.1.21 Pass/Give to everyone and coach whistle — November 21, 2026
 
