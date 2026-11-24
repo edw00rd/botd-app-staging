@@ -1,17 +1,8 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.28 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.27 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.28 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
-
-## V7.1.28 Realistic ice surface presets — November 23, 2026
-
-- Added an **Ice texture** selector with clickable preview swatches inside the existing RINK → Ice Surface dialog.
-- The five finishes are **Classic** (unchanged legacy look), **Fresh Arena** (realistic resurfaced ice), **Lightly Skated**, **Game Worn**, and **Outdoor Frost**.
-- Procedural, deterministic SVG highlights, frost clouds, polished resurfacer passes, fine scratches and optional outdoor cracks render below official rink markings. No external texture downloads, SVG blur filters or per-frame texture generation.
-- The selected finish is persisted in the existing rink object and restored with saved plays. Legacy plays retain Classic, and switching rink size/standard preserves the selected finish.
-- Both Full Ice and Half Ice share the same clipped surface artwork. Ice geometry, faceoff/goal markings, player locations, puck physics, and production settings are not modified.
-- Preview label updated to V7.1.28. This branch is not yet deployed or promoted.
+**Staging UI milestone: V7.1.27 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
 
 ## V7.1.27 Broadcast-style player entry — November 23, 2026
 

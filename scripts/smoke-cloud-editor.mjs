@@ -6,8 +6,8 @@ const script=app.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,"Editable app script must exist");
 new Function(script);
 for(const marker of [
-  "B.O.T.D. Hockey Playbook Studio V7.1.28 Preview",
-  "V7.1.28 Preview · staging",
+  "B.O.T.D. Hockey Playbook Studio V7.1.27 Preview",
+  "V7.1.27 Preview · staging",
  'id="v7CloudLibrary"','id="v7CloudBookSelect"','id="v7CloudNewBook"',
  'id="v7CloudSave"','id="v7CloudSaveCopy"','id="v7CloudImportLocal"',
  'id="v7CloudPlayList"','function v7CloudApi(','function v7CloudSave(',

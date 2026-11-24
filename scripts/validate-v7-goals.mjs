@@ -97,22 +97,6 @@ vm.runInNewContext(modelSource+
   "\nconst V7_CREASE_RADIUS_UNITS=28.8;"+
   presetSource+"\n"+app.slice(normalizerStart,normalizerEnd)+
   "\nthis.iceGeometry=v7IceGeometry;this.iceNormalize=v7NormalizeIce;this.icePerimeter=v7IcePerimeter;this.iceCrease=v7IceCreaseOutline;",normContext,{timeout:3000});
-/* Ice texture is saved independently of the rink's dimensions and physics. */
-{
- const original=normContext.iceNormalize({profile:"nhl"});
- assert.equal(original.texture,"classic","Legacy rink must preserve its original appearance");
- for(const id of ["classic","arena","light","game","outdoor"]){
-  const selected=normContext.iceNormalize({profile:"iihf",texture:id});
-  assert.equal(selected.texture,id,"Texture preset should survive ice normalization: "+id);
-  assert.equal(selected.length,normContext.iceNormalize({profile:"iihf"}).length,"Texture must not change rink size")
- }
- const invalid=normContext.iceNormalize({profile:"nhl",texture:"unknown"});
- assert.equal(invalid.texture,"classic","Invalid persisted texture should safely fall back");
- assert.ok(app.includes('v7IcePaintTexture(surface,ice,g);'),"Texture must render under rink markings");
- assert.ok(app.includes('id="v7IceTexturePicker"'),"RINK dialog must offer texture swatches");
- assert.ok(app.includes('v7IceSetField("texture",card.dataset.iceTexture);refresh()'),"Texture swatches must update ice state");
- assert.ok(app.includes('state.ice=v7NormalizeIce({profile:value,texture:ice.texture});'),"Rink preset changes should retain ice texture");
-}
 /* A new faceoff must be symmetric and line up with the real rink art. */
 {
  const a=app.indexOf("const DEFAULT_WHOLE_LINEUP="),b=app.indexOf("function createCanonicalLineup(",a);
@@ -1568,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.28 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.28"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.27 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.27"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
