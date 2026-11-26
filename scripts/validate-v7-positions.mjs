@@ -3,11 +3,11 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.27 Preview/);
-assert.ok(app.includes('if(state.display.positions)addBadge(token,"G",22,-26)'),
-  "Goalie G position pill must follow the Positions setting");
-assert.ok(app.includes('if(state.display.numbers&&p.number)'),
-  "Goalie jersey number must stay independent from Positions");
+assert.match(app,/V7\.1\.28 Preview/);
+assert.ok(app.includes('letter.textContent="G";token.append(letter)'),
+  "Goalie must always display G");
+assert.ok(app.includes('token.append(svgEl("circle",{r:23,fill:colors.primary,stroke:colors.trim,"stroke-width":6}))'),
+  "Goalie must use same circular geometry as skaters");
 
 const createDialog=app.slice(app.indexOf('id="v716PositionField"'),app.indexOf('id="v716LineField"'));
 const rosterFields=app.slice(app.indexOf("function renderRoster()"),app.indexOf("function renderPlaybook()"));
@@ -54,19 +54,19 @@ const count=klass=>{
 };
 ctx.drawTokens(0);
 assert.equal(count("token-role-badge"),0,"Goalie G pill must be absent when Positions is off");
-assert.equal(count("goalie-token-number"),1,"Goalie jersey number must remain when Numbers is on");
+assert.equal(count("goalie-token-number"),1,"Permanent goalie G remains visible");
 state.display.positions=true;
 ctx.drawTokens(0);
-assert.equal(count("token-role-badge"),1,"Goalie G pill must appear when Positions is on");
+assert.equal(count("token-role-badge"),0,"No duplicate goalie G position pill");
 assert.equal(count("goalie-token-number"),1);
 state.display.numbers=false;
 ctx.drawTokens(0);
-assert.equal(count("token-role-badge"),1,"Position visibility must not depend on Numbers");
-assert.equal(count("goalie-token-number"),0);
+assert.equal(count("token-role-badge"),0,"Permanent G does not need a position pill");
+assert.equal(count("goalie-token-number"),1);
 state.display.positions=false;
 ctx.drawTokens(0);
 assert.equal(count("token-role-badge"),0);
-assert.equal(count("goalie-token-number"),0);
+assert.equal(count("goalie-token-number"),1);
 
 // F1 / F2 / F3 are first-class skater positions in ordering.
 const orderStart=app.indexOf("function teamBenchOrderKey(");
@@ -87,4 +87,4 @@ for(const [alias,traditional] of [["F1","LW"],["F2","C"],["F3","RW"]]){
  assert.equal(values[alias][0],values[traditional][0],alias+" must stay in a forward line group");
  assert.equal(values[alias][1],values[traditional][1],alias+" must use equivalent forward bench ordering");
 }
-console.log("V7.1.27 goalie position visibility and F1/F2/F3 roster behavior passed.");
+console.log("V7.1.28 goalie position visibility and F1/F2/F3 roster behavior passed.");
