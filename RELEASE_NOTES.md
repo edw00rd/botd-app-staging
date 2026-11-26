@@ -1,5 +1,17 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.28 Preview — November 25, 2026 (staging only)
+
+- **Goalie:** replaced the rectangular pad token with the same circular shape and size as skaters. A permanently visible large G replaces jersey numbers. Bench tokens show G; roster numbers are kept in saved data. Selection ring and glow are circular; goalie crease placement and Half Ice legibility are unchanged.
+- **Ice:** added separate scalable ice base, wear, lighting-ready overlay and independent painted-markings groups. Ice wear slider ranges from completely freshly resurfaced (zero generated marks) to heavily scratched, snow-flecked and rough pond-like ice.
+- **Painted markings:** 0–100% opacity slider affects lines, faceoff dots, hash marks and crease, without changing the center-ice logo's own opacity.
+- **Exterior themes:** selectable Standard, Pine Forest, Alpine Pond, Arena Bowl, Old Barn and The Duck Pond. Layered foreground/background scenery scales with rink framing. Standard stays the original default.
+- **Compatibility:** rink layer metadata saves with plays, remains independent of regulation rink presets and restores default values for old plays. No production or backend schema updates; physics and interactions unchanged.
+- Added a standalone regression suite for normalized appearance, selection/defaults, wear density, renderer stacking, and the scenic camera.
+
+---
+
+
 ## V7.1.27 Preview — November 23, 2026 (staging only)
 
 - Implemented the selected Option 1 broadcast-entry design: red jersey-number tile on the left, player name in the upper white panel, **TO THE ICE!** across the lower red action strip, and position badge in the lower-right corner.

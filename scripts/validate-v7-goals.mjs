@@ -28,9 +28,9 @@ const staffOutline=metricScope.v7PlayerSelectionFootprint("coach",visual);
 const badgeReach=Math.hypot(20*visual.skaterScale,20*visual.skaterScale)+14*visual.skaterScale;
 assert.ok(skaterOutline.radius>badgeReach+3&&skaterOutline.radius<visual.playerHitRadius+3,
  "Selected player outline must surround position and leadership badges without growing oversized");
-assert.ok(goalieOutline.width>visual.goalieWidth+18&&goalieOutline.width<visual.goalieWidth+26&&
+assert.ok(goalieOutline.radius>visual.goalieWidth/2+9&&goalieOutline.radius<visual.goalieWidth/2+12&&
  staffOutline.width>visual.skaterDiameter+18&&staffOutline.width<visual.skaterDiameter+26,
- "Goalie and staff selection outlines must clear their markers");
+ "Circular goalie selection ring and staff outline must clear their markers");
 const playerScaleSource=app.slice(metricsEnd,app.indexOf("/* Shared circular selection marker",metricsEnd));
 assert.ok(playerScaleSource.includes('const y=p.role==="goalie"?-30:-26'),
  "Names must sit outside the enlarged selection ring");
@@ -42,7 +42,7 @@ assert.ok(app.includes(".selection-ring{fill:none;stroke:#050505;stroke-width:2.
  "Selected players and pucks must use identical dash styling");
 assert.ok(!app.includes(".selection-ring.v7-tight-player-selection{"),"No different player-only dash style");
 assert.ok(Math.abs(visual.skaterDiameter-14.4)<.001);
-assert.ok(Math.abs(visual.goalieWidth-17.28)<.001);
+assert.ok(Math.abs(visual.goalieWidth-14.4)<.001);
 assert.ok(Math.abs(2*visual.puckRadius-3.84)<.001);
 assert.ok(visual.skaterDiameter<goalWidth&&visual.goalieWidth<goalWidth);
 assert.ok(visual.playerHitRadius>visual.skaterDiameter/2&&visual.puckHitRadius>visual.puckRadius);
@@ -639,7 +639,7 @@ for(const marker of ['n.setAttribute("x","0")','n.setAttribute("y","0")','n.setA
  'n.style.fontFamily="inherit"'])
  assert.ok(playerScale.includes(marker),"Number centering regression: "+marker);
 for(const marker of ['n.style.fontWeight="950"',
- 'n.style.fontSize=(p.role==="goalie"?24:(p.role==="coach"||p.role==="manager")?34:21)+"px"',
+ 'n.style.fontSize=(p.role==="goalie"?34:(p.role==="coach"||p.role==="manager")?34:21)+"px"',
  'n.style.stroke="none"','n.style.strokeWidth="0px"']){
  assert.ok(playerScale.includes(marker),"On-ice jersey typography must match bench: "+marker);
 }
@@ -648,7 +648,7 @@ assert.ok(app.includes('.bench-piece{')&&
  "Reference bench number typography is missing");
 assert.ok(21/40>10/30,
  "Skater number must be enlarged relative to the bench proportion");
-assert.ok(24/42>10/26,
+assert.ok(34/46>10/26,
  "Goalie number must be enlarged relative to the bench proportion");
 
 /* The center-puck attention cue is delayed, one-shot, and only after New. */
@@ -1552,8 +1552,8 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
 }
 /* V7.1 visible UI version and shared team/player palette logic. */
 {
- assert.ok(app.includes('id="v7VisibleVersion">V7.1.27 Preview · staging</span>'));
- assert.ok(app.includes('const V7_UI_VERSION="7.1.27"'));
+ assert.ok(app.includes('id="v7VisibleVersion">V7.1.28 Preview · staging</span>'));
+ assert.ok(app.includes('const V7_UI_VERSION="7.1.28"'));
  assert.ok(app.includes('if(target?.type==="team")return v7OpenTeamColorDialog(target.id)'));
  assert.ok(app.includes('function v7OpenTeamColorDialog(teamId)'));
  assert.ok(app.includes('const teamMode=d.targetType==="team"'));
@@ -1601,7 +1601,7 @@ assert.ok(app.includes('dialog .dialog-head'),"Modal headings must be draggable"
  const scaler=app.slice(start,end);
  assert.ok(scaler.includes('token.querySelectorAll(".token-role-badge").forEach(b=>'),
   "Position badges must be scaled as part of the original player token");
- assert.ok(scaler.includes('n.style.fontSize=(p.role==="goalie"?24:(p.role==="coach"||p.role==="manager")?34:21)+"px"'),
+ assert.ok(scaler.includes('n.style.fontSize=(p.role==="goalie"?34:(p.role==="coach"||p.role==="manager")?34:21)+"px"'),
   "Player number font must be 1.5x");
  assert.ok(scaler.includes('const ink=t.getBBox()') &&
   scaler.includes('t.setAttribute("text-anchor","middle")') &&
