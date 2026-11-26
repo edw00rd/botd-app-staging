@@ -1,8 +1,18 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.27 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.28 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.27 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.28 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.28 Layered rink MVP and circular goalie tokens — November 25, 2026
+
+- **Goalie first:** skater-size circular token with a permanent large G in the center. Bench goalies use G. Goalie jersey numbers remain in roster data but never appear on the token. No redundant G badge; circular selection and glow; Half Ice orientation and crease positioning preserved.
+- **Ice Surface:** independent 0–100% skate-wear control. At 0%, no procedurally generated skate marks; increasing wear adds deterministic multiscale blade cuts concentrated in faceoff/goal traffic, shaved-ice highlights, cloudy granular snow patches, edge drifts and rough pond-like texture. Source is generated only when ice appearance changes, not every animation frame.
+- **Markings Layer:** independent 0–100% opacity for official painted lines, dots, circles and creases; the center logo remains separately controllable.
+- **Environment / Borders:** expandable configuration-driven presets: Standard (unchanged default), Pine Forest, Alpine Pond, Arena Bowl, Old Barn, and The Duck Pond. Scenery uses scalable SVG outside playable ice; a second foreground border layer adds snowbanks/edge trim. Scenic environments expand the Full Ice/Half Ice camera framing without changing rink coordinates.
+- **Future lighting hook:** persisted ice color and intensity parameters drive an independent lighting layer; detailed lighting presets are deferred.
+- **Persistence / compatibility:** visual settings reside on the normalized rink object and survive save/load and rink-regulation preset changes. Legacy plays start in Standard/0% wear/100% markings. No DB schema migration, physics changes, player placements, or production changes.
+- Added scripts/validate-v7-ice-layers.mjs and integrated it into npm run check.
 
 ## V7.1.27 Broadcast-style player entry — November 23, 2026
 
