@@ -15,6 +15,7 @@ const node=(tag,attributes={})=>({
  append(...children){this.children.push(...children)}
 });
 ctx.v7IceSvg=node;
+ctx.svgEl=node;
 vm.runInNewContext(app.slice(start,end)+
  "\nthis.normalize=v7NormalizeIce;this.geometry=v7IceGeometry;this.wear=v728DrawIceWear;this.environment=v728DrawEnvironment;this.appearance=v728Appearance;",
  ctx,{timeout:2500});
