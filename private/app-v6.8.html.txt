@@ -1783,7 +1783,7 @@ function renderBenches(){
     for(const p of bench){
       const c=playerColors(p),tok=document.createElement("button"),roleClass=p.role==="goalie"?"goalie":p.role==="coach"||p.role==="manager"?"staff":"skater";
       const lineText=p.role==="skater"?(p.position==="LD"||p.position==="RD"?`D Pair ${p.line} · ${p.position}`:`F Line ${p.line} · ${p.position}`):p.role==="goalie"?"Goalie":p.role==="coach"?"Head Coach":"Manager";
-      const badge=(p.role==="coach"||p.role==="manager")?"C":p.role==="goalie"?(p.number||"G"):(p.number||p.position);
+      const badge=(p.role==="coach"||p.role==="manager")?"C":p.role==="goalie"?"G":(p.number||p.position);
       tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",c.numbers);
       tok.innerHTML=`<span class="bench-piece"><span>${escapeHtml(badge)}</span></span><span class="bench-card-copy"><strong>${escapeHtml(p.name||"Blank token")}</strong><small>${p.number?`#${escapeHtml(p.number)} · `:""}${escapeHtml(p.position)}${p.hand?` · ${escapeHtml(p.hand)}`:""}</small><em>${escapeHtml(lineText)}</em></span>`;root.appendChild(tok)
     }
@@ -1798,10 +1798,10 @@ function renderObjectLayer(time){
     const p=playerById(id);if(!p)continue;const pos=playerPositionAt(id,time),colors=playerColors(p),g=svgEl("g",{"data-player-id":id,role:"button","aria-label":p.name,tabindex:"0",transform:`translate(${round(pos.x,2)} ${round(pos.y,2)})`,style:"cursor:pointer"});setGlowStyle(g,p.glow,colors.primary);
     const token=svgEl("g",{class:`ice-token ice-token-${p.role}`,transform:"scale(0.92)"});
     if(p.role==="goalie"){
-      token.append(svgEl("rect",{x:-24,y:-30,width:48,height:60,rx:8,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
-      token.append(svgEl("path",{d:"M-13 -22V22M0 -22V22M13 -22V22",fill:"none",stroke:colors.trim,"stroke-width":3.5,"stroke-linecap":"round"}));
-      if(state.display.numbers&&p.number){const number=svgEl("text",{class:"token-number goalie-token-number",x:0,y:0,dy:".1em","text-anchor":"middle","dominant-baseline":"middle",fill:colors.numbers});number.textContent=p.number;token.append(number)}
-      if(state.display.positions)addBadge(token,"G",22,-26)
+      // Identical circle and size to a skater. The permanent G replaces jersey numbers.
+      token.append(svgEl("circle",{r:23,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
+      const letter=svgEl("text",{class:"token-number goalie-token-number",x:0,y:0,dy:".08em","text-anchor":"middle","dominant-baseline":"central",fill:colors.numbers});
+      letter.textContent="G";token.append(letter)
     }else if(p.role==="coach"||p.role==="manager"){
       // All staff use a square C token without a role pill or stripe.
       token.append(svgEl("rect",{x:-26,y:-26,width:52,height:52,rx:7,fill:colors.primary,stroke:colors.trim,"stroke-width":6}));
@@ -1816,7 +1816,7 @@ function renderObjectLayer(time){
     g.append(token);
     const parts=tokenLabelParts(p);if(parts.length){const txt=svgEl("text",{class:"token-label","text-anchor":"middle",y:p.role==="goalie"?-39:-34});txt.textContent=parts.join(" · ");g.append(txt)}
     if(ui.possessionTargetId===id&&(ui.selectedType==="puck"||ui.selectedType==="additionalPuck"||ui.selectedType==="event"))g.append(svgEl("path",{class:"target-triangle",d:"M0 -48 L42 31 L-42 31 Z"}));
-    if(ui.selectedType==="player"&&ui.selectedId===id){const ring=p.role==="goalie"?svgEl("rect",{class:"selection-ring",x:-34,y:-39,width:68,height:78,rx:14}):p.role==="coach"||p.role==="manager"?svgEl("rect",{class:"selection-ring",x:-39,y:-39,width:78,height:78,rx:14}):svgEl("circle",{class:"selection-ring",r:34});g.append(ring)}
+    if(ui.selectedType==="player"&&ui.selectedId===id){const ring=p.role==="coach"||p.role==="manager"?svgEl("rect",{class:"selection-ring",x:-39,y:-39,width:78,height:78,rx:14}):svgEl("circle",{class:"selection-ring",r:34});g.append(ring)}
     layer.append(g)
   }
 }
@@ -2395,7 +2395,7 @@ renderBenches=function(){
     for(const p of bench){
       const c=playerColors(p),team=teamById(p.teamId),tok=document.createElement("button"),roleClass=p.role==="goalie"?"goalie":p.role==="coach"||p.role==="manager"?"staff":"skater";
       const lineText=p.role==="skater"?(p.position==="LD"||p.position==="RD"?`D Pair ${p.line} · ${p.position}`:`F Line ${p.line} · ${p.position}`):p.role==="goalie"?"Goalie":p.role==="coach"?"Head Coach":"Manager";
-      const badge=(p.role==="coach"||p.role==="manager")?"C":p.role==="goalie"?(p.number||"G"):(p.number||p.position);
+      const badge=(p.role==="coach"||p.role==="manager")?"C":p.role==="goalie"?"G":(p.number||p.position);
       tok.className=`bench-token bench-card ${roleClass}`;tok.dataset.benchPlayer=p.id;tok.title=t("placeOnIce",{name:p.name});tok.style.setProperty("--piece-primary",c.primary);tok.style.setProperty("--piece-trim",c.trim);tok.style.setProperty("--piece-ink",c.numbers);
       tok.innerHTML=`<span class="bench-piece"><span>${escapeHtml(badge)}</span></span><span class="bench-card-copy"><strong>${escapeHtml(p.name||"Blank token")}</strong><small><span class="team-line">${escapeHtml(team?.name||p.teamId)}</span>${p.number?` · #${escapeHtml(p.number)}`:""} · ${escapeHtml(p.position)}${p.hand&&p.role==="skater"?` · ${escapeHtml(p.hand)}`:""}</small><em>${escapeHtml(lineText)}</em></span>`;
       root.appendChild(tok);
@@ -5402,7 +5402,7 @@ function v682UnderglowStrength(brightness){
 function v682UnderglowGeometry(isPuck,player,strength){
   let baseRx=30,baseRy=27,centerY=1;
   if(isPuck){baseRx=18;baseRy=11;centerY=2}
-  else if(player?.role==="goalie"){baseRx=34;baseRy=40}
+  else if(player?.role==="goalie"){baseRx=30;baseRy=27}
   else if(player?.role==="coach"||player?.role==="manager"){baseRx=40;baseRy=30}
   const coreScale=.98+strength*.28,bloomScale=1.18+strength*.68,hazeScale=1.5+strength;
   return{
@@ -7568,7 +7568,7 @@ function v7RenderEquipment(){
    exaggerated from regulation 3in for readability, but still tiny. */
 function v7OnIceSymbolMetrics(unitsPerFoot){
  const u=Math.max(1,Number(unitsPerFoot)||4.8);
- return {skaterDiameter:3*u,goalieWidth:3.6*u,skaterScale:3*u/46,goalieScale:3.6*u/48,staffScale:3*u/52,
+ return {skaterDiameter:3*u,goalieWidth:3*u,skaterScale:3*u/46,goalieScale:3*u/46,staffScale:3*u/52,
    puckRadius:Math.max(1.6,.4*u),playerHitRadius:Math.max(18,3.5*u),puckHitRadius:Math.max(17,3.5*u)}
 }
 /* Selection outlines are rink-sized, not CSS-scaled. The animated CSS
@@ -7576,7 +7576,6 @@ function v7OnIceSymbolMetrics(unitsPerFoot){
 function v7PlayerSelectionFootprint(role,metrics){
  const d=role==="goalie"?metrics.goalieWidth:metrics.skaterDiameter;
  const pad=10.2,n=value=>Math.round(value*100)/100;
- if(role==="goalie")return{width:n(d+2*pad),height:n(d*1.2+2*pad),corner:n(Math.max(4,d*.25))};
  if(role==="coach"||role==="manager")return{width:n(d+2*pad),height:n(d+2*pad),corner:n(Math.max(4,d*.24))};
  return{radius:n(d/2+pad)}
 }
@@ -7596,7 +7595,7 @@ function v7ScalePlayerSymbols(){
    // These unscaled SVG values match bench number-to-token proportions
    // once the 3-ft skater / 3.6-ft goalie artwork is scaled to the ice.
    n.style.fontFamily="inherit";n.style.fontVariantNumeric="tabular-nums";
-   n.style.fontWeight="950";n.style.fontSize=(p.role==="goalie"?24:(p.role==="coach"||p.role==="manager")?34:21)+"px";
+   n.style.fontWeight="950";n.style.fontSize=(p.role==="goalie"?34:(p.role==="coach"||p.role==="manager")?34:21)+"px";
    n.style.stroke="none";n.style.strokeWidth="0px";n.style.letterSpacing="0";
   });
   token.querySelectorAll(".token-role-badge").forEach(b=>{
@@ -11420,10 +11419,7 @@ Object.assign(window.BOTD_TEST,{
 });
 
 
-/* V7.1.24: The Half Ice camera and legacy goalie text rotation operate
-   on different SVG ancestors. Put jersey numbers, optional G badges, and
-   leadership marks on their own screen-upright plane, free of inherited
-   per-glyph rotations. Do not move or reshape the goalie or its crease. */
+/* Round goalie G label counterrotates on Half Ice, preserving its crease position. */
 /* V7.1.26: Goalie pads follow the rink camera (parallel to goal line),
    while jersey numerals and optional badges counterrotate to stay legible. */
 function v724OrientGoalieContents(group,token,transform){
