@@ -11874,6 +11874,158 @@ function v725RefreshInitialHalfIce(){
 }
 v725RefreshInitialHalfIce();
 
+/* V7.1.29 — Pointer/touch timeline range editor. Uses the same In/Out state as
+   Copy & Reuse; only ruler gestures create a range. Track editing and scrubbing
+   elsewhere keep their preexisting interactions. */
+function v729SnapTime(t){
+ return round(clamp(Math.round(Number(t||0)*20)/20,0,state.timeline.duration),2)
+}
+function v729DecorateTimelineTracks(){
+ const grid=$("#timelineGrid");if(!grid)return;
+ for(const lane of grid.querySelectorAll(".track-lane")){
+  for(const side of ["left","right"]){
+   const shade=document.createElement("span");
+   shade.className="v729-lane-dim v729-lane-"+side;
+   shade.setAttribute("aria-hidden","true");lane.append(shade)
+  }
+ }
+ v729RefreshTrimVisuals()
+}
+function v729RefreshTrimVisuals(){
+ const grid=$("#timelineGrid");if(!grid)return;
+ const raw=ui.reuseRange||{},a=Number.isFinite(raw.start)?raw.start:null,
+   b=Number.isFinite(raw.end)?raw.end:null,
+   selected=a!==null&&b!==null,from=selected?Math.max(0,Math.min(a,b)):0,
+   to=selected?Math.min(state.timeline.duration,Math.max(a,b)):0,
+   secW=timelinePx(),x0=round(from*secW,2),x1=round(to*secW,2),
+   width=Math.max(3,x1-x0);
+ const box=grid.querySelector("[data-v729-selection]"),
+   left=grid.querySelector(".v729-outside-left"),
+   right=grid.querySelector(".v729-outside-right");
+ if(box){
+  box.hidden=!selected;
+  box.style.left=x0+"px";box.style.width=width+"px";
+  box.title="Selected "+fmtTime(from)+" – "+fmtTime(to)+". Drag handles to adjust; drag middle to move.";
+  const caption=box.querySelector(".v729-trim-caption");
+  if(caption)caption.textContent=selected?fmtTime(from)+" – "+fmtTime(to):"Drag to select";
+  for(const h of box.querySelectorAll("[data-v729-handle]")){
+   const value=h.dataset.v729Handle==="start"?from:to;
+   h.setAttribute("role","slider");
+   h.setAttribute("aria-valuemin","0");
+   h.setAttribute("aria-valuemax",String(state.timeline.duration));
+   h.setAttribute("aria-valuenow",String(round(value,2)));
+   h.setAttribute("aria-valuetext",fmtTime(value))
+  }
+ }
+ if(left){left.style.width=x0+"px";left.style.display=selected?"":"none"}
+ if(right){right.style.left=x1+"px";right.style.right="0";right.style.display=selected?"":"none"}
+ for(const lane of grid.querySelectorAll(".track-lane")){
+  const shadeLeft=lane.querySelector(".v729-lane-left"),shadeRight=lane.querySelector(".v729-lane-right");
+  if(shadeLeft){shadeLeft.style.width=x0+"px";shadeLeft.style.display=selected?"":"none"}
+  if(shadeRight){shadeRight.style.left=x1+"px";shadeRight.style.right="0";shadeRight.style.display=selected?"":"none"}
+ }
+ const range=normalizedReuseRange(),copy=$("#copyReuseBtn"),trim=$("#v729TrimBtn"),
+   output=$("#reuseRangeOutput");
+ if(copy)copy.disabled=!range;
+ if(trim)trim.disabled=!(range&&range.end-range.start>=.25&&
+   (range.start>.001||range.end<state.timeline.duration-.001));
+ if(output){
+  if(range)output.textContent=fmtTime(range.start)+" – "+fmtTime(range.end)+
+    " · "+(range.end-range.start).toFixed(2)+"s selected";
+  else if(selected)output.textContent="Drag further to select at least 0.25 seconds";
+  else if(a!==null)output.textContent="In "+fmtTime(a)+" · set Out";
+  else if(b!==null)output.textContent="Out "+fmtTime(b)+" · set In";
+  else output.textContent="Drag on ruler to select, or use Set In / Set Out"
+ }
+}
+function v729UpdateRange(start,end){
+ ui.reuseRange={start:v729SnapTime(start),end:v729SnapTime(end)};
+ v729RefreshTrimVisuals()
+}
+function v729TrimPointerDown(event){
+ if(event.button!=null&&event.button!==0)return;
+ const lane=event.target.closest?.(".ruler-lane");
+ if(!lane||event.target.closest?.(".ruler-playhead"))return;
+ if(ui.timelineDragging)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(ui.playing)stopPlayback();
+ const handle=event.target.closest?.("[data-v729-handle]"),
+   selection=event.target.closest?.("[data-v729-selection]"),
+   mode=handle?handle.dataset.v729Handle:selection?"move":"new",
+   origin=v729SnapTime(timelineTimeFromPointer(event,lane));
+ const prev=ui.reuseRange||{},range=normalizedReuseRange();
+ ui.timelineDragging={kind:"v729-trim",pointerId:event.pointerId,lane,mode,
+   origin,startX:event.clientX,previous:{...prev},
+   initial:range?{...range}:null};
+ if(mode==="new")v729UpdateRange(origin,origin);
+ try{lane.setPointerCapture(event.pointerId)}catch{}
+}
+function v729TrimPointerMove(event){
+ const d=ui.timelineDragging;
+ if(!d||d.kind!=="v729-trim"||d.pointerId!==event.pointerId)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ const at=v729SnapTime(timelineTimeFromPointer(event,d.lane)),duration=state.timeline.duration;
+ if(d.mode==="new"){
+  v729UpdateRange(Math.min(d.origin,at),Math.max(d.origin,at));return
+ }
+ const initial=d.initial;if(!initial)return;
+ if(d.mode==="move"){
+  const span=initial.end-initial.start,
+    delta=v729SnapTime((event.clientX-d.startX)/timelinePx());
+  const from=clamp(round(initial.start+delta,2),0,duration-span);
+  v729UpdateRange(from,from+span)
+ }else if(d.mode==="start")v729UpdateRange(Math.min(at,initial.end-.25),initial.end);
+ else if(d.mode==="end")v729UpdateRange(initial.start,Math.max(at,initial.start+.25))
+}
+function v729TrimPointerFinish(event){
+ const d=ui.timelineDragging;
+ if(!d||d.kind!=="v729-trim"||d.pointerId!==event.pointerId)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ ui.timelineDragging=null;
+ try{d.lane.releasePointerCapture(event.pointerId)}catch{}
+ if(event.type==="pointercancel"){
+  ui.reuseRange=d.previous
+ }else if(d.mode==="new"&&Math.abs(event.clientX-d.startX)<4){
+  // Ruler click still scrubs without destroying a previous selection.
+  ui.reuseRange=d.previous;setPlayhead(d.origin)
+ }else if(!normalizedReuseRange()||
+   normalizedReuseRange().end-normalizedReuseRange().start<.25){
+  ui.reuseRange=d.previous;
+  toast("Drag across at least 0.25 seconds to create a trim selection.",2200)
+ }
+ v729RefreshTrimVisuals()
+}
+function v729TrimHandleKey(event){
+ const handle=event.target.closest?.("[data-v729-handle]");
+ if(!handle||!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
+ const r=normalizedReuseRange();if(!r)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ const amount=(event.shiftKey?1:.1)*(event.key==="ArrowLeft"?-1:1);
+ const time=handle.dataset.v729Handle==="start"?r.start:r.end;
+ const next=event.key==="Home"?0:event.key==="End"?state.timeline.duration:time+amount;
+ if(handle.dataset.v729Handle==="start")v729UpdateRange(clamp(next,0,r.end-.25),r.end);
+ else v729UpdateRange(r.start,clamp(next,r.start+.25,state.timeline.duration))
+}
+const v729PriorRenderTimeline=renderTimeline;
+renderTimeline=function(){
+ const result=v729PriorRenderTimeline();
+ v729DecorateTimelineTracks();
+ return result
+};
+function v729InstallTrim(){
+ const grid=$("#timelineGrid"),button=$("#v729TrimBtn");
+ if(!grid||!button||grid.dataset.v729Installed)return;
+ grid.dataset.v729Installed="1";
+ grid.addEventListener("pointerdown",v729TrimPointerDown,true);
+ grid.addEventListener("keydown",v729TrimHandleKey,true);
+ window.addEventListener("pointermove",v729TrimPointerMove,true);
+ window.addEventListener("pointerup",v729TrimPointerFinish,true);
+ window.addEventListener("pointercancel",v729TrimPointerFinish,true);
+ button.addEventListener("click",v729ConfirmTrim);
+ renderTimeline()
+}
+v729InstallTrim();
+
 </script>
 </body>
 </html>
