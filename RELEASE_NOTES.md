@@ -1,5 +1,16 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.29 Preview — November 28, 2026 (staging only)
+
+- Added an iPhone-style **two-ended draggable trim box** on the timeline ruler. Drag to create a selection; drag handles to set exact In/Out points; drag the selection to shift the interval. All track lanes visibly shade the discarded sections. Keyboard adjustment and Set In/Set Out remain supported.
+- Added **Trim to Selection** (confirmed destructive edit, Undo-supported) alongside the existing Copy & Reuse action. Only the active play option is changed.
+- On trim, preserve each on-ice player's position at the selected start, clip and rebase movement paths, keep all puck takes and additional-puck routes, insert appropriate puck-start state and shift all retained actions to 0.
+- Exact trimmed duration is persisted using optional timeline.trimExact metadata; old timeline defaults retain their original behavior.
+- The existing play-save/export workflows use the shortened result; production and backend schema remain untouched.
+- Added timeline crop regression tests and updated staging preview/version notes.
+
+---
+
 ## V7.1.28 Preview — November 25, 2026 (staging only)
 
 - **Goalie:** replaced the rectangular pad token with the same circular shape and size as skaters. A permanently visible large G replaces jersey numbers. Bench tokens show G; roster numbers are kept in saved data. Selection ring and glow are circular; goalie crease placement and Half Ice legibility are unchanged.

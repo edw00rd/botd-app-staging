@@ -70,4 +70,4 @@ for(const part of ['id="v728Wear"','id="v728Markings"','id="v728SceneList"',
 }
 assert.ok(app.includes('scenic?"-120 -120 1240 840"'),
   "Environment must have a scalable full-rink camera margin");
-console.log("V7.1.28 ice layers: normalization, deterministic wear, opacity, scene presets and compatibility passed.");
+console.log("V7.1.29 ice layers: normalization, deterministic wear, opacity, scene presets and compatibility passed.");
