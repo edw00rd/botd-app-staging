@@ -1,8 +1,17 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.28 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.29 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.28 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.29 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.29 Video-style timeline trimming — November 28, 2026
+
+- Click, hold and drag **on the timeline ruler** to select a range; the highlighted segment has movable **In/Out handles**, a draggable middle, and shaded excluded footage across all tracks. Left/right arrow keys adjust focused handles by 0.1 second, or 1 second with Shift.
+- Existing **Set In / Set Out** and **Copy & Reuse** remain available and now share the same visual selection. Scrubbing from event tracks, clip editing, and dragging existing actions are unchanged.
+- **Trim to Selection** edits **only the current play option** after confirmation, discards earlier/later time, resets the new timeline to 0, and keeps its exact duration (including segments shorter than 4 seconds). Undo/Redo restores the original.
+- Partial movements are proportionally sliced; player starting positions are repositioned to the selected In frame. All puck routes/takes (including independently routed additional pucks) are rebased and seeded from their In-frame puck state. In-progress puck flights continue through a shortened replacement pass-space segment.
+- Save play and video export then use the shortened timeline; no immediate cloud overwrite occurs until normal Save play. Saved-play schema remains backward-compatible via optional timeline.trimExact metadata.
+- Dedicated regression tests in scripts/validate-v7-trim.mjs verify actions, puck routing, frame positions, exact duration and range controls.
 
 ## V7.1.28 Layered rink MVP and circular goalie tokens — November 25, 2026
 
