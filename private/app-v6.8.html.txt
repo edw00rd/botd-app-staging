@@ -1406,13 +1406,16 @@ function normalizeTimelineData(raw,fallback={}){
   const base=fallback&&typeof fallback==="object"?fallback:{};
   const source=raw&&typeof raw==="object"?raw:{};
   const movements=sanitizeMovementList(Array.isArray(source.movements)?source.movements:base.movements||[]);
-  let duration=clamp(Number(source.duration??base.duration??12)||12,4,60);
-  for(const clip of movements)duration=Math.max(duration,Math.min(60,clip.start+clip.duration+.25));
-  duration=round(clamp(duration,4,60),2);
+  // Trimmed play options need an exact endpoint, even when a movement ends there.
+  // Untouched plays retain their original four-second minimum and .25s tail.
+  const trimExact=source.trimExact===true;
+  let duration=clamp(Number(source.duration??base.duration??12)||12,trimExact?.25:4,60);
+  for(const clip of movements)duration=Math.max(duration,Math.min(60,clip.start+clip.duration+(trimExact?0:.25)));
+  duration=round(clamp(duration,trimExact?.25:4,60),2);
   let puckTakes=Array.isArray(source.puckTakes)&&source.puckTakes.length?deepClone(source.puckTakes):Array.isArray(base.puckTakes)&&base.puckTakes.length?deepClone(base.puckTakes):[{id:uid("take"),name:"Puck Route A",events:[]}];
   puckTakes=puckTakes.map((take,index)=>({id:take?.id||uid("take"),name:take?.name||`Puck Route ${String.fromCharCode(65+index)}`,events:Array.isArray(take?.events)?deepClone(take.events):[]}));
   const activeTakeId=puckTakes.some(t=>t.id===source.activeTakeId)?source.activeTakeId:puckTakes.some(t=>t.id===base.activeTakeId)?base.activeTakeId:puckTakes[0].id;
-  return{duration,movements,puckTakes,activeTakeId}
+  return{duration,movements,puckTakes,activeTakeId,...(trimExact?{trimExact:true}:{})}
 }
 function captureVariationFromStateLike(source,id,name,sourceRange=null){
   const timeline=normalizeTimelineData(source?.timeline||{duration:source?.duration,movements:source?.movements,puckTakes:source?.puckTakes,activeTakeId:source?.activeTakeId},{duration:12,movements:[],puckTakes:[{id:"take_default",name:"Puck Route A",events:[]}],activeTakeId:"take_default"});
@@ -1490,6 +1493,124 @@ function copyAndReuseRange(){
   const newOption={id,name:`Option ${optionNumber}`,view:state.view,onIce:newOnIce,puckStart:deepClone(puckAtStart.pos),timeline:{duration:clamp(Math.max(4,Math.ceil(segment+2)),4,60),movements:sanitizeMovementList(copiedMovements),puckTakes:[{id:takeId,name:"Puck Route A",events:copiedEvents}],activeTakeId:takeId},drawings:deepClone(state.drawings),sourceRange:{optionId:sourceOption?.id||null,optionName:sourceName,start,end},createdAt:new Date().toISOString()};
   state.variations.push(newOption);state.activeVariationId=id;applyVariation(newOption);ui.playhead=clamp(segment,0,state.timeline.duration);ui.selectedType=null;ui.selectedId=null;ui.reuseRange={start:null,end:null};stopPlayback();renderAll();
   toast(puckAtStart.mode==="travel"?`Created ${newOption.name}. The copied range began during puck flight, so the puck starts loose at its exact position.`:`Created ${newOption.name} from ${fmtTime(start)}–${fmtTime(end)}. Continue the play from the copied endpoint.`,5200)
+}
+
+/* V7.1.29 — Trim the currently selected Option in place (not a video download).
+   Move the start state to the chosen In-point, slice crossing route geometry,
+   and shift all puck takes, including the 50 independently simulated pucks. */
+function v729TrimMovements(movements,start,end){
+ const result=[];
+ for(const clip of movements||[]){
+  const from=Math.max(start,Number(clip.start)||0);
+  const to=Math.min(end,(Number(clip.start)||0)+(Number(clip.duration)||0));
+  if(to-from<.05)continue;
+  const slice=trimMovementClip(clip,from,to);
+  slice.start=round(from-start,3);slice.duration=round(to-from,3);
+  if(slice.duration>=.05)result.push(slice)
+ }
+ return sanitizeMovementList(result)
+}
+function v729TrimPuckTake(take,start,end,puckStartInfo){
+ const duration=round(end-start,3),events=[],ids=Object.keys(puckStartInfo);
+ for(const id of ids){
+  const record=puckStartInfo[id],pos=deepClone(record.pos),
+    puckId=id==="puck"?{}:{puckId:id};
+  events.push({id:uid("pe"),...puckId,
+    ...(record.mode==="attached"&&record.holder?
+      {type:"possess",targetId:record.holder}:
+      {type:"place",target:deepClone(pos)}),
+    time:0,order:-1000000,replace:true,from:deepClone(pos)});
+  // If trimming starts in flight, continue the remaining visible segment.
+  // The physical coordinates are captured from the old puck trajectory;
+  // subsequent actions remain time-shifted with the original puck ID.
+  if(record.flight&&record.flight.remaining>.001){
+   const flight=record.flight,travel=Math.min(duration,flight.remaining);
+   if(travel>.01){
+    events.push({id:uid("pe"),...puckId,type:"passSpace",
+      time:0,order:-999999,replace:true,from:deepClone(pos),
+      target:deepClone(flight.cutTarget||flight.target),
+      speed:6,travelDuration:round(travel,3),ignoreDefense:true,
+      sauce:!!flight.sauce});
+    if(flight.holder&&flight.remaining<=duration-.001)
+      events.push({id:uid("pe"),...puckId,type:"possess",targetId:flight.holder,
+        time:round(flight.remaining,3),order:-999998,replace:true})
+   }
+  }
+ }
+ for(const event of take.events||[]){
+  const old=Number(event.time);
+  if(!Number.isFinite(old)||old<start-.0001||old>=end-.0001)continue;
+  events.push({...deepClone(event),time:round(Math.max(0,old-start),3)})
+ }
+ events.sort((a,b)=>a.time-b.time||(a.order||0)-(b.order||0));
+ return {...take,events}
+}
+function v729TrimToRange(range){
+ const {start,end}=range,segment=round(end-start,3);
+ if(segment<.25||segment>60)return false;
+ // Compute every route at the *old* start time, before moving the players.
+ const takeId=state.timeline.activeTakeId;
+ const puckIds=["puck",...(state.additionalPucks||[]).map(p=>p.id)];
+ const initialByTake=new Map();
+ try{
+  for(const take of state.timeline.puckTakes){
+   state.timeline.activeTakeId=take.id;
+   const info={};
+   for(const id of puckIds){
+    const timeline=buildPuckTimeline(id),ps=puckStateAt(start,timeline),
+      fallback=id==="puck"?state.puckStart:(state.additionalPucks||[]).find(p=>p.id===id);
+    const pos=deepClone(ps.pos||fallback||{x:500,y:300}),interval=ps.interval;
+    let flight=null;
+    if(ps.mode==="travel"&&interval?.kind==="travel"&&interval.start<start-.001&&interval.end>start+.001){
+     const remaining=interval.end-start,portion=Math.min(1,segment/remaining),
+       originalTarget=interval.path.at(-1);
+     const post=puckStateAt(interval.end+.01,timeline);
+     flight={remaining,source:interval.eventId,sauce:interval.sauce,
+       target:deepClone(originalTarget),
+       cutTarget:pointAtPolyline(interval.path,clamp((start-interval.start)/(interval.end-interval.start)+
+         portion*(1-(start-interval.start)/(interval.end-interval.start)),0,1)),
+       holder:post.mode==="attached"?post.holder:null}
+    }
+    info[id]={mode:ps.mode,holder:ps.holder,pos,flight}
+   }
+   initialByTake.set(take.id,info)
+  }
+ }finally{state.timeline.activeTakeId=takeId}
+ const originalOption=state.variations?.find(v=>v.id===state.activeVariationId),
+   originalStart=originalOption?.sourceRange||null;
+ pushHistory();
+ const positions={};
+ for(const id of Object.keys(state.onIce))positions[id]=deepClone(playerPositionAt(id,start));
+ const movements=v729TrimMovements(state.timeline.movements,start,end);
+ const newTakes=state.timeline.puckTakes.map(take=>
+   v729TrimPuckTake(take,start,end,initialByTake.get(take.id)));
+ const chosen=initialByTake.get(takeId)||initialByTake.values().next().value;
+ if(chosen?.puck?.pos)state.puckStart=deepClone(chosen.puck.pos);
+ for(const puck of state.additionalPucks||[]){
+  const at=chosen?.[puck.id]?.pos;if(at){puck.x=round(at.x,2);puck.y=round(at.y,2)}
+ }
+ state.onIce=positions;
+ state.timeline={...state.timeline,duration:round(segment,2),trimExact:true,
+   movements,puckTakes:newTakes,activeTakeId:takeId};
+ v7EnsureSemanticTimeline(state.timeline);
+ if(originalOption)originalOption.sourceRange={...deepClone(originalStart||{}),
+   trimmed:true,start,end};
+ ui.playhead=0;ui.selectedType=null;ui.selectedId=null;ui.possessionTargetId=null;
+ ui.reuseRange={start:null,end:null};
+ ui.v729LastTrim={start,end,segment};
+ syncActiveVariation();renderAll();
+ toast("Trimmed "+fmtTime(start)+"–"+fmtTime(end)+" to a "+segment.toFixed(1)+
+   "s play. Undo restores the original timeline; use Save play to publish.",5400);
+ return true
+}
+function v729ConfirmTrim(){
+ const range=normalizedReuseRange();
+ if(!range||range.end-range.start<.25)return toast("Drag across the timeline ruler to select at least 0.25 seconds.");
+ if(range.start<=.001&&range.end>=state.timeline.duration-.001)return toast("The selection already contains the full timeline.");
+ if(ui.playing)stopPlayback();
+ if(typeof confirm==="function"&&!confirm("Keep only "+fmtTime(range.start)+"–"+fmtTime(range.end)+
+   " in the active play option?\n\nThis removes the beginning and end and shifts the remaining actions to 0:00. Undo can restore it."))return false;
+ return v729TrimToRange(range)
 }
 function movementNeighborBounds(clip){
   const clips=movementClipsFor(clip.playerId),index=clips.findIndex(c=>c.id===clip.id),previous=index>0?clips[index-1]:null,next=index>=0&&index<clips.length-1?clips[index+1]:null;
