@@ -337,7 +337,7 @@ console.log("V7.1.29 left/right Half Ice goalie numerals and optional badges ver
  const firstInit=app.indexOf("\ninit();");
  const overlay=app.indexOf("const v724PriorObjectRender=renderObjectLayer;");
  const boot=app.indexOf("function v725RefreshInitialHalfIce(){");
- const scriptEnd=app.indexOf("\n</script>",boot);
+ const scriptEnd=app.indexOf("\n/* V7.1.29 — Pointer/touch timeline range editor",boot);
  assert.ok(firstInit>0&&overlay>firstInit&&boot>overlay&&scriptEnd>boot,
   "The first-frame refresh must run after init and the final goalie renderer");
  const source=app.slice(boot,scriptEnd);
