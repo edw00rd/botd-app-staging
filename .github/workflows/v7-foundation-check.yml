@@ -6,6 +6,7 @@ on:
       - feature/v7-hockey-platform-foundation
       - feature/v7-interactive-goals
       - feature/v7-cloud-playbook-foundation
+      - feature/v7-multiple-pucks
   workflow_dispatch:
 
 permissions:

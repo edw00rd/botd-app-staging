@@ -1,0 +1,418 @@
+import fs from "node:fs";
+import vm from "node:vm";
+import assert from "node:assert/strict";
+
+const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
+const shell=fs.readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+assert.match(app,/V7\.1\.29 Preview/);
+assert.match(shell,/V7\.1\.29 Preview/);
+assert.ok(app.includes('const V7_UI_VERSION="7.1.29"'));
+assert.ok(app.includes("const v717PreviousAddToIce=addToIce;"));
+assert.ok(app.includes("const v717PriorObjectRender=renderObjectLayer;"));
+assert.ok(app.includes("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;"));
+assert.ok(app.includes("const v717PriorFloatingSync=v7FloatingSync;"));
+assert.ok(app.includes('token.setAttribute("transform","rotate("+angle+") scale("+round(scale,4)+")")'),
+  "Coach, goalie, skater and player badge art must all counterrotate");
+assert.ok(app.includes('token.querySelectorAll("text").forEach(text=>text.removeAttribute("transform"))'),
+  "Legacy character rotations must be cleared to prevent upside-down labels");
+assert.ok(app.includes('label.setAttribute("transform","rotate("+angle+" "'),
+  "Player names must counterrotate around their view-relative anchor");
+assert.ok(app.includes('control.setAttribute("transform",base+" rotate("+angle+")")'),
+  "Puck and rink object control glyphs must remain upright");
+assert.ok(app.includes('if(state.view!=="half")return v717PreviousAddToIce(playerId);'),
+  "Full Ice placement must remain unchanged");
+
+const start=app.indexOf("function v717HalfAttackers(");
+const end=app.indexOf("const v717PreviousAddToIce=addToIce;",start);
+assert.ok(start>0&&end>start);
+const env={
+ state:{view:"half",halfSide:"right",ice:{
+  faceoffOffset:27,faceoffRadius:15,endSpotFromGoal:20,creaseRadius:6
+ },onIce:{}},
+ playerById:id=>env.players[id],
+ players:{},
+ v7IceGeometry:()=>({scale:4.8,y:30,yBottom:570,x:20,xRight:980,
+    blueLeft:330,blueRight:670,goalLeft:73,goalRight:927}),
+ v59WholeToHalfView:(p,side)=>side==="left"?{x:600-p.y,y:p.x}:{x:p.y,y:1000-p.x},
+ v59HalfViewToWhole:(p,side)=>side==="left"?{x:p.y,y:600-p.x}:{x:1000-p.y,y:p.x},
+ v59ValidPoint:p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.y),
+ dist:(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),
+ clamp:(n,a,b)=>Math.max(a,Math.min(b,n)),
+ round:(n,prec=2)=>Number(n.toFixed(prec)),
+ console,Math
+};
+env.v720GoalieCreaseSpawn=p=>({x:p.teamId==="A"?92:908,y:300});
+vm.runInNewContext(app.slice(start,end),env,{timeout:1500});
+function v(p,side){return env.v59WholeToHalfView(p,side)}
+for(const side of ["right","left"]){
+ env.state.halfSide=side;env.state.onIce={};env.players={};
+ const setup=env.v717HalfFaceoffLayout(),attacker=side==="right"?"A":"B",defender=side==="right"?"B":"A";
+ const a={id:"off-center",teamId:attacker,role:"skater",position:"C"};
+ const b={id:"def-center",teamId:defender,role:"skater",position:"C"};
+ const ac=env.v717HalfSpawnPoint(a);
+ assert.ok(env.v717OnVisibleHalf(ac),side+": attacking center must spawn on displayed ice");
+ assert.ok(Math.abs(v(ac,side).x-setup.faceoff.x)<.01);
+ assert.ok(Math.abs(v(ac,side).y-(setup.faceoff.y+13))<.01);
+ env.players[a.id]=a;env.state.onIce[a.id]=ac;
+ const bc=env.v717HalfSpawnPoint(b);
+ assert.ok(env.v717OnVisibleHalf(bc),side+": defending center must spawn on displayed ice");
+ assert.ok(Math.abs(v(bc,side).y-(setup.faceoff.y-13))<.01,
+  "Opposing center must remain across faceoff dot, not relocate to the slot");
+ env.players[b.id]=b;env.state.onIce[b.id]=bc;
+ for(const position of ["LW","RW","F1","F2","F3","LD","RD"]){
+  for(const [teamId,role] of [[attacker,"offense"],[defender,"defense"]]){
+   const p={id:role+position,teamId,position,role:"skater"};
+   const point=env.v717HalfSpawnPoint(p);
+   assert.ok(env.v717OnVisibleHalf(point),side+" "+role+" "+position+" must be visible");
+   env.players[p.id]=p;env.state.onIce[p.id]=point;
+  }
+ }
+ assert.ok(v(env.state.onIce.offenseLD,side).y>setup.faceoff.y,
+  "Offensive defencemen stay nearer blue line");
+ assert.ok(v(env.state.onIce.defenseRD,side).y<setup.faceoff.y,
+  "Defensive defencemen protect net side");
+ for(const teamId of ["A","B"]){
+   const goalie={id:"goalie-"+teamId,teamId,role:"goalie",position:"G"};
+   const goaliePos=env.v717HalfSpawnPoint(goalie);
+   const g=env.v7IceGeometry(),line=teamId==="A"?g.goalLeft:g.goalRight;
+   assert.ok(Math.abs(goaliePos.x-line)<g.scale*6,
+     teamId+": goalie must stay inside its own crease");
+   assert.equal(env.v717OnVisibleHalf(goaliePos),teamId===defender,
+     side+": the away goalie is legitimately offscreen");
+ }
+ const coach={id:"coach",teamId:attacker,role:"coach",position:"COACH"};
+ assert.ok(env.v717OnVisibleHalf(env.v717HalfSpawnPoint(coach)));
+ const extra={id:"second-center",teamId:attacker,role:"skater",position:"C"};
+ const extraPos=env.v717HalfSpawnPoint(extra);
+ assert.ok(env.v717OnVisibleHalf(extraPos));
+ assert.ok(Math.hypot(extraPos.x-ac.x,extraPos.y-ac.y)>=31,
+  "Second center must not stack on first");
+}
+const slotStart=app.indexOf("const v717PriorEquipmentActionSlots=v7EquipmentActionSlots;");
+const slotEnd=app.indexOf("/* All body-portaled buttons",slotStart);
+assert.ok(slotStart>0&&slotEnd>slotStart);
+env.v7EquipmentActionSlots=item=>({original:item.id});
+env.v7CollisionGeometry=()=>({length:48,width:20,radius:0});
+env.v59ClampVisiblePoint=p=>p;
+vm.runInNewContext(app.slice(slotStart,slotEnd),env,{timeout:1500});
+const obj={id:"tire",x:800,y:300,rotation:0};
+for(const side of ["right","left"]){
+ env.state.halfSide=side;
+ const center=v(obj,side),slots=env.v7EquipmentActionSlots(obj);
+ const topLeft=v(slots.topLeft,side),topRight=v(slots.topRight,side);
+ const bottomLeft=v(slots.bottomLeft,side),bottomRight=v(slots.bottomRight,side);
+ assert.ok(topLeft.x<center.x&&topRight.x>center.x,"Buttons must stay in screen left/right corners");
+ assert.ok(topLeft.y<center.y&&bottomLeft.y>center.y,"Buttons must stay in screen top/bottom corners");
+ assert.ok(bottomLeft.x<bottomRight.x&&bottomLeft.y===bottomRight.y);
+}
+console.log("V7.1.29 Half Ice camera, faces, controls and visible spawns verified.");
+
+
+const v719Start=app.indexOf("function v719HalfCornerSlots(");
+const v719End=app.indexOf("const v719PreviousEquipmentActionSlots=",v719Start);
+assert.ok(v719Start>0&&v719End>v719Start,"new Half Ice control geometry present");
+vm.runInNewContext(app.slice(v719Start,v719End),env,{timeout:1500});
+for(const side of ["right","left"]){
+  env.state.halfSide=side;
+  for(const item of [{x:910,y:300,rotation:0,type:"net"},
+     {x:845,y:220,rotation:52,type:"divider"},
+     {x:745,y:360,rotation:90,type:"tire"}]){
+    const center=v(item,side),s=env.v719HalfCornerSlots(item,side);
+    const TL=v(s.topLeft,side),TR=v(s.topRight,side);
+    const BL=v(s.bottomLeft,side),BR=v(s.bottomRight,side);
+    assert.ok(TL.x<center.x&&TR.x>center.x&&TL.y<center.y&&BL.y>center.y,
+      side+": object controls occupy visible corners");
+    assert.ok(Math.abs((TL.x+TR.x)/2-center.x)<.001,side+": controls centered horizontally");
+    assert.ok(Math.abs((TL.y+BL.y)/2-center.y)<.001,side+": controls centered vertically");
+    assert.ok(Math.abs(TR.y-TL.y)<.001&&Math.abs(BR.x-TR.x)<.001,
+      side+": object controls remain symmetric");
+  }
+  const bounds={x:side==="right"?730:130,y:175,width:135,height:165};
+  const pair=env.v719HalfGroupControls(bounds,side),h=pair.view;
+  assert.ok(h.rotate.y<h.label.y,side+": rotate above selection label");
+  assert.ok(h.remove.x>h.rotate.x,side+": delete at visible right");
+  assert.ok(Math.abs(h.rotate.x-h.label.x)<.001,side+": centered rotate control");
+  for(const key of ["rotate","remove","label"]){
+    const actual=v(pair.world[key],side);
+    assert.ok(Math.abs(actual.x-h[key].x)<.001&&Math.abs(actual.y-h[key].y)<.001,
+      side+": group handles round-trip through the camera");
+  }
+}
+assert.ok(app.includes('outline.style.animation="none"'),"goalie outline CSS spin disabled");
+assert.ok(app.includes("v719PreviousNetRotateHandle=v7NetRotateHandlePosition"),
+  "net handle follows the displayed view");
+console.log("V7.1.29 Half Ice goalie, puck, net, equipment and group controls verified.");
+
+
+
+/* Placement must honor team/crease independently of camera. A far-end
+   announcement must point toward the bottom of Half Ice, not relocate goalie. */
+const goalieStart=app.indexOf("function v720GoalieCreaseCoordinates(");
+const goalieEnd=app.indexOf("// Other placement paths",goalieStart);
+assert.ok(goalieStart>0&&goalieEnd>goalieStart,"V7.1.29 goalie/announcement helpers missing");
+const home={
+ state:{view:"whole",halfSide:"right",ice:{creaseRadius:6},onIce:{}},
+ v7IceGeometry:()=>({scale:4.8,centerX:500,centerY:300,goalLeft:73,goalRight:927}),
+ v59ValidPoint:p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.y),
+ playerById:()=>null,
+ round:(n,d=2)=>Number(n.toFixed(d)),Math
+};
+vm.runInNewContext(app.slice(goalieStart,goalieEnd),home,{timeout:1500});
+for(const view of ["whole","half"])for(const side of ["left","right"]){
+ home.state.view=view;home.state.halfSide=side;
+ for(const team of ["A","B"]){
+  const line=team==="A"?73:927,sign=team==="A"?1:-1;
+  for(const index of [0,1,2,3,4,9]){
+   const pos=home.v720GoalieCreaseCoordinates(team,index),radius=6*4.8;
+   assert.ok((pos.x-line)*sign>0,team+" starts inside its own net");
+   assert.ok(Math.hypot(pos.x-line,pos.y-300)<radius,
+     "All goalies stay physically inside their own crease");
+   const expected=view==="whole"||(side==="left"?team==="A":team==="B");
+   const info=home.v720AnnouncementSpec({role:"goalie",teamId:team},pos,view,side);
+   assert.equal(info.visible,expected,team+" "+view+" "+side+" visibility");
+   assert.equal(info.edge,expected?"player":"bottom");
+   if(!expected)assert.match(info.subtitle,/FAR (LEFT|RIGHT) CREASE · OFFSCREEN/);
+  }
+ }
+}
+assert.ok(app.includes('if(type==="goalie")return v720GoalieCreaseSpawn(player);'),
+  "Half Ice goalie must bypass shared faceoff placement");
+assert.ok(app.includes('const spawn=player.role==="goalie"?v720GoalieCreaseSpawn(player):'),
+  "Every view must use a team-specific goalie crease");
+assert.ok(app.includes('v720QueueAnnouncement(playerId)'),"Announcements for every person added");
+assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)}'),
+  "Far-end arrow must point below the rink toward the actual player");
+console.log("V7.1.29 goalie ownership and speech bubble pointers verified.");
+
+
+/* V7.1.29 Option 1 broadcast player-entry banner.
+   Test geometry and all four requested content slots against real helper output:
+   jersey number left, name top, CTA bottom, position bottom right. */
+const bannerBegin=app.indexOf("function v720BubblePath(");
+const bannerEnd=app.indexOf("function v720DrawAnnouncement(",bannerBegin);
+assert.ok(bannerBegin>0&&bannerEnd>bannerBegin,
+  "Broadcast announcement drawing helpers must be present");
+const banner={
+ clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
+ round:(x,p=2)=>Number(x.toFixed(p)),
+ svgEl:(tag,attrs={})=>({tag,attrs,children:[],textContent:"",
+   append(child){this.children.push(child)},
+   setAttribute(k,v){this.attrs[k]=v},
+   getComputedTextLength(){return this.textContent.length*
+     Number(this.attrs["font-size"]||12)*.61}})
+};
+vm.runInNewContext(app.slice(bannerBegin,bannerEnd),banner,{timeout:1500});
+for(const [w,h] of [[292,68],[225,68],[166,68]]){
+ for(const [direction,tip] of [["down",{x:130,y:190}],
+                               ["up",{x:130,y:30}]]){
+  const l=12,t=72,shape=banner.v720BubblePath(l,t,w,h,130,tip,direction);
+  assert.match(shape,/^M /,"Banner begins with an SVG path move");
+  assert.match(shape,/ Z$/,"Banner outline closes");
+  assert.ok((shape.match(/Q /g)||[]).length>=3,
+    "Option 1 banner has gently rounded corners");
+  assert.ok(shape.includes(String(tip.x))&&shape.includes(String(tip.y)),
+    "Both directional tails point toward their intended target");
+  assert.doesNotMatch(shape,/NaN|Infinity|undefined/);
+ }
+}
+const build=(player,w=292,far=false)=>{
+ const group={children:[],append(node){this.children.push(node)}};
+ banner.v727BroadcastBanner(group,12,72,w,68,player,far);
+ const byClass=className=>group.children.find(x=>x.attrs.class===className);
+ return {group,byClass}
+};
+for(const {role,number,position,expectedNum,expectedPos} of [
+ {role:"skater",number:21,position:"RW",expectedNum:"21",expectedPos:"RW"},
+ {role:"skater",number:7,position:"F2",expectedNum:"7",expectedPos:"F2"},
+ {role:"goalie",number:30,position:"G",expectedNum:"30",expectedPos:"G"},
+ {role:"coach",number:null,position:null,expectedNum:"C",expectedPos:"C"},
+ {role:"manager",number:null,position:null,expectedNum:"C",expectedPos:"C"}]){
+ const {byClass}=build({role,number,position,name:"Clapper McSnap"});
+ const jersey=byClass("v727-jersey-number"),name=byClass("v727-player-name"),
+       action=byClass("v727-entry-action"),badge=byClass("v727-position-label");
+ assert.ok(jersey&&name&&action&&badge,"All four user-specified text slots present");
+ assert.equal(jersey.textContent,expectedNum);
+ assert.equal(badge.textContent,expectedPos);
+ assert.equal(action.textContent,"TO THE ICE!");
+ assert.ok(Number(jersey.attrs.x)<Number(name.attrs.x),"Jersey number must be on left");
+ assert.ok(Number(name.attrs.y)<Number(action.attrs.y),"Name must be on top");
+ assert.ok(Number(badge.attrs.x)>Number(action.attrs.x),
+   "Position must live in lower-right corner");
+ assert.ok(Number(badge.attrs.y)>Number(name.attrs.y),
+   "Position belongs in the lower half, not the name row");
+}
+for(const width of [166,225,292]){
+ const {byClass}=build({role:"skater",name:"A Very Long Player Name Indeed",
+    number:111,position:"LD"},width,true);
+ const name=byClass("v727-player-name"),far=byClass("v727-far-end");
+ assert.ok(far&&far.textContent==="FAR END",
+   "Offscreen players retain a visible far-end cue");
+ assert.ok(name.textContent.length<32,
+   "Long player names must be shortened rather than spilling into position");
+ assert.ok(byClass("v727-jersey-number").attrs["font-size"]<=26,
+   "Three-digit jersey numbers should fit the left panel");
+}
+assert.ok(app.includes('const w=Math.min(292,Math.max(166,rect.width-24)),h=68'),
+ "Broadcast banner must stay compact and width responsive");
+assert.ok(app.includes('tip={x:round(cx,2),y:round(rect.bottom-5,2)};tail="down"'),
+ "Far-end announcement must point toward the bottom of the visible rink");
+assert.ok(app.includes('tip={x:round(pixel.x,2),y:round(pixel.y+10,2)};tail="up"'),
+ "On-screen arrival below the player must point upward");
+assert.ok(app.includes('root.setAttribute("aria-label",player.name+" to the ice. "+info.subtitle)'),
+ "Announcement retains accessible speech and offscreen location");
+console.log("V7.1.29 broadcast announcement geometry, typography and role badges verified.");
+
+// V7.1.29: the remove pill is drawn with symmetric SVG geometry, not a
+// font glyph whose baseline can drift when the Half Ice camera rotates.
+const minusDraw=app.slice(app.indexOf("function v7MultiDraw(){"),
+  app.indexOf("function v7MultiWorldPoint(",app.indexOf("function v7MultiDraw(){")));
+assert.ok(minusDraw.includes('const minus=svgEl("line",{x1:del.x-5,y1:del.y,x2:del.x+5,y2:del.y,'),
+  "Multi-select minus must be centered at the circle center in Full Ice");
+assert.ok(minusDraw.includes('class:"v7-multi-minus"')&&
+  minusDraw.includes('"stroke-linecap":"round"'),
+  "Multi-select minus must use a round-capped SVG stroke");
+const minusCamera=app.slice(app.indexOf("const v719PreviousFloatingSync=v7FloatingSync;"),
+  app.indexOf("Object.assign(window.BOTD_TEST,{\n  v719HalfCornerSlots:"));
+assert.ok(minusCamera.includes('world.querySelector(".v7-multi-minus")'),
+  "Half Ice must find the centered minus in its floating-control layer");
+assert.ok(minusCamera.includes('set(minus,{x:point.x-5,y:point.y},"x1","y1")')&&
+  minusCamera.includes('set(minus,{x:point.x+5,y:point.y},"x2","y2")'),
+  "Half Ice must recenter both ends of the minus around the delete control");
+assert.ok(minusCamera.includes('minus.setAttribute("transform","rotate("+angle+'),
+  "Half Ice must counterrotate the minus stroke to remain horizontal");
+console.log("V7.1.29 centered multi-select remove stroke verified.");
+
+
+/* V7.1.29: The Half Ice goalie number must be legible in either camera.
+   Older passes rotate an individual numeral even when its pad is upright.
+   Verify a final dedicated overlay corrects all text without touching pads. */
+const v724Start=app.indexOf("function v724OrientGoalieContents(");
+const v724End=app.indexOf("const v724PriorObjectRender=renderObjectLayer;",v724Start);
+assert.ok(v724Start>0&&v724End>v724Start,"Goalie overlay helper missing");
+const goalieOverlayTest={svgEl:(tag,attributes)=>({tag,attributes,children:[],
+ append(node){this.children.push(node)}})};
+vm.runInNewContext(app.slice(v724Start,v724End),goalieOverlayTest,{timeout:1000});
+const makeVisualNode=(classes,children=[])=>({
+ children,attrs:{transform:"rotate(-90 0 0)"},removed:[],
+ classList:{contains:c=>classes.includes(c)},
+ style:{removeProperty(prop){if(prop==="transform")this.cleared=true}},
+ removeAttribute(key){this.removed.push(key);delete this.attrs[key]},
+ querySelectorAll:selector=>selector==="text"?children.filter(c=>c.tag==="text"):[]
+});
+for(const angle of [-90,90]){
+ const number=makeVisualNode(["token-number","goalie-token-number"]);
+ const badgeLetter=makeVisualNode([]);badgeLetter.tag="text";
+ const badge=makeVisualNode(["token-role-badge"],[badgeLetter]);
+ const leadership=makeVisualNode(["token-leadership"]);
+ const pad=makeVisualNode(["goalie-pad"]);
+ const token={children:[pad,number,badge,leadership],nextSibling:{kind:"name"}};
+ const group={insertBefore(node,at){this.layer=node;this.before=at}};
+ const transform="rotate("+angle+") scale(0.36)";
+ const layer=goalieOverlayTest.v724OrientGoalieContents(group,token,transform);
+ assert.equal(layer.attributes.transform,transform,"Wrong camera orientation: "+angle);
+ assert.equal(group.layer,layer,"Overlay is inserted into goalie group");
+ assert.equal(group.before,token.nextSibling,"Overlay draws above body and below name");
+ assert.deepEqual(Array.from(layer.children),[number,badge,leadership],
+  "Only jersey number, G badge and leadership marks are separated");
+ assert.ok(!layer.children.includes(pad),"Goalie body must not be moved");
+ for(const child of [number,badge,badgeLetter,leadership]){
+  assert.ok(child.removed.includes("transform"),"Legacy SVG rotation was not cleared");
+  assert.equal(child.style.cleared,true,"Legacy CSS rotation was not cleared")
+ }
+}
+assert.ok(app.includes('if(state.view!=="half")return result;'),
+ "Full Ice must remain unchanged");
+assert.ok(app.includes('if(playerById(group.dataset.playerId)?.role!=="goalie")continue'),
+ "The fix must not affect skaters or coaches");
+assert.ok(app.includes("v724OrientGoalieContents(group,token,labelsTransform)"),
+ "The goalie overlay must run after all earlier render passes");
+console.log("V7.1.29 left/right Half Ice goalie numerals and optional badges verified.");
+
+
+/* V7.1.29: saved Half Ice initial state was rendered by the old goalie
+   rotation pass because init() executes before the V7.1.17+ decorators.
+   Validate the last boot refresh actually calls the FINAL renderer for
+   both Half Ice camera sides, and leaves Full Ice untouched. */
+{
+ const firstInit=app.indexOf("\ninit();");
+ const overlay=app.indexOf("const v724PriorObjectRender=renderObjectLayer;");
+ const boot=app.indexOf("function v725RefreshInitialHalfIce(){");
+ const scriptEnd=app.indexOf("\n/* V7.1.29 — Pointer/touch timeline range editor",boot);
+ assert.ok(firstInit>0&&overlay>firstInit&&boot>overlay&&scriptEnd>boot,
+  "The first-frame refresh must run after init and the final goalie renderer");
+ const source=app.slice(boot,scriptEnd);
+ for(const side of ["left","right"]){
+  const calls=[],ctx={window:{__BOTD_READY:true},
+   state:{view:"half",halfSide:side},ui:{playhead:3.5},
+   renderFrame:time=>{calls.push(time)}};
+  vm.runInNewContext(source,ctx,{timeout:1000});
+  assert.deepEqual(calls,[3.5],side+" saved Half Ice must repaint on startup");
+  assert.equal(ctx.v725RefreshInitialHalfIce(),true);
+  assert.deepEqual(calls,[3.5,3.5],side+" must use the newest active render stack");
+  ctx.state.view="whole";
+  assert.equal(ctx.v725RefreshInitialHalfIce(),false);
+  assert.deepEqual(calls,[3.5,3.5],"Full Ice must not repaint");
+ }
+ const pending={window:{__BOTD_READY:false},state:{view:"half",halfSide:"right"},
+  ui:{playhead:2},renderFrame:()=>{throw new Error("Rendered before boot")}};
+ vm.runInNewContext(source,pending,{timeout:1000});
+ assert.equal(pending.v725RefreshInitialHalfIce(),false);
+}
+console.log("V7.1.29 initial Half Ice goalie startup repaint verified for both cameras.");
+
+
+/* V7.1.29: The goalie body must remain parallel to the camera-rotated goal
+   line (horizontal in Half Ice), while text counters the camera. This tests
+   the actual last-rendered SVG transforms for both ends, not just the label. */
+{
+ const begin=app.indexOf("const v724PriorObjectRender=renderObjectLayer;");
+ const end=app.indexOf("/* V7.1.25",begin);
+ assert.ok(begin>0&&end>begin,"Final goalie render override must precede startup refresh");
+ const code=app.slice(begin,end);
+ for(const side of ["left","right"]){
+  const calls=[];
+  const token={attrs:{},removed:[],
+   style:{removeProperty(name){if(name==="transform")this.cleared=true}},
+   setAttribute(name,value){this.attrs[name]=value}};
+  const ring={classList:{contains:name=>name==="selection-ring"},
+   attrs:{transform:"rotate(90)"},style:{animation:"spin"},
+   removeAttribute(name){delete this.attrs[name];this.cleared=true}};
+  const goalie={dataset:{playerId:"goalie"},children:[ring],
+   querySelector:selector=>selector===".ice-token"?token:null};
+  const skater={dataset:{playerId:"skater"},children:[],
+   querySelector:()=>{throw new Error("Skater rendering was modified")}};
+  const ctx={state:{view:"half",halfSide:side,ice:{}},
+   renderObjectLayer:()=>{calls.push("base");return "ok"},
+   v59CounterAngle:()=>side==="left"?-90:90,
+   v7OnIceSymbolMetrics:()=>({goalieScale:0.36}),
+   v7IceGeometry:()=>({scale:4.8}),
+   round:v=>Math.round(v*10000)/10000,
+   playerById:id=>({role:id==="goalie"?"goalie":"skater"}),
+   $:()=>({querySelectorAll:()=>[goalie,skater]}),
+   v724OrientGoalieContents:(g,t,transform)=>calls.push({g,t,transform})};
+  vm.runInNewContext(code,ctx,{timeout:1000});
+  assert.equal(ctx.renderObjectLayer(4),"ok");
+  assert.equal(token.attrs.transform,"scale(0.36)",
+   side+" pads must inherit camera rotation, not counterrotate upright");
+  assert.equal(token.style.cleared,true,"Remove old CSS overrides from pad");
+  assert.equal(ring.cleared,true,"Old ring counterrotation must be cleared");
+  assert.equal(ring.attrs.transform,undefined);
+  assert.equal(ring.style.animation,"none");
+  assert.equal(calls.length,2,"Underlying renderer + goalie overlay only");
+  assert.equal(calls[1].transform,
+   "rotate("+(side==="left"?-90:90)+") scale(0.36)",
+   side+" goalie number must counterrotate to screen upright");
+  assert.equal(calls[1].g,goalie);
+  assert.equal(calls[1].t,token);
+  // The long Y axis of the full-ice goalie pad rotates into X in Half Ice;
+  // the numerals have zero net rotation once the camera is applied.
+  const cameraAngle=side==="left"?90:-90;
+  assert.ok(Math.abs(Math.cos(cameraAngle*Math.PI/180))<1e-10);
+  assert.equal(cameraAngle+(side==="left"?-90:90),0);
+  ctx.state.view="whole";
+  const oldCalls=calls.length;
+  ctx.renderObjectLayer(5);
+  assert.equal(calls.length,oldCalls+1,"Full Ice must skip the goalie overlay");
+ }
+}
+console.log("V7.1.29 full-body goalie direction matches the goal line for both Half Ice cameras.");
