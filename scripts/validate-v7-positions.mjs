@@ -3,7 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.29 Preview/);
+assert.match(app,/V7\.1\.30 Preview/);
 assert.ok(app.includes('letter.textContent="G";token.append(letter)'),
   "Goalie must always display G");
 assert.ok(app.includes('token.append(svgEl("circle",{r:23,fill:colors.primary,stroke:colors.trim,"stroke-width":6}))'),
