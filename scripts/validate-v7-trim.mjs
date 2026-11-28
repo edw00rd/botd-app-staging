@@ -3,19 +3,64 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const app=fs.readFileSync(new URL("../private/app-v6.8.html.txt",import.meta.url),"utf8");
-assert.match(app,/V7\.1\.29 Preview/);
+assert.match(app,/V7\.1\.30 Preview/);
 for(const marker of [
   'id="v729TrimBtn"', 'data-v729-selection', 'data-v729-handle="start"',
   'data-v729-handle="end"', 'function v729TrimPointerDown(event)',
   'function v729TrimPointerMove(event)', 'function v729TrimPointerFinish(event)',
   'grid.addEventListener("pointerdown",v729TrimPointerDown,true)',
   'window.addEventListener("pointerup",v729TrimPointerFinish,true)',
+  'function v730ClearTrimSelection()',
+  'function v730CancelTrimOnOutsidePointer(event)',
+  'function v730CancelTrimOnEscape(event)',
+  'window.addEventListener("pointerdown",v730CancelTrimOnOutsidePointer,true)',
+  'window.addEventListener("keydown",v730CancelTrimOnEscape,true)',
   'function v729TrimToRange(range)', 'function v729TrimPuckTake(take,start,end,puckStartInfo)',
   'renderTimeline=function(){', 'v729DecorateTimelineTracks();',
   'const trimExact=source.trimExact===true'
 ])assert.ok(app.includes(marker),"Missing trim feature: "+marker);
 assert.ok(app.indexOf('v729DecorateTimelineTracks()')>app.indexOf('const v7PrimaryRenderTimeline=renderTimeline'),
   "Ruler trim must decorate after additional puck rows");
+
+// Cancelling an unused selection must never invoke a trim or interfere with editing.
+// Mouse, touch, and pen all use the same PointerEvent path.
+{
+ const begin=app.indexOf("function v730ClearTrimSelection()");
+ const end=app.indexOf("const v729PriorRenderTimeline=renderTimeline;",begin);
+ assert.ok(begin>0&&end>begin);
+ let renders=0,dialogOpen=false,prevented=false,stopped=false;
+ const ctx={ui:{reuseRange:{start:6,end:19.5}},
+   v729RefreshTrimVisuals:()=>{renders++},
+   document:{querySelector:()=>dialogOpen?{}:null}};
+ vm.runInNewContext(app.slice(begin,end)+
+   "\nthis.dismissOutside=v730CancelTrimOnOutsidePointer;"+
+   "this.dismissEsc=v730CancelTrimOnEscape;",ctx,{timeout:1200});
+ const target=kind=>({closest:selector=>{
+   if(selector==="[data-v729-selection]")return kind==="selection"?{}:null;
+   if(selector.includes("#v729TrimBtn"))return kind==="action"?{}:null;
+   return null
+ }});
+ const pointer=(kind,pointerType="mouse")=>ctx.dismissOutside({
+   button:0,pointerType,target:target(kind)});
+ pointer("selection");assert.equal(ctx.ui.reuseRange.start,6,"Dragging the selection stays active");
+ pointer("action");assert.equal(ctx.ui.reuseRange.start,6,"Range action controls preserve selection");
+ for(const pointerType of ["mouse","touch","pen"]){
+   ctx.ui.reuseRange={start:6,end:19.5};
+   pointer("outside",pointerType);
+   assert.equal(ctx.ui.reuseRange.start,null,pointerType+" outside click cancels");
+   assert.equal(ctx.ui.reuseRange.end,null);
+ }
+ ctx.ui.reuseRange={start:3,end:8};dialogOpen=true;
+ ctx.dismissEsc({key:"Escape",defaultPrevented:false});
+ assert.equal(ctx.ui.reuseRange.start,3,"Native dialog Escape must keep priority");
+ dialogOpen=false;
+ ctx.dismissEsc({key:"Escape",defaultPrevented:false,
+   preventDefault:()=>{prevented=true},
+   stopImmediatePropagation:()=>{stopped=true}});
+ assert.equal(ctx.ui.reuseRange.start,null,"Escape clears the yellow range");
+ assert.ok(prevented&&stopped,"Handled Escape must not trigger other modes");
+ assert.ok(renders>=4,"Clearing selection repaints overlays without changing play data");
+}
 
 // Exact trimmed duration must survive active-option normalization and saved-play roundtrips.
 {

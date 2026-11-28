@@ -1,5 +1,14 @@
 # B.O.T.D. Hockey Playbook Studio — Release Notes
 
+## V7.1.30 Preview — November 28, 2026 (staging only)
+
+- Press **Esc** or click/tap/pen outside the trim box to cancel an unused timeline range. Supports ice, players, puck, other tracks and unrelated controls.
+- Retain the selection when manipulating the yellow box, its handles, Trim to Selection, Copy & Reuse or Set In/Out.
+- Selection cancellation changes no play data or playhead position. No X control, saved-play schema, puck/ice behavior or production changes.
+- Added regression coverage for keyboard and mouse/touch/pen dismissal.
+
+---
+
 ## V7.1.29 Preview — November 28, 2026 (staging only)
 
 - Added an iPhone-style **two-ended draggable trim box** on the timeline ruler. Drag to create a selection; drag handles to set exact In/Out points; drag the selection to shift the interval. All track lanes visibly shade the discarded sections. Keyboard adjustment and Set In/Set Out remain supported.

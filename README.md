@@ -1,8 +1,16 @@
-# B.O.T.D. Hockey Playbook Studio — V7.1.29 staging preview
+# B.O.T.D. Hockey Playbook Studio — V7.1.30 staging preview
 
 Copyright © 2026 FENRIR LLC. All rights reserved.
 
-**Staging UI milestone: V7.1.29 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+**Staging UI milestone: V7.1.30 Preview.** The saved-play schema and stable production release remain v6.8.2. This is a preview label, not a production promotion. The upper-left header displays the staging version.
+
+## V7.1.30 Dismiss timeline selection — November 28, 2026
+
+- Press **Esc** to dismiss an unused yellow trim selection, with no edits to the play or playhead.
+- A primary mouse click, touchscreen tap or pen press **anywhere outside the yellow selection box** clears it, including the ice, a player, the puck, controls, or timeline tracks.
+- Clicking and dragging within the trim box or its In/Out handles keeps the selection. **Trim to Selection**, **Copy & Reuse**, and **Set In/Set Out** also retain the range for their intended actions.
+- No close X is added. No changes to trimming math, saved data, puck physics, other timeline editing, or production.
+- Added pointer/keyboard cancellation regression coverage.
 
 ## V7.1.29 Video-style timeline trimming — November 28, 2026
 
